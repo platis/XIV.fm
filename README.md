@@ -16,6 +16,7 @@ Implemented:
 - Atomic immutable overlay-state snapshots.
 - One local/remote player-card rendering path.
 - Strict character name and home-world matching.
+- Typed location snapshots using current world, territory, map, and instance IDs.
 - Client-side remote distance filtering, defaulting to 8 yalms and clamped to 1–20.
 - Unit-tested anchoring, identity, snapshot, and visibility behavior.
 

@@ -29,7 +29,7 @@ _Visual direction: placeholder until Phase 6_
 
 - [x] Replace direct renderer state with atomic immutable overlay snapshots.
 - [x] Define typed character identity with strict name and home-world matching.
-- [ ] Define location-scope models from supported Dalamud APIs.
+- [x] Define location-scope models from typed current-world, territory, map, and instance APIs.
 - [x] Support local and remote card instances through one renderer pipeline.
 - [x] Add client-side 8-yalm filtering with a configurable 1–20 range for remote players.
 - [ ] Handle login/logout, world travel, territory/instance changes, object disappearance, camera projection failure, duties, and plugin disposal.
@@ -113,5 +113,5 @@ This phase is intentionally collaborative with the product owner.
 
 1. Run `/xivfm mock` in a Dalamud development environment and validate local/remote anchors visually.
 2. Record findings for race/height, nameplate visibility, camera, UI scale, and the 8-yalm boundary.
-3. Add anchor diagnostics and finish lifecycle/world-travel handling.
-4. Define the exact supported Dalamud location identifiers before freezing the v1 sync contract.
+3. Add projected-anchor diagnostics and finish lifecycle/world-travel handling.
+4. Validate current-world, territory, map, and instance changes in game before freezing the v1 sync contract.

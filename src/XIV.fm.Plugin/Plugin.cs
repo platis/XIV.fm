@@ -15,6 +15,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ICommandManager commandManager;
     private readonly IChatGui chatGui;
     private readonly PluginConfiguration configuration;
+    private readonly OverlayStateStore stateStore;
     private readonly NameplateCardRenderer cardRenderer;
     private readonly DevelopmentOverlayCoordinator developmentCoordinator;
 
@@ -22,6 +23,7 @@ public sealed class Plugin : IDalamudPlugin
         IDalamudPluginInterface pluginInterface,
         ICommandManager commandManager,
         IChatGui chatGui,
+        IClientState clientState,
         IObjectTable objectTable,
         IGameGui gameGui,
         IFramework framework)
@@ -32,17 +34,18 @@ public sealed class Plugin : IDalamudPlugin
         this.configuration = pluginInterface.GetPluginConfig() as PluginConfiguration ?? new PluginConfiguration();
         this.configuration.RemoteCardDistanceYalms = this.configuration.NormalizedRemoteCardDistanceYalms;
 
-        var stateStore = new OverlayStateStore();
+        this.stateStore = new OverlayStateStore();
         this.cardRenderer = new NameplateCardRenderer(
             objectTable,
             gameGui,
-            stateStore,
+            this.stateStore,
             () => this.configuration.ShowPlaceholderCards,
             () => this.configuration.NormalizedRemoteCardDistanceYalms);
         this.developmentCoordinator = new DevelopmentOverlayCoordinator(
             framework,
+            clientState,
             objectTable,
-            stateStore,
+            this.stateStore,
             () => this.configuration.DeveloperMockRemoteCards);
 
         this.commandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
@@ -102,8 +105,10 @@ public sealed class Plugin : IDalamudPlugin
     {
         var cards = this.configuration.ShowPlaceholderCards ? "on" : "off";
         var mocks = this.configuration.DeveloperMockRemoteCards ? "on" : "off";
+        var snapshot = this.stateStore.Current;
+        var location = snapshot.Location?.ToString() ?? "unavailable";
         this.chatGui.Print(
-            $"Cards: {cards}; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms.",
+            $"Cards: {cards}; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; snapshot cards: {snapshot.Cards.Length}; {location}.",
             "XIV.fm");
     }
 }

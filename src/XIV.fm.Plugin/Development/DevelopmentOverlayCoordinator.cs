@@ -13,6 +13,7 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
     private const int MaximumMockRemoteCards = 32;
 
     private readonly IFramework framework;
+    private readonly IClientState clientState;
     private readonly IObjectTable objectTable;
     private readonly OverlayStateStore stateStore;
     private readonly Func<bool> showMockRemoteCards;
@@ -20,11 +21,13 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
 
     public DevelopmentOverlayCoordinator(
         IFramework framework,
+        IClientState clientState,
         IObjectTable objectTable,
         OverlayStateStore stateStore,
         Func<bool> showMockRemoteCards)
     {
         this.framework = framework;
+        this.clientState = clientState;
         this.objectTable = objectTable;
         this.stateStore = stateStore;
         this.showMockRemoteCards = showMockRemoteCards;
@@ -80,6 +83,7 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
             }
         }
 
-        this.stateStore.Publish(OverlaySnapshot.Create(cards, capturedAt));
+        var location = DalamudLocationScope.Capture(this.clientState, localPlayer);
+        this.stateStore.Publish(OverlaySnapshot.Create(cards, capturedAt, location));
     }
 }
