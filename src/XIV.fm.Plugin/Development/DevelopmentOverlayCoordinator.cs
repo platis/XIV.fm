@@ -32,14 +32,36 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
         this.stateStore = stateStore;
         this.showMockRemoteCards = showMockRemoteCards;
         this.framework.Update += this.OnFrameworkUpdate;
+        this.clientState.Login += this.OnLogin;
+        this.clientState.Logout += this.OnLogout;
+        this.clientState.TerritoryChanged += this.OnLocationChanged;
+        this.clientState.MapIdChanged += this.OnLocationChanged;
+        this.clientState.InstanceChanged += this.OnLocationChanged;
         this.PublishSnapshot();
     }
 
     public void Dispose()
     {
         this.framework.Update -= this.OnFrameworkUpdate;
+        this.clientState.Login -= this.OnLogin;
+        this.clientState.Logout -= this.OnLogout;
+        this.clientState.TerritoryChanged -= this.OnLocationChanged;
+        this.clientState.MapIdChanged -= this.OnLocationChanged;
+        this.clientState.InstanceChanged -= this.OnLocationChanged;
         this.stateStore.Publish(OverlaySnapshot.Empty);
     }
+
+    private void OnLogin() => this.RequestCapture();
+
+    private void OnLogout(int type, int code)
+    {
+        this.nextCaptureAt = DateTimeOffset.MinValue;
+        this.stateStore.Publish(OverlaySnapshot.Empty);
+    }
+
+    private void OnLocationChanged(uint value) => this.RequestCapture();
+
+    private void RequestCapture() => this.nextCaptureAt = DateTimeOffset.MinValue;
 
     private void OnFrameworkUpdate(IFramework framework)
     {

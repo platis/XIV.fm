@@ -106,9 +106,10 @@ public sealed class Plugin : IDalamudPlugin
         var cards = this.configuration.ShowPlaceholderCards ? "on" : "off";
         var mocks = this.configuration.DeveloperMockRemoteCards ? "on" : "off";
         var snapshot = this.stateStore.Current;
+        var diagnostics = this.cardRenderer.Diagnostics;
         var location = snapshot.Location?.ToString() ?? "unavailable";
         this.chatGui.Print(
-            $"Cards: {cards}; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; snapshot cards: {snapshot.Cards.Length}; {location}.",
+            $"Cards: {cards}; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; snapshot: {snapshot.Cards.Length}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
             "XIV.fm");
     }
 }

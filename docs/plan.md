@@ -32,9 +32,10 @@ _Visual direction: placeholder until Phase 6_
 - [x] Define location-scope models from typed current-world, territory, map, and instance APIs.
 - [x] Support local and remote card instances through one renderer pipeline.
 - [x] Add client-side 8-yalm filtering with a configurable 1–20 range for remote players.
-- [ ] Handle login/logout, world travel, territory/instance changes, object disappearance, camera projection failure, duties, and plugin disposal.
+- [x] Handle login/logout, typed location changes, object disappearance, projection failure, and plugin disposal.
+- [ ] Define and implement the duty rendering policy.
 - [x] Add developer-only remote mock state.
-- [ ] Add anchor diagnostics.
+- [x] Add projected-anchor pipeline diagnostics.
 
 **Exit:** deterministic mock cards follow loaded player characters safely; there is still no production network dependency.
 
@@ -113,5 +114,6 @@ This phase is intentionally collaborative with the product owner.
 
 1. Run `/xivfm mock` in a Dalamud development environment and validate local/remote anchors visually.
 2. Record findings for race/height, nameplate visibility, camera, UI scale, and the 8-yalm boundary.
-3. Add projected-anchor diagnostics and finish lifecycle/world-travel handling.
+3. Validate lifecycle and projected-anchor diagnostics from `/xivfm status`.
 4. Validate current-world, territory, map, and instance changes in game before freezing the v1 sync contract.
+5. Decide whether cards are hidden in all duties or only selected combat/PvP contexts.

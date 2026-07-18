@@ -17,7 +17,9 @@ Implemented:
 - One local/remote player-card rendering path.
 - Strict character name and home-world matching.
 - Typed location snapshots using current world, territory, map, and instance IDs.
+- Immediate snapshot invalidation/wake-up for login, logout, and location changes.
 - Client-side remote distance filtering, defaulting to 8 yalms and clamped to 1–20.
+- `/xivfm status` diagnostics for matching, range, projection, rendering, and location.
 - Unit-tested anchoring, identity, snapshot, and visibility behavior.
 
 Not yet implemented:

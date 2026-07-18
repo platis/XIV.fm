@@ -28,6 +28,8 @@ public sealed class NameplateCardRenderer
     private readonly OverlayStateStore stateStore;
     private readonly Func<bool> isEnabled;
     private readonly Func<int> remoteDistanceYalms;
+    private OverlayRenderDiagnostics diagnostics = OverlayRenderDiagnostics.Empty;
+    private DateTimeOffset nextDiagnosticsPublishAt = DateTimeOffset.MinValue;
 
     public NameplateCardRenderer(
         IObjectTable objectTable,
@@ -43,16 +45,22 @@ public sealed class NameplateCardRenderer
         this.remoteDistanceYalms = remoteDistanceYalms;
     }
 
+    public OverlayRenderDiagnostics Diagnostics => Volatile.Read(ref this.diagnostics);
+
     public void Draw()
     {
-        var localPlayer = this.objectTable.LocalPlayer;
-        if (!this.isEnabled() || localPlayer is null)
-            return;
-
         var snapshot = this.stateStore.Current;
-        if (snapshot.Cards.IsEmpty)
+        var localPlayer = this.objectTable.LocalPlayer;
+        if (!this.isEnabled() || localPlayer is null || snapshot.Cards.IsEmpty)
+        {
+            this.PublishDiagnostics(snapshot.Cards.Length, 0, 0, 0, 0);
             return;
+        }
 
+        var matchedPlayers = 0;
+        var inRangePlayers = 0;
+        var projectedAnchors = 0;
+        var renderedCards = 0;
         var loadedPlayers = this.objectTable.PlayerObjects.OfType<IPlayerCharacter>().ToArray();
         foreach (var card in snapshot.Cards)
         {
@@ -63,6 +71,7 @@ public sealed class NameplateCardRenderer
             if (target is null)
                 continue;
 
+            matchedPlayers++;
             if (!card.IsLocal && !OverlayVisibility.IsRemoteWithinRange(
                     localPlayer.Position,
                     target.Position,
@@ -71,11 +80,21 @@ public sealed class NameplateCardRenderer
                 continue;
             }
 
+            inRangePlayers++;
             if (!this.TryGetScreenAnchor(target, out var screenAnchor))
                 continue;
 
+            projectedAnchors++;
             DrawCard(card, screenAnchor);
+            renderedCards++;
         }
+
+        this.PublishDiagnostics(
+            snapshot.Cards.Length,
+            matchedPlayers,
+            inRangePlayers,
+            projectedAnchors,
+            renderedCards);
     }
 
     private static IPlayerCharacter? FindLoadedPlayer(
@@ -129,5 +148,28 @@ public sealed class NameplateCardRenderer
     {
         var worldAnchor = OverlayAnchor.AboveCharacter(player.Position);
         return this.gameGui.WorldToScreen(worldAnchor, out screenAnchor);
+    }
+
+    private void PublishDiagnostics(
+        int requestedCards,
+        int matchedPlayers,
+        int inRangePlayers,
+        int projectedAnchors,
+        int renderedCards)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (now < this.nextDiagnosticsPublishAt)
+            return;
+
+        this.nextDiagnosticsPublishAt = now.AddSeconds(1);
+        Interlocked.Exchange(
+            ref this.diagnostics,
+            new OverlayRenderDiagnostics(
+                requestedCards,
+                matchedPlayers,
+                inRangePlayers,
+                projectedAnchors,
+                renderedCards,
+                now));
     }
 }
