@@ -62,6 +62,8 @@ The distribution can be obtained from:
 https://goatcorp.github.io/dalamud-distrib/latest.zip
 ```
 
+Successful CI runs publish an `XIV.fm-development-plugin` artifact containing `latest.zip` for in-game development testing. It is not a production release.
+
 ## Quality gates
 
 Run all formatting, tests, and builds:
