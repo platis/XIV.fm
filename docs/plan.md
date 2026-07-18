@@ -27,12 +27,14 @@ _Visual direction: placeholder until Phase 6_
 
 ## Phase 1 — plugin state and anchoring foundation
 
-- [ ] Replace direct renderer dependencies with an immutable overlay-state snapshot.
-- [ ] Define typed character identity and location-scope models from supported Dalamud APIs.
-- [ ] Support local and remote card instances through one renderer pipeline.
-- [ ] Add local 8-yalm filtering with a configurable 1–20 range for remote players.
+- [x] Replace direct renderer state with atomic immutable overlay snapshots.
+- [x] Define typed character identity with strict name and home-world matching.
+- [ ] Define location-scope models from supported Dalamud APIs.
+- [x] Support local and remote card instances through one renderer pipeline.
+- [x] Add client-side 8-yalm filtering with a configurable 1–20 range for remote players.
 - [ ] Handle login/logout, world travel, territory/instance changes, object disappearance, camera projection failure, duties, and plugin disposal.
-- [ ] Add a developer-only mock state and anchor diagnostics.
+- [x] Add developer-only remote mock state.
+- [ ] Add anchor diagnostics.
 
 **Exit:** deterministic mock cards follow loaded player characters safely; there is still no production network dependency.
 
@@ -109,7 +111,7 @@ This phase is intentionally collaborative with the product owner.
 
 ## Immediate next steps
 
-1. Run the plugin in a Dalamud development environment and validate the placeholder anchor visually.
-2. Record findings for race/height, nameplate visibility, camera, and UI scale.
-3. Introduce immutable overlay state and a multi-character mock renderer.
+1. Run `/xivfm mock` in a Dalamud development environment and validate local/remote anchors visually.
+2. Record findings for race/height, nameplate visibility, camera, UI scale, and the 8-yalm boundary.
+3. Add anchor diagnostics and finish lifecycle/world-travel handling.
 4. Define the exact supported Dalamud location identifiers before freezing the v1 sync contract.

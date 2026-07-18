@@ -6,15 +6,18 @@ This repository is a greenfield implementation. Visual design is intentionally r
 
 ## Current status
 
-The first development slice renders a placeholder card above the local player's character using typed Dalamud APIs and world-to-screen projection. Run `/xivfm` to toggle it.
+The current development slice renders placeholder cards above player characters using typed Dalamud APIs and world-to-screen projection. The local card and developer-only remote mock cards share one renderer driven by immutable snapshots.
 
 Implemented:
 
 - Exact `XIV.fm` product, assembly, manifest, and C# namespace naming.
 - Dalamud API 15 plugin scaffold.
 - Dalamud-independent plugin core project.
-- Placeholder local-player nameplate card.
-- Unit-tested world anchor calculation.
+- Atomic immutable overlay-state snapshots.
+- One local/remote player-card rendering path.
+- Strict character name and home-world matching.
+- Client-side remote distance filtering, defaulting to 8 yalms and clamped to 1–20.
+- Unit-tested anchoring, identity, snapshot, and visibility behavior.
 
 Not yet implemented:
 
@@ -42,6 +45,17 @@ docs/                          Product, architecture, API, and delivery decision
 ```
 
 Server projects and versioned contracts will be introduced when the local-overlay foundation is accepted.
+
+## Development controls
+
+```text
+/xivfm              Toggle all placeholder cards
+/xivfm mock         Toggle mock cards on loaded remote players
+/xivfm range <1-20> Set the remote render distance in yalms
+/xivfm status       Print the active development settings
+```
+
+Remote mock state is disabled by default and exists only to validate matching, distance, and nameplate placement before server development.
 
 ## Toolchain
 
