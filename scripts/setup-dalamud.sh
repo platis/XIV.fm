@@ -13,7 +13,7 @@ fi
 command -v curl >/dev/null 2>&1 || { echo 'curl is required' >&2; exit 1; }
 command -v unzip >/dev/null 2>&1 || { echo 'unzip is required' >&2; exit 1; }
 
-install -d -m 755 "$(dirname -- "$destination")"
+mkdir -p -- "$(dirname -- "$destination")"
 rm -rf -- "$destination"
 install -d -m 755 "$destination"
 
