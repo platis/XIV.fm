@@ -1,0 +1,17 @@
+{
+  "Author": "platis",
+  "Name": "XIV.fm",
+  "InternalName": "XIV.fm",
+  "Punchline": "Share what you are listening to in Final Fantasy XIV.",
+  "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
+  "ApplicableVersion": "any",
+  "RepoUrl": "https://github.com/platis/XIV.fm",
+  "Tags": [
+    "lastfm",
+    "music",
+    "social",
+    "overlay"
+  ],
+  "DalamudApiLevel": 15,
+  "LoadPriority": 0
+}

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/XIV.fm.Plugin.Core/XIV.fm.Plugin.Core.csproj" />
+    <Project Path="src/XIV.fm.Plugin/XIV.fm.Plugin.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/XIV.fm.Plugin.Core.Tests/XIV.fm.Plugin.Core.Tests.csproj" />
+  </Folder>
+</Solution>

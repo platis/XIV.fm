@@ -1,0 +1,36 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+secrets/
+*.local
+
+# Dependencies and generated output
+node_modules/
+dist/
+build/
+bin/
+obj/
+coverage/
+TestResults/
+*.log
+*.zip
+.tmp/
+.cache/
+
+# Dalamud and .NET user state
+.dalamud/
+*.user
+*.suo
+.vs/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+.DS_Store

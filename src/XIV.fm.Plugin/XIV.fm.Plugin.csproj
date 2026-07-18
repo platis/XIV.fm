@@ -1,0 +1,17 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <AssemblyName>XIV.fm</AssemblyName>
+    <RootNamespace>XIV.fm</RootNamespace>
+    <Version>0.1.0</Version>
+    <!-- Dalamud.NET.Sdk injects versioned package references and is not CPM-compatible. -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <Use_Dalamud_FFXIVClientStructs>false</Use_Dalamud_FFXIVClientStructs>
+    <Use_Dalamud_ImPlot>false</Use_Dalamud_ImPlot>
+    <Use_Dalamud_ImGuizmo>false</Use_Dalamud_ImGuizmo>
+    <Use_Dalamud_MSObjectPool>false</Use_Dalamud_MSObjectPool>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../XIV.fm.Plugin.Core/XIV.fm.Plugin.Core.csproj" />
+  </ItemGroup>
+</Project>
