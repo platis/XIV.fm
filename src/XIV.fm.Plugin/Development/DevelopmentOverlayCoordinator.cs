@@ -17,6 +17,8 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
     private readonly IClientState clientState;
     private readonly IObjectTable objectTable;
     private readonly OverlayStateStore stateStore;
+    private readonly Func<CharacterIdentity, DateTimeOffset, OverlayCard> createLocalCard;
+    private readonly Func<DateTimeOffset, IEnumerable<OverlayCard>> getServerRemoteCards;
     private readonly Func<bool> showMockRemoteCards;
     private readonly Func<bool> isInDuty;
     private DateTimeOffset nextCaptureAt = DateTimeOffset.MinValue;
@@ -27,6 +29,8 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
         IClientState clientState,
         IObjectTable objectTable,
         OverlayStateStore stateStore,
+        Func<CharacterIdentity, DateTimeOffset, OverlayCard> createLocalCard,
+        Func<DateTimeOffset, IEnumerable<OverlayCard>> getServerRemoteCards,
         Func<bool> showMockRemoteCards,
         Func<bool> isInDuty)
     {
@@ -34,6 +38,8 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
         this.clientState = clientState;
         this.objectTable = objectTable;
         this.stateStore = stateStore;
+        this.createLocalCard = createLocalCard;
+        this.getServerRemoteCards = getServerRemoteCards;
         this.showMockRemoteCards = showMockRemoteCards;
         this.isInDuty = isInDuty;
         this.framework.Update += this.OnFrameworkUpdate;
@@ -106,8 +112,10 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
         var localIdentity = DalamudCharacterIdentity.From(localPlayer);
         var cards = new List<OverlayCard>
         {
-            OverlayCard.LocalPlaceholder(localIdentity),
+            this.createLocalCard(localIdentity, capturedAt),
         };
+        cards.AddRange(this.getServerRemoteCards(capturedAt)
+            .Where(card => !card.Character.Matches(localIdentity)));
 
         if (this.showMockRemoteCards())
         {

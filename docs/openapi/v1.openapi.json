@@ -3,7 +3,7 @@
   "info": {
     "title": "XIV.fm API",
     "version": "1.0.0",
-    "description": "Authenticated XIV.fm plugin synchronization. Duty-bound clients make no requests.",
+    "description": "Proof-gated Last.fm account linking and authenticated XIV.fm plugin synchronization. Duty-bound clients make no requests.",
     "license": {
       "name": "All rights reserved",
       "identifier": "LicenseRef-Proprietary"
@@ -16,6 +16,150 @@
     }
   ],
   "paths": {
+    "/v1/account-links": {
+      "post": {
+        "operationId": "startAccountLink",
+        "summary": "Start Last.fm account linking",
+        "description": "Creates a short-lived link session. The returned high-entropy linkCredential becomes the installation credential only after Last.fm ownership proof succeeds.",
+        "responses": {
+          "201": {
+            "description": "Link session created.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartAccountLinkResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/v1/account-links/{linkSessionId}/status": {
+      "post": {
+        "operationId": "getAccountLinkStatus",
+        "summary": "Read a private account-link result",
+        "description": "Authenticates with the link credential in the bounded JSON body. Once linked, that same secret is accepted as the installation bearer credential.",
+        "parameters": [
+          {
+            "name": "linkSessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountLinkStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current link state.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountLinkStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/account-links/{linkSessionId}/callback": {
+      "get": {
+        "operationId": "completeAccountLink",
+        "summary": "Complete the Last.fm browser callback",
+        "description": "Validates and atomically consumes one callback state and matching Last.fm request token. Callback secrets are replay-protected.",
+        "parameters": [
+          {
+            "name": "linkSessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 512
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Last.fm ownership proof completed.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The callback is invalid, expired, rejected, or already consumed.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
     "/v1/installations/current/credential": {
       "post": {
         "operationId": "rotateCurrentInstallationCredential",
@@ -135,6 +279,590 @@
           },
           "503": {
             "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/v1/relays": {
+      "post": {
+        "operationId": "createRelay",
+        "summary": "Create a Custom Relay",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRelayRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Relay created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Relay"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "get": {
+        "operationId": "listRelays",
+        "summary": "List joined Custom Relays",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Joined Relays.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/relays/{relayId}": {
+      "parameters": [
+        {
+          "name": "relayId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getRelay",
+        "summary": "Get an authorized Relay",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Relay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Relay"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "renameRelay",
+        "summary": "Rename an owned Relay",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameRelayRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Renamed Relay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Relay"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteRelay",
+        "summary": "Delete an owned Relay",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Relay deleted."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/relays/{relayId}/members": {
+      "get": {
+        "operationId": "listRelayMembers",
+        "summary": "List members of an owned Relay",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "relayId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Relay members.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayMemberList"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/relays/{relayId}/members/{membershipId}": {
+      "delete": {
+        "operationId": "kickRelayMember",
+        "summary": "Kick a member from an owned Relay",
+        "description": "Removes membership and publication transactionally. The owner cannot kick themselves.",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "relayId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "membershipId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Member kicked."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/relays/{relayId}/membership": {
+      "delete": {
+        "operationId": "leaveRelay",
+        "summary": "Leave a joined Relay",
+        "description": "The current owner must delete the Relay instead.",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "relayId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Membership removed."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/relays/{relayId}/invitations": {
+      "post": {
+        "operationId": "createRelayInvitation",
+        "summary": "Create a single-use Relay invitation",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "relayId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRelayInvitationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Invitation created; plaintext token is returned once.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedRelayInvitation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "get": {
+        "operationId": "listRelayInvitations",
+        "summary": "List invitations without token secrets",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "relayId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Relay invitations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayInvitationList"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/relays/{relayId}/invitations/{invitationId}": {
+      "delete": {
+        "operationId": "revokeRelayInvitation",
+        "summary": "Revoke an unused invitation",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "relayId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Invitation revoked."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/relay-invitations/preview": {
+      "post": {
+        "operationId": "previewRelayInvitation",
+        "summary": "Preview a secret Relay invitation",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelayInvitationTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Invitation preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayInvitationPreview"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/relay-invitations/accept": {
+      "post": {
+        "operationId": "acceptRelayInvitation",
+        "summary": "Atomically accept a single-use invitation",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelayInvitationTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Joined Relay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptRelayInvitation"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -262,9 +990,108 @@
             }
           }
         }
+      },
+      "NotFound": {
+        "description": "The authorized resource was not found, or a supplied secret did not match.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
       }
     },
     "schemas": {
+      "StartAccountLinkResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "linkSessionId",
+          "authorizationUrl",
+          "linkCredential",
+          "expiresAt",
+          "pollAfterSeconds"
+        ],
+        "properties": {
+          "linkSessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "authorizationUrl": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 4096
+          },
+          "linkCredential": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 512,
+            "description": "Returned once. It becomes the installation credential only after successful ownership proof."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pollAfterSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30
+          }
+        }
+      },
+      "AccountLinkStatusRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "linkCredential"
+        ],
+        "properties": {
+          "linkCredential": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 512
+          }
+        }
+      },
+      "AccountLinkStatusResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "expiresAt",
+          "lastFmAccountName"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "linked",
+              "failed",
+              "expired"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastFmAccountName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Present only after verified linking."
+          }
+        }
+      },
       "InstallationCredentialResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -553,6 +1380,7 @@
           },
           "entries": {
             "type": "array",
+            "maxItems": 500,
             "items": {
               "$ref": "#/components/schemas/PresenceEntry"
             }
@@ -663,6 +1491,279 @@
         "type": "integer",
         "minimum": 1,
         "maximum": 4294967295
+      },
+      "CreateRelayRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "idempotencyKey"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 48
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "RenameRelayRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 48
+          }
+        }
+      },
+      "Relay": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "relayId",
+          "name",
+          "isOwner",
+          "memberCount",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "relayId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 48
+          },
+          "isOwner": {
+            "type": "boolean"
+          },
+          "memberCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RelayList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "relays"
+        ],
+        "properties": {
+          "relays": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/Relay"
+            }
+          }
+        }
+      },
+      "RelayMember": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "membershipId",
+          "lastFmAccountName",
+          "isOwner",
+          "joinedAt"
+        ],
+        "properties": {
+          "membershipId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lastFmAccountName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "isOwner": {
+            "type": "boolean"
+          },
+          "joinedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RelayMemberList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "members"
+        ],
+        "properties": {
+          "members": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/RelayMember"
+            }
+          }
+        }
+      },
+      "CreateRelayInvitationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "lifetimeHours": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 168
+          }
+        }
+      },
+      "RelayInvitation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "invitationId",
+          "createdAt",
+          "expiresAt",
+          "acceptedAt"
+        ],
+        "properties": {
+          "invitationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acceptedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "CreatedRelayInvitation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "invitationId",
+          "token",
+          "createdAt",
+          "expiresAt"
+        ],
+        "properties": {
+          "invitationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 512,
+            "description": "Returned exactly once and stored only as a hash."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RelayInvitationList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "invitations"
+        ],
+        "properties": {
+          "invitations": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/RelayInvitation"
+            }
+          }
+        }
+      },
+      "RelayInvitationTokenRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 512
+          }
+        }
+      },
+      "RelayInvitationPreview": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "relayId",
+          "relayName",
+          "expiresAt"
+        ],
+        "properties": {
+          "relayId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "relayName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 48
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AcceptRelayInvitation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "relay"
+        ],
+        "properties": {
+          "relay": {
+            "$ref": "#/components/schemas/Relay"
+          }
+        }
       }
     }
   }

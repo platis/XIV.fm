@@ -1,5 +1,7 @@
 # XIV.fm Custom Relays
 
+_Status: v1 server behavior implemented_
+
 ## Model
 
 A Custom Relay is an arbitrarily named, invitation-based audience. There are no Relay types and no role hierarchy.
@@ -10,6 +12,8 @@ Relay
   name
   ownerAccountId
   createdAt
+  idempotencyKey
+  membershipRevision
   updatedAt
   deletedAt
 
@@ -26,6 +30,7 @@ RelayInvitation
   createdAt
   expiresAt
   acceptedAt
+  acceptedByAccountId
   revokedAt
 
 RelayRemoval
@@ -54,7 +59,7 @@ Member operations:
 
 The server checks authorization on every operation. The client never decides that membership is valid.
 
-## Proposed API
+## V1 API
 
 All endpoints are under `/v1` and require an authenticated linked account unless explicitly documented otherwise.
 
@@ -147,6 +152,7 @@ Limits are server configuration and stable error contracts, not scattered consta
 - PostgreSQL unique constraints prevent duplicate membership.
 - Creation and invitation acceptance are idempotent.
 - Ownership, kick, leave, and acceptance use transactions.
-- Redis caches are invalidated after the durable transaction commits.
-- Authorization fails closed if membership cannot be established.
+- Redis caches are invalidated after the durable transaction commits; Relay membership revisions also make pre-mutation cache keys unusable.
+- Authorization fails closed if membership cannot be established or if its revision changes while a snapshot is being read.
+- A kick and member leave strip that Relay from affected live Custom publications; owner deletion makes all memberships unreadable immediately.
 - Presence TTL remains a final cleanup mechanism after disconnects or partial failures.

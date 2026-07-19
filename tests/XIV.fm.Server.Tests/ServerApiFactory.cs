@@ -22,6 +22,7 @@ public sealed class ServerApiFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<InMemoryInstallationCredentialStore>();
             services.RemoveAll<IInstallationCredentialStore>();
+            services.RemoveAll<ILastFmAuthorizationClient>();
 
             var credentialStore = new InMemoryInstallationCredentialStore();
             credentialStore.RegisterAsync(InstallationId, Credential, CancellationToken.None)
@@ -30,6 +31,9 @@ public sealed class ServerApiFactory : WebApplicationFactory<Program>
                 .GetResult();
             services.AddSingleton(credentialStore);
             services.AddSingleton<IInstallationCredentialStore>(credentialStore);
+            services.AddSingleton<FakeLastFmAuthorizationClient>();
+            services.AddSingleton<ILastFmAuthorizationClient>(
+                services => services.GetRequiredService<FakeLastFmAuthorizationClient>());
         });
     }
 }

@@ -126,7 +126,24 @@ public sealed class SyncEndpointTests : IClassFixture<ServerApiFactory>
     }
 
     [Fact]
-    public async Task CustomVisibilityFailsClosedUntilMembershipAuthorizationExists()
+    public async Task UnlinkedDevelopmentCredentialCannotPublishPublicPresence()
+    {
+        using var client = this.CreateAuthenticatedClient();
+        var request = CreateRequest() with
+        {
+            Visibility = new VisibilitySelection(VisibilityMode.Public, []),
+        };
+
+        using var response = await client.PostAsJsonAsync(ApiRoutes.Sync, request);
+        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.NotNull(error);
+        Assert.Equal("linked_account_required", error.Code);
+    }
+
+    [Fact]
+    public async Task CustomVisibilityRequiresALinkedAccount()
     {
         using var client = this.CreateAuthenticatedClient();
         var request = CreateRequest() with
@@ -137,9 +154,32 @@ public sealed class SyncEndpointTests : IClassFixture<ServerApiFactory>
         using var response = await client.PostAsJsonAsync(ApiRoutes.Sync, request);
         var error = await response.Content.ReadFromJsonAsync<ApiError>();
 
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.NotNull(error);
-        Assert.Equal("custom_relays_not_available", error.Code);
+        Assert.Equal("linked_account_required", error.Code);
+    }
+
+    [Fact]
+    public async Task ClientAuthoredTrackMetadataIsRejected()
+    {
+        using var client = this.CreateAuthenticatedClient();
+        const string payload = """
+            {
+              "pluginVersion": "0.1.3.0",
+              "character": { "name": "Alice Cat", "homeWorldId": 54 },
+              "location": { "currentWorldId": 63, "territoryId": 129, "mapId": 130, "instanceId": 2 },
+              "visibility": { "mode": "private", "relayIds": [] },
+              "track": { "title": "Forged", "artist": "Client" }
+            }
+            """;
+        using var content = new StringContent(payload, Encoding.UTF8, "application/json");
+
+        using var response = await client.PostAsync(ApiRoutes.Sync, content);
+        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotNull(error);
+        Assert.Equal("invalid_request", error.Code);
     }
 
     [Fact]

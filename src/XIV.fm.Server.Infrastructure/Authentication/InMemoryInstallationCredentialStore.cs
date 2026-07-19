@@ -47,6 +47,23 @@ public sealed class InMemoryInstallationCredentialStore : IInstallationCredentia
         return credential;
     }
 
+    internal void RegisterHash(InstallationId installationId, string credentialHash)
+    {
+        if (credentialHash.Length != 64 || credentialHash.Any(character => !char.IsAsciiHexDigit(character)))
+            throw new ArgumentException("Credential hashes must be SHA-256 hex values.", nameof(credentialHash));
+
+        lock (this.gate)
+        {
+            if (this.hashesByInstallation.ContainsKey(installationId))
+                throw new InvalidOperationException("The installation already has a credential.");
+            if (this.installationsByHash.ContainsKey(credentialHash))
+                throw new InvalidOperationException("The credential is already registered.");
+
+            this.hashesByInstallation.Add(installationId, credentialHash);
+            this.installationsByHash.Add(credentialHash, installationId);
+        }
+    }
+
     public ValueTask RegisterAsync(
         InstallationId installationId,
         string credential,
@@ -54,18 +71,7 @@ public sealed class InMemoryInstallationCredentialStore : IInstallationCredentia
     {
         cancellationToken.ThrowIfCancellationRequested();
         ValidateCredential(credential);
-        var hash = Hash(credential);
-        lock (this.gate)
-        {
-            if (this.hashesByInstallation.ContainsKey(installationId))
-                throw new InvalidOperationException("The installation already has a credential.");
-            if (this.installationsByHash.ContainsKey(hash))
-                throw new InvalidOperationException("The credential is already registered.");
-
-            this.hashesByInstallation.Add(installationId, hash);
-            this.installationsByHash.Add(hash, installationId);
-        }
-
+        this.RegisterHash(installationId, Hash(credential));
         return ValueTask.CompletedTask;
     }
 

@@ -5,9 +5,9 @@ using XIV.fm.Contracts.V1;
 
 namespace XIV.fm.Plugin.Network;
 
-public sealed class ServerSyncApiClient : IServerSyncApiClient, IDisposable
+public sealed class ServerSyncApiClient : IServerSyncApiClient, IAccountLinkApiClient, IDisposable
 {
-    private const int MaximumResponseBytes = 2 * 1024 * 1024;
+    private const int MaximumResponseBytes = 8 * 1024 * 1024;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly HttpClient httpClient;
@@ -73,10 +73,63 @@ public sealed class ServerSyncApiClient : IServerSyncApiClient, IDisposable
         return new ServerSyncApiResult(syncResponse, requestId);
     }
 
+    public async Task<StartAccountLinkResponse> StartAccountLinkAsync(
+        Uri serverBaseUri,
+        string pluginVersion,
+        CancellationToken cancellationToken)
+    {
+        using var message = new HttpRequestMessage(
+            HttpMethod.Post,
+            new Uri(serverBaseUri, ApiRoutes.StartAccountLink));
+        message.Headers.UserAgent.ParseAdd($"XIV.fm/{pluginVersion}");
+        return await this.SendAsync<StartAccountLinkResponse>(message, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<AccountLinkStatusResponse> GetAccountLinkStatusAsync(
+        Uri serverBaseUri,
+        Guid linkSessionId,
+        string linkCredential,
+        string pluginVersion,
+        CancellationToken cancellationToken)
+    {
+        using var message = new HttpRequestMessage(
+            HttpMethod.Post,
+            new Uri(serverBaseUri, ApiRoutes.GetAccountLinkStatus(linkSessionId)))
+        {
+            Content = JsonContent.Create(new AccountLinkStatusRequest(linkCredential), options: JsonOptions),
+        };
+        message.Headers.UserAgent.ParseAdd($"XIV.fm/{pluginVersion}");
+        return await this.SendAsync<AccountLinkStatusResponse>(message, cancellationToken).ConfigureAwait(false);
+    }
+
     public void Dispose()
     {
         if (this.ownsHttpClient)
             this.httpClient.Dispose();
+    }
+
+    private async Task<T> SendAsync<T>(
+        HttpRequestMessage message,
+        CancellationToken cancellationToken)
+    {
+        using var response = await this.httpClient.SendAsync(
+            message,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken).ConfigureAwait(false);
+        if (response.Content.Headers.ContentLength > MaximumResponseBytes)
+            throw new ServerSyncException("response_too_large", "The XIV.fm server response was too large.");
+
+        var bytes = await ReadBoundedAsync(response.Content, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = TryDeserialize<ApiError>(bytes);
+            throw new ServerSyncException(
+                error?.Code ?? $"http_{(int)response.StatusCode}",
+                error?.Title ?? "The XIV.fm server rejected the request.");
+        }
+
+        return TryDeserialize<T>(bytes)
+            ?? throw new ServerSyncException("invalid_response", "The XIV.fm server returned an invalid response.");
     }
 
     private static async Task<byte[]> ReadBoundedAsync(HttpContent content, CancellationToken cancellationToken)

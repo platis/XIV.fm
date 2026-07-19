@@ -1,7 +1,10 @@
+using System.Collections.Immutable;
 using Dalamud.Plugin.Services;
 using XIV.fm.Contracts.V1;
 using XIV.fm.Plugin.Adapters;
+using XIV.fm.Plugin.Core.Overlay;
 using XIV.fm.Plugin.Core.Policy;
+using XIV.fm.Plugin.Core.Presence;
 using XIV.fm.Plugin.Core.Sync;
 using ContractCharacterIdentity = XIV.fm.Contracts.V1.CharacterIdentity;
 using ContractLocationScope = XIV.fm.Contracts.V1.LocationScope;
@@ -16,13 +19,16 @@ public sealed class ServerSyncCoordinator : IDisposable
     private readonly IObjectTable objectTable;
     private readonly IServerSyncApiClient apiClient;
     private readonly Func<DutyParticipationPolicy> dutyPolicy;
-    private readonly Func<DeveloperSyncSettings> settings;
+    private readonly Func<ServerSyncSettings> settings;
+    private readonly Func<VisibilityMode> visibilityMode;
     private readonly string pluginVersion;
     private readonly CancellationTokenSource disposalCancellation = new();
     private SyncRuntimeState state = SyncRuntimeState.Disabled;
+    private ListeningState ownListening = UnavailableListening;
     private CancellationTokenSource? activeRequest;
     private DateTimeOffset nextSyncAt = DateTimeOffset.MinValue;
     private string? knownSnapshotVersion;
+    private readonly RemotePresenceStateStore remotePresence = new();
     private int consecutiveFailures;
     private long generation;
     private bool disposed;
@@ -33,7 +39,8 @@ public sealed class ServerSyncCoordinator : IDisposable
         IObjectTable objectTable,
         IServerSyncApiClient apiClient,
         Func<DutyParticipationPolicy> dutyPolicy,
-        Func<DeveloperSyncSettings> settings,
+        Func<ServerSyncSettings> settings,
+        Func<VisibilityMode> visibilityMode,
         string pluginVersion)
     {
         this.framework = framework;
@@ -42,6 +49,7 @@ public sealed class ServerSyncCoordinator : IDisposable
         this.apiClient = apiClient;
         this.dutyPolicy = dutyPolicy;
         this.settings = settings;
+        this.visibilityMode = visibilityMode;
         this.pluginVersion = pluginVersion;
         this.framework.Update += this.OnFrameworkUpdate;
         this.clientState.Login += this.OnWake;
@@ -51,7 +59,17 @@ public sealed class ServerSyncCoordinator : IDisposable
         this.clientState.InstanceChanged += this.OnLocationChanged;
     }
 
+    private static ListeningState UnavailableListening { get; } =
+        new(ListeningStatus.Unavailable, false, null, null);
+
     public SyncRuntimeState State => Volatile.Read(ref this.state);
+
+    public ListeningState OwnListening => Volatile.Read(ref this.ownListening);
+
+    public ImmutableArray<OverlayCard> GetRemoteCards(DateTimeOffset now) =>
+        this.remotePresence.Read(now);
+
+    public void RequestImmediateSync() => this.RestartAfterLifecycleChange();
 
     public void Dispose()
     {
@@ -129,7 +147,7 @@ public sealed class ServerSyncCoordinator : IDisposable
                 location.Value.TerritoryId,
                 location.Value.MapId,
                 location.Value.InstanceId),
-            new VisibilitySelection(VisibilityMode.Private, []),
+            new VisibilitySelection(this.visibilityMode(), []),
             snapshotVersion);
         this.StartRequest(serverBaseUri!, currentSettings.InstallationCredential, request, now);
     }
@@ -180,10 +198,17 @@ public sealed class ServerSyncCoordinator : IDisposable
             {
                 if (requestGeneration != this.generation)
                     return;
+                if (!this.remotePresence.Apply(result.Response.LocationPresence, request.Location, now))
+                {
+                    throw new ServerSyncException(
+                        "invalid_location_snapshot",
+                        "The XIV.fm server returned a snapshot for an unexpected location.");
+                }
 
                 this.activeRequest = null;
                 this.consecutiveFailures = 0;
                 this.knownSnapshotVersion = result.Response.LocationPresence.Version;
+                Volatile.Write(ref this.ownListening, result.Response.OwnListening);
                 this.nextSyncAt = now.Add(SyncTimingPolicy.FromServerDelay(result.Response.NextSyncAfterSeconds));
                 Volatile.Write(
                     ref this.state,
@@ -256,31 +281,32 @@ public sealed class ServerSyncCoordinator : IDisposable
             this.activeRequest?.Cancel();
             this.activeRequest = null;
             this.nextSyncAt = DateTimeOffset.MinValue;
+            this.knownSnapshotVersion = null;
+            this.remotePresence.Clear();
             Volatile.Write(ref this.state, replacementState);
         }
     }
 
-    private static bool TryValidateSettings(DeveloperSyncSettings settings, out Uri? serverBaseUri)
+    public static bool TryValidateSettings(ServerSyncSettings settings, out Uri? serverBaseUri)
     {
         serverBaseUri = null;
         if (!settings.Enabled || string.IsNullOrEmpty(settings.InstallationCredential) || settings.InstallationCredential.Length < 32)
             return false;
         if (string.IsNullOrEmpty(settings.ServerBaseUrl) || !Uri.TryCreate(settings.ServerBaseUrl, UriKind.Absolute, out var candidate))
             return false;
-        if (!candidate.IsLoopback || candidate.UserInfo.Length != 0 || candidate.Query.Length != 0 || candidate.Fragment.Length != 0)
+        if (candidate.UserInfo.Length != 0 || candidate.Query.Length != 0 || candidate.Fragment.Length != 0)
             return false;
-        if (!string.Equals(candidate.Scheme, Uri.UriSchemeHttp, StringComparison.Ordinal) &&
-            !string.Equals(candidate.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal))
-        {
+        var isHttp = string.Equals(candidate.Scheme, Uri.UriSchemeHttp, StringComparison.Ordinal);
+        var isHttps = string.Equals(candidate.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal);
+        if (!isHttps && !(isHttp && candidate.IsLoopback))
             return false;
-        }
 
         serverBaseUri = candidate;
         return true;
     }
 }
 
-public sealed record DeveloperSyncSettings(
+public sealed record ServerSyncSettings(
     bool Enabled,
     string ServerBaseUrl,
     string InstallationCredential);

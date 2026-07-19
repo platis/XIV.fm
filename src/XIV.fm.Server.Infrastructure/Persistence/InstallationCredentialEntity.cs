@@ -4,6 +4,10 @@ public sealed class InstallationCredentialEntity
 {
     public Guid InstallationId { get; set; }
 
+    public Guid? AccountId { get; set; }
+
+    public LastFmAccountEntity? Account { get; set; }
+
     public string CredentialHash { get; set; } = string.Empty;
 
     public DateTimeOffset CreatedAt { get; set; }

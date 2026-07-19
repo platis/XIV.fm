@@ -73,10 +73,45 @@ public sealed class SyncContractSerializationTests
     }
 
     [Fact]
+    public void AccountLinkStatusUsesStableStringEnum()
+    {
+        var response = new AccountLinkStatusResponse(
+            AccountLinkStatus.Linked,
+            new DateTimeOffset(2026, 7, 19, 8, 10, 0, TimeSpan.Zero),
+            "CanonicalListener");
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+        var roundTrip = JsonSerializer.Deserialize<AccountLinkStatusResponse>(json, JsonOptions);
+
+        Assert.Contains("\"status\":\"linked\"", json, StringComparison.Ordinal);
+        Assert.NotNull(roundTrip);
+        Assert.Equal(AccountLinkStatus.Linked, roundTrip.Status);
+    }
+
+    [Fact]
+    public void RelayInvitationSecretHasAStableBoundedBodyShape()
+    {
+        var request = new RelayInvitationTokenRequest("invitation-token-000000000000000000000000");
+        var json = JsonSerializer.Serialize(request, JsonOptions);
+
+        Assert.Equal("{\"token\":\"invitation-token-000000000000000000000000\"}", json);
+        Assert.DoesNotContain("relayId", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RoutesAreVersioned()
     {
+        var sessionId = Guid.Parse("2959650b-b6e1-4c3e-b37f-dfcd580f00d5");
+
         Assert.Equal("/v1/sync", ApiRoutes.Sync);
+        Assert.Equal("/v1/account-links", ApiRoutes.StartAccountLink);
+        Assert.Equal($"/v1/account-links/{sessionId:D}/status", ApiRoutes.GetAccountLinkStatus(sessionId));
+        Assert.Equal($"/v1/account-links/{sessionId:D}/callback", ApiRoutes.GetAccountLinkCallback(sessionId));
         Assert.Equal("/v1/installations/current/credential", ApiRoutes.RotateCurrentInstallation);
         Assert.Equal("/v1/installations/current", ApiRoutes.RevokeCurrentInstallation);
+        Assert.Equal("/v1/relays", ApiRoutes.Relays);
+        Assert.Equal("/v1/relays/{relayId:guid}/members/{membershipId:guid}", ApiRoutes.RelayMember);
+        Assert.Equal("/v1/relay-invitations/preview", ApiRoutes.RelayInvitationPreview);
+        Assert.Equal("/v1/relay-invitations/accept", ApiRoutes.RelayInvitationAccept);
     }
 }

@@ -136,7 +136,8 @@ public sealed class NameplateCardRenderer
                     ImGui.TextColored(AccentColor, "XIV.fm");
                     ImGui.Separator();
                     ImGui.TextUnformatted(card.Title);
-                    ImGui.TextDisabled(card.Artist);
+                    var attribution = card.IsLastFm ? $"{card.Artist} · Last.fm" : card.Artist;
+                    ImGui.TextDisabled(card.IsStale ? $"{attribution} · cached" : attribution);
                 }
             }
             finally

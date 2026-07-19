@@ -3,6 +3,7 @@ namespace XIV.fm.Server.Application.Sync;
 public enum SyncFailureKind
 {
     Validation,
+    Authorization,
     Conflict,
 }
 

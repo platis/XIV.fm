@@ -45,6 +45,7 @@ public static class SyncEndpoints
             var status = failure.Kind switch
             {
                 SyncFailureKind.Validation => StatusCodes.Status400BadRequest,
+                SyncFailureKind.Authorization => StatusCodes.Status403Forbidden,
                 SyncFailureKind.Conflict => StatusCodes.Status409Conflict,
                 _ => StatusCodes.Status500InternalServerError,
             };

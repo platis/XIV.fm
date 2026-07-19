@@ -22,12 +22,84 @@ namespace XIV.fm.Server.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.AccountLinkSessionEntity", b =>
+                {
+                    b.Property<Guid>("SessionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("session_id");
+
+                    b.Property<Guid?>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset?>("AuthorizationStartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("authorization_started_at");
+
+                    b.Property<string>("CallbackStateHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("callback_state_hash")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("LinkCredentialHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("link_credential_hash")
+                        .IsFixedLength();
+
+                    b.Property<string>("ProviderTokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("provider_token_hash")
+                        .IsFixedLength();
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.HasKey("SessionId");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("CallbackStateHash")
+                        .IsUnique();
+
+                    b.HasIndex("LinkCredentialHash")
+                        .IsUnique();
+
+                    b.HasIndex("ProviderTokenHash")
+                        .IsUnique();
+
+                    b.ToTable("account_link_sessions", (string)null);
+                });
+
             modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.InstallationCredentialEntity", b =>
                 {
                     b.Property<Guid>("InstallationId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("installation_id");
+
+                    b.Property<Guid?>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -50,10 +122,291 @@ namespace XIV.fm.Server.Infrastructure.Persistence.Migrations
 
                     b.HasKey("InstallationId");
 
+                    b.HasIndex("AccountId");
+
                     b.HasIndex("CredentialHash")
                         .IsUnique();
 
                     b.ToTable("installation_credentials", (string)null);
+                });
+
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.LastFmAccountEntity", b =>
+                {
+                    b.Property<Guid>("AccountId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<string>("CanonicalName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("canonical_name");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("normalized_name");
+
+                    b.HasKey("AccountId");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("lastfm_accounts", (string)null);
+                });
+
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.RelayEntity", b =>
+                {
+                    b.Property<Guid>("RelayId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("relay_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long>("MembershipRevision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("membership_revision");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(192)
+                        .HasColumnType("character varying(192)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(192)
+                        .HasColumnType("character varying(192)")
+                        .HasColumnName("normalized_name");
+
+                    b.Property<Guid>("OwnerAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_account_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("RelayId");
+
+                    b.HasIndex("OwnerAccountId", "CreatedAt");
+
+                    b.HasIndex("OwnerAccountId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("relays", (string)null);
+                });
+
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.RelayInvitationEntity", b =>
+                {
+                    b.Property<Guid>("InvitationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("invitation_id");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<Guid?>("AcceptedByAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("accepted_by_account_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("RelayId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("relay_id");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("token_hash")
+                        .IsFixedLength();
+
+                    b.HasKey("InvitationId");
+
+                    b.HasIndex("AcceptedByAccountId");
+
+                    b.HasIndex("RelayId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("relay_invitations", (string)null);
+                });
+
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.RelayMembershipEntity", b =>
+                {
+                    b.Property<Guid>("MembershipId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("membership_id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset>("JoinedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("joined_at");
+
+                    b.Property<Guid>("RelayId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("relay_id");
+
+                    b.HasKey("MembershipId");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("RelayId", "AccountId")
+                        .IsUnique();
+
+                    b.ToTable("relay_memberships", (string)null);
+                });
+
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.RelayRemovalEntity", b =>
+                {
+                    b.Property<Guid>("RelayId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("relay_id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset>("RemovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("removed_at");
+
+                    b.HasKey("RelayId", "AccountId");
+
+                    b.HasIndex("AccountId");
+
+                    b.ToTable("relay_removals", (string)null);
+                });
+
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.AccountLinkSessionEntity", b =>
+                {
+                    b.HasOne("XIV.fm.Server.Infrastructure.Persistence.LastFmAccountEntity", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.InstallationCredentialEntity", b =>
+                {
+                    b.HasOne("XIV.fm.Server.Infrastructure.Persistence.LastFmAccountEntity", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.RelayEntity", b =>
+                {
+                    b.HasOne("XIV.fm.Server.Infrastructure.Persistence.LastFmAccountEntity", "OwnerAccount")
+                        .WithMany()
+                        .HasForeignKey("OwnerAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("OwnerAccount");
+                });
+
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.RelayInvitationEntity", b =>
+                {
+                    b.HasOne("XIV.fm.Server.Infrastructure.Persistence.LastFmAccountEntity", "AcceptedByAccount")
+                        .WithMany()
+                        .HasForeignKey("AcceptedByAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("XIV.fm.Server.Infrastructure.Persistence.RelayEntity", "Relay")
+                        .WithMany("Invitations")
+                        .HasForeignKey("RelayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AcceptedByAccount");
+
+                    b.Navigation("Relay");
+                });
+
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.RelayMembershipEntity", b =>
+                {
+                    b.HasOne("XIV.fm.Server.Infrastructure.Persistence.LastFmAccountEntity", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("XIV.fm.Server.Infrastructure.Persistence.RelayEntity", "Relay")
+                        .WithMany("Memberships")
+                        .HasForeignKey("RelayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("Relay");
+                });
+
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.RelayRemovalEntity", b =>
+                {
+                    b.HasOne("XIV.fm.Server.Infrastructure.Persistence.LastFmAccountEntity", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("XIV.fm.Server.Infrastructure.Persistence.RelayEntity", "Relay")
+                        .WithMany()
+                        .HasForeignKey("RelayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("Relay");
+                });
+
+            modelBuilder.Entity("XIV.fm.Server.Infrastructure.Persistence.RelayEntity", b =>
+                {
+                    b.Navigation("Invitations");
+
+                    b.Navigation("Memberships");
                 });
 #pragma warning restore 612, 618
         }

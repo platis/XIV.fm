@@ -1,8 +1,10 @@
-using System.Security.Cryptography;
-using System.Text;
 using XIV.fm.Contracts.V1;
 using XIV.fm.Server.Application.Abstractions;
+using XIV.fm.Server.Application.Listening;
+using XIV.fm.Server.Application.Presence;
+using XIV.fm.Server.Application.Relays;
 using XIV.fm.Server.Domain.Installations;
+using XIV.fm.Server.Domain.Listening;
 using DomainCharacterIdentity = XIV.fm.Server.Domain.Presence.CharacterIdentity;
 using DomainLocationScope = XIV.fm.Server.Domain.Presence.LocationScope;
 using DomainPresenceHeartbeat = XIV.fm.Server.Domain.Presence.PresenceHeartbeat;
@@ -14,15 +16,40 @@ namespace XIV.fm.Server.Application.Sync;
 public sealed class SyncApplicationService
 {
     private static readonly TimeSpan PresenceLifetime = TimeSpan.FromSeconds(60);
-    private static readonly TimeSpan SnapshotLifetime = TimeSpan.FromSeconds(20);
     private const int NextSyncAfterSeconds = 30;
 
     private readonly IPresenceStore presenceStore;
+    private readonly ILinkedAccountResolver linkedAccountResolver;
+    private readonly IListeningStateStore listeningStateStore;
+    private readonly IListeningPollingCoordinator pollingCoordinator;
+    private readonly ListeningFreshnessPolicy freshnessPolicy;
+    private readonly PublicPresenceSnapshotService publicSnapshotService;
+    private readonly RelayPresenceSnapshotService relaySnapshotService;
+    private readonly IListeningPollingTelemetry listeningTelemetry;
+    private readonly RelayOptions relayOptions;
     private readonly TimeProvider timeProvider;
 
-    public SyncApplicationService(IPresenceStore presenceStore, TimeProvider timeProvider)
+    public SyncApplicationService(
+        IPresenceStore presenceStore,
+        ILinkedAccountResolver linkedAccountResolver,
+        IListeningStateStore listeningStateStore,
+        IListeningPollingCoordinator pollingCoordinator,
+        ListeningFreshnessPolicy freshnessPolicy,
+        PublicPresenceSnapshotService publicSnapshotService,
+        RelayPresenceSnapshotService relaySnapshotService,
+        IListeningPollingTelemetry listeningTelemetry,
+        RelayOptions relayOptions,
+        TimeProvider timeProvider)
     {
         this.presenceStore = presenceStore;
+        this.linkedAccountResolver = linkedAccountResolver;
+        this.listeningStateStore = listeningStateStore;
+        this.pollingCoordinator = pollingCoordinator;
+        this.freshnessPolicy = freshnessPolicy;
+        this.publicSnapshotService = publicSnapshotService;
+        this.relaySnapshotService = relaySnapshotService;
+        this.listeningTelemetry = listeningTelemetry;
+        this.relayOptions = relayOptions;
         this.timeProvider = timeProvider;
     }
 
@@ -42,19 +69,50 @@ public sealed class SyncApplicationService
         }
 
         ArgumentNullException.ThrowIfNull(request);
-        if (request.Visibility.Mode == VisibilityMode.Custom)
+        if (request.Visibility.Mode == VisibilityMode.Custom && request.Visibility.RelayIds.Count > this.relayOptions.MaximumSelectedRelays)
         {
             return SyncResult.Failed(new SyncFailure(
-                SyncFailureKind.Conflict,
-                "custom_relays_not_available",
-                "Custom Relays are not available yet.",
-                "Relay membership authorization will be enabled in the Custom Relays phase."));
+                SyncFailureKind.Validation,
+                "relay_selection_limit_exceeded",
+                $"No more than {this.relayOptions.MaximumSelectedRelays} Relays may be selected."));
+        }
+
+        var linkedAccount = await this.linkedAccountResolver
+            .GetForInstallationAsync(installationId, cancellationToken)
+            .ConfigureAwait(false);
+        if (request.Visibility.Mode is VisibilityMode.Public or VisibilityMode.Custom && linkedAccount is null)
+        {
+            return SyncResult.Failed(new SyncFailure(
+                SyncFailureKind.Authorization,
+                "linked_account_required",
+                "A linked account is required for social presence."));
+        }
+
+        if (request.Visibility.Mode == VisibilityMode.Custom)
+        {
+            var membership = await this.relaySnapshotService.GetAuthorizedUnionAsync(
+                linkedAccount!.AccountId,
+                request.Visibility.RelayIds,
+                new DomainLocationScope(
+                    request.Location.CurrentWorldId,
+                    request.Location.TerritoryId,
+                    request.Location.MapId,
+                    request.Location.InstanceId),
+                cancellationToken).ConfigureAwait(false);
+            if (membership is null)
+            {
+                return SyncResult.Failed(new SyncFailure(
+                    SyncFailureKind.Authorization,
+                    "relay_membership_required",
+                    "Current membership in every selected Relay is required."));
+            }
         }
 
         var now = this.timeProvider.GetUtcNow();
         var presenceExpiresAt = now.Add(PresenceLifetime);
         var heartbeat = new DomainPresenceHeartbeat(
             installationId,
+            linkedAccount?.AccountId,
             new DomainCharacterIdentity(request.Character.Name, request.Character.HomeWorldId),
             new DomainLocationScope(
                 request.Location.CurrentWorldId,
@@ -65,25 +123,120 @@ public sealed class SyncApplicationService
             now,
             presenceExpiresAt);
 
-        await this.presenceStore.UpsertAsync(heartbeat, cancellationToken).ConfigureAwait(false);
+        var previousHeartbeat = await this.presenceStore
+            .UpsertAsync(heartbeat, cancellationToken)
+            .ConfigureAwait(false);
+        var publicationChanged = previousHeartbeat is null ||
+            previousHeartbeat.ExpiresAt <= now ||
+            previousHeartbeat.Visibility.Mode != heartbeat.Visibility.Mode ||
+            previousHeartbeat.Location != heartbeat.Location ||
+            previousHeartbeat.Character != heartbeat.Character ||
+            previousHeartbeat.AccountId != heartbeat.AccountId ||
+            !previousHeartbeat.Visibility.RelayIds.Order().SequenceEqual(heartbeat.Visibility.RelayIds.Order());
+        if (publicationChanged &&
+            previousHeartbeat?.Visibility.Mode == DomainVisibilityMode.Public)
+        {
+            await this.publicSnapshotService
+                .InvalidateAsync(previousHeartbeat.Location, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        if (publicationChanged && heartbeat.Visibility.Mode == DomainVisibilityMode.Public)
+        {
+            await this.publicSnapshotService
+                .InvalidateAsync(heartbeat.Location, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        if (publicationChanged && previousHeartbeat?.Visibility.Mode == DomainVisibilityMode.Custom)
+        {
+            await this.relaySnapshotService
+                .InvalidateAsync(previousHeartbeat.Visibility.RelayIds, previousHeartbeat.Location, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        if (publicationChanged && heartbeat.Visibility.Mode == DomainVisibilityMode.Custom)
+        {
+            await this.relaySnapshotService
+                .InvalidateAsync(heartbeat.Visibility.RelayIds, heartbeat.Location, cancellationToken)
+                .ConfigureAwait(false);
+        }
 
-        var snapshotVersion = CreateEmptySnapshotVersion(request.Location);
-        var snapshot = string.Equals(request.KnownSnapshotVersion, snapshotVersion, StringComparison.Ordinal)
-            ? null
-            : new PresenceSnapshot(
+        var ownListening = new ListeningState(ListeningStatus.Unavailable, false, null, null);
+        if (linkedAccount is not null)
+        {
+            this.pollingCoordinator.NotifyActive(linkedAccount, presenceExpiresAt);
+            var cached = await this.listeningStateStore
+                .GetAsync(linkedAccount.AccountId, cancellationToken)
+                .ConfigureAwait(false);
+            this.listeningTelemetry.RecordCacheRead(cached is not null);
+            if (cached is not null)
+                ownListening = MapListeningState(cached, now);
+        }
+
+        SnapshotResult locationPresence;
+        if (request.Visibility.Mode == VisibilityMode.Private)
+        {
+            locationPresence = PrivatePresenceSnapshot.Create(
                 request.Location,
                 now,
-                now.Add(SnapshotLifetime),
-                []);
+                request.KnownSnapshotVersion);
+        }
+        else if (request.Visibility.Mode == VisibilityMode.Public)
+        {
+            var sharedSnapshot = await this.publicSnapshotService
+                .GetAsync(heartbeat.Location, cancellationToken)
+                .ConfigureAwait(false);
+            var snapshotVersion = PublicPresenceSnapshotService.CreateVersion(sharedSnapshot);
+            locationPresence = new SnapshotResult(
+                snapshotVersion,
+                string.Equals(request.KnownSnapshotVersion, snapshotVersion, StringComparison.Ordinal)
+                    ? null
+                    : sharedSnapshot);
+        }
+        else
+        {
+            var authorized = await this.relaySnapshotService.GetAuthorizedUnionAsync(
+                linkedAccount!.AccountId,
+                request.Visibility.RelayIds,
+                heartbeat.Location,
+                cancellationToken).ConfigureAwait(false);
+            if (authorized is null)
+            {
+                return SyncResult.Failed(new SyncFailure(
+                    SyncFailureKind.Authorization,
+                    "relay_membership_required",
+                    "Current membership in every selected Relay is required."));
+            }
+            locationPresence = new SnapshotResult(
+                authorized.Version,
+                string.Equals(request.KnownSnapshotVersion, authorized.Version, StringComparison.Ordinal)
+                    ? null
+                    : authorized.Snapshot);
+        }
 
         var response = new SyncResponse(
             now,
             presenceExpiresAt,
             NextSyncAfterSeconds,
-            new ListeningState(ListeningStatus.Unavailable, false, null, null),
-            new SnapshotResult(snapshotVersion, snapshot));
+            ownListening,
+            locationPresence);
         return SyncResult.Success(response);
     }
+
+    private ListeningState MapListeningState(ListeningObservation observation, DateTimeOffset now) =>
+        new(
+            observation.Status == ListeningObservationStatus.Playing
+                ? ListeningStatus.Playing
+                : ListeningStatus.NotPlaying,
+            this.freshnessPolicy.IsStale(observation, now),
+            observation.ObservedAt,
+            observation.Track is null
+                ? null
+                : new Track(
+                    observation.Track.Title,
+                    observation.Track.Artist,
+                    observation.Track.Album,
+                    observation.Track.AlbumArtUrl,
+                    observation.Track.TrackUrl,
+                    observation.Track.StartedAt));
 
     private static DomainVisibilityMode MapVisibility(VisibilityMode mode) => mode switch
     {
@@ -93,10 +246,4 @@ public sealed class SyncApplicationService
         _ => throw new ArgumentOutOfRangeException(nameof(mode)),
     };
 
-    private static string CreateEmptySnapshotVersion(LocationScope location)
-    {
-        var material = Encoding.UTF8.GetBytes(
-            $"v1-empty:{location.CurrentWorldId}:{location.TerritoryId}:{location.MapId}:{location.InstanceId}");
-        return Convert.ToHexString(SHA256.HashData(material)).ToLowerInvariant();
-    }
 }
