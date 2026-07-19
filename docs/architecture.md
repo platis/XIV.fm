@@ -54,7 +54,7 @@ The initial card uses a world point projected above the local character. Before 
 
 ## Server modules
 
-Planned project boundaries:
+Implemented project boundaries:
 
 ```text
 XIV.fm.Server.Api             HTTP/authentication/validation
@@ -65,6 +65,10 @@ XIV.fm.Contracts              versioned transport contracts (implemented)
 ```
 
 Dependencies point inward. Domain/application code does not depend on HTTP, EF Core, Redis, or Last.fm JSON.
+
+The first server vertical slice authenticates a hashed opaque installation credential, validates and stores a heartbeat in process memory, and returns unavailable own-listening state plus an empty versioned snapshot. It performs no Last.fm or social-presence lookup. Custom visibility fails closed until Relay membership authorization exists. In-memory credential and presence stores implement application ports and will be replaced by PostgreSQL/Redis adapters without moving policy into HTTP or storage code.
+
+The API composition root provides bounded JSON input, stable problem responses, server-controlled request IDs, per-installation sync rate limiting, liveness/readiness checks, and label-free `System.Diagnostics.Metrics` counters. Metrics have no public HTTP endpoint; a private collector/exporter will be configured during deployment work.
 
 ## Last.fm scheduling
 

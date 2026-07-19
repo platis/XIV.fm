@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>XIV.fm.Server.Api</AssemblyName>
+    <RootNamespace>XIV.fm.Server.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../XIV.fm.Contracts/XIV.fm.Contracts.csproj" />
+    <ProjectReference Include="../XIV.fm.Server.Application/XIV.fm.Server.Application.csproj" />
+    <ProjectReference Include="../XIV.fm.Server.Domain/XIV.fm.Server.Domain.csproj" />
+    <ProjectReference Include="../XIV.fm.Server.Infrastructure/XIV.fm.Server.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

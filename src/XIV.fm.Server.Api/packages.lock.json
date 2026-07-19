@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "xiv.fm.contracts": {
+        "type": "Project"
+      },
+      "xiv.fm.server.application": {
+        "type": "Project",
+        "dependencies": {
+          "XIV.fm.Contracts": "[1.0.0, )",
+          "XIV.fm.Server.Domain": "[1.0.0, )"
+        }
+      },
+      "xiv.fm.server.domain": {
+        "type": "Project"
+      },
+      "xiv.fm.server.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "XIV.fm.Server.Application": "[1.0.0, )",
+          "XIV.fm.Server.Domain": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}

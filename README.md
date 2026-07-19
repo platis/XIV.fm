@@ -20,6 +20,7 @@ Implemented:
 - Immediate snapshot invalidation/wake-up for login, logout, and location changes.
 - Duty participation gating that hides cards and blocks future server requests while bound by duty.
 - Versioned v1 sync transport contracts and an OpenAPI 3.1 document.
+- ASP.NET Core modular-monolith foundation with authenticated in-memory sync, bounded validation, structured errors, request IDs, health checks, rate limits, and metrics instrumentation.
 - Client-side remote distance filtering, defaulting to 8 yalms and clamped to 1–20.
 - `/xivfm status` diagnostics for matching, range, projection, rendering, and location.
 - Unit-tested anchoring, identity, snapshot, and visibility behavior.
@@ -58,12 +59,14 @@ Save the settings, open the plugin installer, search for **XIV.fm**, and install
 src/XIV.fm.Contracts/          Versioned plugin/server transport contracts
 src/XIV.fm.Plugin/             Dalamud adapter and placeholder UI
 src/XIV.fm.Plugin.Core/        Dalamud-independent plugin behavior
+src/XIV.fm.Server.*/           API, Application, Domain, and Infrastructure modules
 tests/XIV.fm.Contracts.Tests   Wire-format contract tests
 tests/XIV.fm.Plugin.Core.Tests Core unit tests
+tests/XIV.fm.Server.Tests      Server integration and credential-lifecycle tests
 docs/                          Product, OpenAPI, architecture, and delivery decisions
 ```
 
-The v1 contracts are frozen; server projects are the next development slice. No backend is deployed yet.
+The server currently uses process-local development adapters and is not deployed. See [`src/XIV.fm.Server.Api/README.md`](src/XIV.fm.Server.Api/README.md) for loopback-only local testing.
 
 ## Development controls
 
@@ -112,6 +115,8 @@ dotnet restore XIV.fm.slnx --locked-mode
 dotnet format XIV.fm.slnx --verify-no-changes --no-restore
 dotnet test tests/XIV.fm.Contracts.Tests/XIV.fm.Contracts.Tests.csproj --no-restore -c Release
 dotnet test tests/XIV.fm.Plugin.Core.Tests/XIV.fm.Plugin.Core.Tests.csproj --no-restore -c Release
+dotnet test tests/XIV.fm.Server.Tests/XIV.fm.Server.Tests.csproj --no-restore -c Release
+dotnet build src/XIV.fm.Server.Api/XIV.fm.Server.Api.csproj --no-restore -c Release
 dotnet build src/XIV.fm.Plugin/XIV.fm.Plugin.csproj --no-restore -c Release
 ```
 

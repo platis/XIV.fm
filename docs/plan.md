@@ -47,11 +47,13 @@ _Status: complete; validated in game through v0.1.2_
 ## Phase 2 — contracts and server foundation
 
 - [x] Add versioned `XIV.fm.Contracts` and an OpenAPI document, including duty-suspended client behavior.
-- [ ] Scaffold ASP.NET Core API, Application, Domain, and Infrastructure projects.
-- [ ] Implement structured errors, request IDs, validation, health, readiness, and metrics.
+- [x] Scaffold ASP.NET Core API, Application, Domain, and Infrastructure projects.
+- [x] Implement structured errors, request IDs, validation, health, readiness, and metrics.
 - [ ] Add PostgreSQL migrations and Redis adapters through testable ports.
-- [ ] Add opaque installation credentials, hashing, rotation/revocation, and route limits.
-- [ ] Add container and integration-test infrastructure without exposing public ports.
+- [ ] Add production installation provisioning and durable rotation/revocation.
+  - In-memory opaque credential hashing, authentication, rotation/revocation primitives, and per-installation sync limits are implemented and tested.
+- [ ] Add container infrastructure without exposing public ports.
+  - In-process API integration tests cover health, authentication, sync, validation, snapshot reuse, and structured errors.
 
 **Exit:** an authenticated test plugin can sync against the local server; no Last.fm or social presence yet.
 
@@ -117,6 +119,6 @@ This phase is intentionally collaborative with the product owner.
 
 ## Immediate next steps
 
-1. Scaffold the ASP.NET Core API, Application, Domain, and Infrastructure projects against the frozen v1 contract.
-2. Implement request IDs, structured errors, bounded validation, health, and readiness.
-3. Add an authenticated in-memory sync vertical slice before introducing PostgreSQL and Redis adapters.
+1. Add a typed plugin sync client and one cancellable coordinator using a development-only server/credential configuration.
+2. Verify an authenticated plugin-to-loopback-server sync while preserving the duty no-request gate.
+3. Introduce PostgreSQL migrations and Redis adapters after the end-to-end local slice is accepted.

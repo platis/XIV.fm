@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>XIV.fm.Server.Infrastructure</AssemblyName>
+    <RootNamespace>XIV.fm.Server.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../XIV.fm.Server.Application/XIV.fm.Server.Application.csproj" />
+    <ProjectReference Include="../XIV.fm.Server.Domain/XIV.fm.Server.Domain.csproj" />
+  </ItemGroup>
+</Project>

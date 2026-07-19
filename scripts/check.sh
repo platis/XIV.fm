@@ -50,6 +50,18 @@ dotnet test tests/XIV.fm.Plugin.Core.Tests/XIV.fm.Plugin.Core.Tests.csproj \
     --configuration Release \
     --verbosity minimal
 
+printf 'Running server tests...\n'
+dotnet test tests/XIV.fm.Server.Tests/XIV.fm.Server.Tests.csproj \
+    --no-restore \
+    --configuration Release \
+    --verbosity minimal
+
+printf 'Building the server...\n'
+dotnet build src/XIV.fm.Server.Api/XIV.fm.Server.Api.csproj \
+    --no-restore \
+    --configuration Release \
+    --verbosity minimal
+
 printf 'Building the Dalamud plugin...\n'
 dotnet build src/XIV.fm.Plugin/XIV.fm.Plugin.csproj \
     --no-restore \

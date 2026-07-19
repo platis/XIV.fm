@@ -5,9 +5,14 @@
     <Project Path="src/XIV.fm.Plugin/XIV.fm.Plugin.csproj">
       <Platform Project="x64" />
     </Project>
+    <Project Path="src/XIV.fm.Server.Api/XIV.fm.Server.Api.csproj" />
+    <Project Path="src/XIV.fm.Server.Application/XIV.fm.Server.Application.csproj" />
+    <Project Path="src/XIV.fm.Server.Domain/XIV.fm.Server.Domain.csproj" />
+    <Project Path="src/XIV.fm.Server.Infrastructure/XIV.fm.Server.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/XIV.fm.Contracts.Tests/XIV.fm.Contracts.Tests.csproj" />
     <Project Path="tests/XIV.fm.Plugin.Core.Tests/XIV.fm.Plugin.Core.Tests.csproj" />
+    <Project Path="tests/XIV.fm.Server.Tests/XIV.fm.Server.Tests.csproj" />
   </Folder>
 </Solution>

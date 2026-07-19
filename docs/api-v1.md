@@ -15,6 +15,8 @@ The handler returns cached state and may enqueue bounded background work. It nev
 
 The machine-readable OpenAPI 3.1 document is [`openapi/v1.openapi.json`](openapi/v1.openapi.json).
 
+The current Phase 2 in-memory server slice returns `unavailable` own-listening state and an empty location snapshot without contacting Last.fm or exposing social presence. Private and Public heartbeats are accepted. Custom visibility returns `409 custom_relays_not_available` until membership authorization is implemented.
+
 ## Transport and authentication
 
 ```http
