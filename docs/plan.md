@@ -20,7 +20,8 @@ _Visual direction: placeholder until Phase 6_
 - [x] Add deterministic builds, package lockfiles, formatting, tests, and a single check command.
 - [x] Document product scope, architecture, Custom Relays, limits, and release rules.
 - [x] Create a placeholder card projected above the local character.
-- [ ] Verify the packaged development plugin in FFXIV/Dalamud.
+- [x] Verify the packaged development plugin in FFXIV/Dalamud.
+  - v0.1.1 loads successfully, renders the local placeholder, and responds correctly to the `/xivfm` overlay toggle.
 - [ ] Confirm the placeholder sits above the real nameplate across representative races, camera distances, and UI scales.
 
 **Exit:** CI and local checks pass, and an in-game screenshot/test confirms the anchor behavior.
