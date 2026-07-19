@@ -29,6 +29,8 @@ _Visual direction: placeholder until Phase 6_
 
 ## Phase 1 — plugin state and anchoring foundation
 
+_Status: complete; validated in game through v0.1.2_
+
 - [x] Replace direct renderer state with atomic immutable overlay snapshots.
 - [x] Define typed character identity with strict name and home-world matching.
 - [x] Define location-scope models from typed current-world, territory, map, and instance APIs.
@@ -36,6 +38,7 @@ _Visual direction: placeholder until Phase 6_
 - [x] Add client-side 8-yalm filtering with a configurable 1–20 range for remote players.
 - [x] Handle login/logout, typed location changes, object disappearance, projection failure, and plugin disposal.
 - [x] Hide all cards while bound by duty and define the same gate for every future server request.
+  - v0.1.2 was validated entering and leaving a duty: cards and participation suspend immediately, `/xivfm status` reports the duty state, and cards resume after exit.
 - [x] Add developer-only remote mock state.
 - [x] Add projected-anchor pipeline diagnostics.
 
@@ -114,6 +117,6 @@ This phase is intentionally collaborative with the product owner.
 
 ## Immediate next steps
 
-1. Validate in game that entering a duty immediately hides all cards and `/xivfm status` reports suspended participation.
-2. Freeze the v1 sync contract using the validated identity, location, lifecycle, distance, and duty behavior.
-3. Begin Phase 2 with versioned contracts and the server foundation.
+1. Freeze the v1 sync contract using the validated identity, location, lifecycle, distance, and duty behavior.
+2. Add the versioned contracts project and OpenAPI document.
+3. Scaffold the ASP.NET Core server foundation against that contract.
