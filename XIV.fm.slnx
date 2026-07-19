@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/XIV.fm.Contracts/XIV.fm.Contracts.csproj" />
     <Project Path="src/XIV.fm.Plugin.Core/XIV.fm.Plugin.Core.csproj" />
+    <Project Path="src/XIV.fm.Plugin.Network/XIV.fm.Plugin.Network.csproj" />
     <Project Path="src/XIV.fm.Plugin/XIV.fm.Plugin.csproj">
       <Platform Project="x64" />
     </Project>

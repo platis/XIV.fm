@@ -3,4 +3,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>XIV.fm</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../XIV.fm.Contracts/XIV.fm.Contracts.csproj" />
+  </ItemGroup>
 </Project>

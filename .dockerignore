@@ -1,0 +1,11 @@
+**/.git
+**/bin
+**/obj
+**/TestResults
+**/__pycache__
+**/*.user
+**/*.suo
+.env
+.env.*
+!.env.example
+secrets

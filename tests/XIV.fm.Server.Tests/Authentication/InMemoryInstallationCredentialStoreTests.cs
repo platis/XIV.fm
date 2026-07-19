@@ -6,6 +6,19 @@ namespace XIV.fm.Server.Tests.Authentication;
 public sealed class InMemoryInstallationCredentialStoreTests
 {
     [Fact]
+    public async Task ProvisionReturnsAuthenticatingOpaqueCredential()
+    {
+        var store = new InMemoryInstallationCredentialStore();
+
+        var issued = await store.ProvisionAsync(CancellationToken.None);
+
+        Assert.True(issued.Credential.Length >= 32);
+        Assert.Equal(
+            issued.InstallationId,
+            await store.AuthenticateAsync(issued.Credential, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task RotateInvalidatesOldCredentialAndAcceptsNewCredential()
     {
         var store = new InMemoryInstallationCredentialStore();

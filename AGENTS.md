@@ -12,6 +12,8 @@ Read `README.md` and every file under `docs/` before project-wide changes. Keep 
 - Duty-bound clients render no cards and initiate no XIV.fm server requests.
 - The recurring v1 operation is authenticated `/v1/sync`; its request contains no duty state, coordinates, object IDs, or client-authored track metadata.
 - In-memory server adapters and development credentials are local-test scaffolding and must never be treated as production persistence or authentication provisioning.
+- Initial installation credentials are issued only after account-link proof; never add an unauthenticated provisioning endpoint.
+- Production credential state belongs in PostgreSQL and expiring presence belongs in Redis; neither service publishes a host port.
 - Visual design remains deliberately placeholder-quality until core behavior is complete, but cards must remain anchored above player characters/nameplates.
 - Last.fm calls must be cached, single-flight, adaptively scheduled, and globally rate-limited. HTTP handlers may not initiate unbounded upstream work.
 

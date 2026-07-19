@@ -14,8 +14,20 @@
         "resolved": "1.2.39",
         "contentHash": "fcFN01tDTIQqDuTwr1jUQK/geofiwjG5DycJQOnC72i1SsLAk1ELe+apBOuZ11UMQG8YKFZG1FgvjZPbqHyatg=="
       },
-      "xiv.fm.plugin.core": {
+      "xiv.fm.contracts": {
         "type": "Project"
+      },
+      "xiv.fm.plugin.core": {
+        "type": "Project",
+        "dependencies": {
+          "XIV.fm.Contracts": "[1.0.0, )"
+        }
+      },
+      "xiv.fm.plugin.network": {
+        "type": "Project",
+        "dependencies": {
+          "XIV.fm.Contracts": "[1.0.0, )"
+        }
       }
     }
   }

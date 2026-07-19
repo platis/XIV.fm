@@ -46,14 +46,17 @@ _Status: complete; validated in game through v0.1.2_
 
 ## Phase 2 — contracts and server foundation
 
+_Status: complete; validated through typed client/API integration tests and the disposable durable container stack_
+
 - [x] Add versioned `XIV.fm.Contracts` and an OpenAPI document, including duty-suspended client behavior.
 - [x] Scaffold ASP.NET Core API, Application, Domain, and Infrastructure projects.
 - [x] Implement structured errors, request IDs, validation, health, readiness, and metrics.
-- [ ] Add PostgreSQL migrations and Redis adapters through testable ports.
-- [ ] Add production installation provisioning and durable rotation/revocation.
-  - In-memory opaque credential hashing, authentication, rotation/revocation primitives, and per-installation sync limits are implemented and tested.
-- [ ] Add container infrastructure without exposing public ports.
-  - In-process API integration tests cover health, authentication, sync, validation, snapshot reuse, and structured errors.
+- [x] Add PostgreSQL migrations and Redis adapters through testable ports.
+- [x] Add internal installation provisioning, durable rotation/revocation, and route limits.
+  - Initial provisioning is reserved for account-link completion; there is no unauthenticated provisioning endpoint.
+- [x] Add pinned container infrastructure without exposing public ports.
+  - In-process tests cover the typed plugin client, health, authentication, sync, credential lifecycle, validation, snapshot reuse, and structured errors.
+  - The disposable stack publishes only a loopback API port and verifies PostgreSQL credential hashes and Redis heartbeat TTLs.
 
 **Exit:** an authenticated test plugin can sync against the local server; no Last.fm or social presence yet.
 
@@ -119,6 +122,6 @@ This phase is intentionally collaborative with the product owner.
 
 ## Immediate next steps
 
-1. Add a typed plugin sync client and one cancellable coordinator using a development-only server/credential configuration.
-2. Verify an authenticated plugin-to-loopback-server sync while preserving the duty no-request gate.
-3. Introduce PostgreSQL migrations and Redis adapters after the end-to-end local slice is accepted.
+1. Begin Phase 3 with short-lived, replay-protected Last.fm browser-link sessions.
+2. Complete Last.fm authorization and issue the first installation credential only after account proof.
+3. Add the bounded cached listening-state scheduler without putting upstream work in HTTP handlers.

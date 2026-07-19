@@ -1,0 +1,86 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: src/XIV.fm.Server.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      XIVFM_STORAGE_MODE: durable
+      XIVFM_APPLY_MIGRATIONS: "true"
+      XIVFM_DEV_INSTALLATION_CREDENTIAL: ${XIVFM_DEV_INSTALLATION_CREDENTIAL:?required}
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=xivfm;Username=xivfm;Password=${POSTGRES_PASSWORD:?required}
+      ConnectionStrings__Redis: redis:6379,abortConnect=false
+    ports:
+      - "127.0.0.1:${XIVFM_TEST_PORT:-15080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080; printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep -q '200 OK' <&3"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    networks:
+      - backend
+      - ingress
+
+  postgres:
+    image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+    environment:
+      POSTGRES_DB: xivfm
+      POSTGRES_USER: xivfm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xivfm -d xivfm"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    networks:
+      - backend
+
+  redis:
+    image: redis:8-alpine@sha256:9d317178eceac8454a2284a9e6df2466b93c745529947f0cd42a0fa9609d7005
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    networks:
+      - backend
+
+networks:
+  backend:
+    internal: true
+  ingress:

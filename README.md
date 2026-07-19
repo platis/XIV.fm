@@ -20,7 +20,9 @@ Implemented:
 - Immediate snapshot invalidation/wake-up for login, logout, and location changes.
 - Duty participation gating that hides cards and blocks future server requests while bound by duty.
 - Versioned v1 sync transport contracts and an OpenAPI 3.1 document.
-- ASP.NET Core modular-monolith foundation with authenticated in-memory sync, bounded validation, structured errors, request IDs, health checks, rate limits, and metrics instrumentation.
+- ASP.NET Core modular monolith with authenticated sync, bounded validation, structured errors, request IDs, health checks, rate limits, and metrics instrumentation.
+- PostgreSQL credential persistence/migrations, Redis heartbeat TTLs, credential lifecycle endpoints, and a disposable loopback-only container integration stack.
+- A typed plugin network client and cancellable duty-aware development sync coordinator.
 - Client-side remote distance filtering, defaulting to 8 yalms and clamped to 1–20.
 - `/xivfm status` diagnostics for matching, range, projection, rendering, and location.
 - Unit-tested anchoring, identity, snapshot, and visibility behavior.
@@ -59,6 +61,7 @@ Save the settings, open the plugin installer, search for **XIV.fm**, and install
 src/XIV.fm.Contracts/          Versioned plugin/server transport contracts
 src/XIV.fm.Plugin/             Dalamud adapter and placeholder UI
 src/XIV.fm.Plugin.Core/        Dalamud-independent plugin behavior
+src/XIV.fm.Plugin.Network/     Typed bounded HTTP client
 src/XIV.fm.Server.*/           API, Application, Domain, and Infrastructure modules
 tests/XIV.fm.Contracts.Tests   Wire-format contract tests
 tests/XIV.fm.Plugin.Core.Tests Core unit tests
@@ -66,7 +69,7 @@ tests/XIV.fm.Server.Tests      Server integration and credential-lifecycle tests
 docs/                          Product, OpenAPI, architecture, and delivery decisions
 ```
 
-The server currently uses process-local development adapters and is not deployed. See [`src/XIV.fm.Server.Api/README.md`](src/XIV.fm.Server.Api/README.md) for loopback-only local testing.
+The server is not deployed. See [`src/XIV.fm.Server.Api/README.md`](src/XIV.fm.Server.Api/README.md) for in-memory development and disposable PostgreSQL/Redis container testing.
 
 ## Development controls
 
@@ -78,6 +81,8 @@ The server currently uses process-local development adapters and is not deployed
 ```
 
 Remote mock state is disabled by default and exists only to validate matching, distance, and nameplate placement before server development.
+
+The development sync client is also disabled by default. It accepts only an explicit loopback HTTP/HTTPS URL and a high-entropy installation credential from Dalamud's local plugin configuration. It never starts or continues a request while bound by duty. Production account linking will replace this manual development configuration.
 
 ## Toolchain
 

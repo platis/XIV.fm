@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using XIV.fm.Contracts.V1;
+using XIV.fm.Plugin.Network;
 using XIV.fm.Server.Infrastructure.Presence;
 
 namespace XIV.fm.Server.Tests.Api;
@@ -29,6 +30,22 @@ public sealed class SyncEndpointTests : IClassFixture<ServerApiFactory>
         Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
         Assert.NotEmpty(live.Headers.GetValues("X-Request-ID"));
         Assert.NotEmpty(ready.Headers.GetValues("X-Request-ID"));
+    }
+
+    [Fact]
+    public async Task TypedPluginClientCompletesAuthenticatedSync()
+    {
+        using var transport = this.factory.CreateClient();
+        using var apiClient = new ServerSyncApiClient(transport);
+
+        var result = await apiClient.SyncAsync(
+            transport.BaseAddress!,
+            ServerApiFactory.Credential,
+            CreateRequest(),
+            CancellationToken.None);
+
+        Assert.Equal(ListeningStatus.Unavailable, result.Response.OwnListening.Status);
+        Assert.False(string.IsNullOrWhiteSpace(result.RequestId));
     }
 
     [Fact]
@@ -140,6 +157,39 @@ public sealed class SyncEndpointTests : IClassFixture<ServerApiFactory>
     }
 
     [Fact]
+    public async Task CredentialRotationReturnsNewCredentialAndInvalidatesOldCredential()
+    {
+        await using var isolatedFactory = new ServerApiFactory();
+        using var oldClient = CreateAuthenticatedClient(isolatedFactory, ServerApiFactory.Credential);
+
+        using var rotationResponse = await oldClient.PostAsync(ApiRoutes.RotateCurrentInstallation, null);
+        var rotation = await rotationResponse.Content.ReadFromJsonAsync<InstallationCredentialResponse>();
+        Assert.Equal(HttpStatusCode.OK, rotationResponse.StatusCode);
+        Assert.NotNull(rotation);
+        Assert.True(rotation.Credential.Length >= 32);
+
+        using var rejected = await oldClient.PostAsJsonAsync(ApiRoutes.Sync, CreateRequest());
+        Assert.Equal(HttpStatusCode.Unauthorized, rejected.StatusCode);
+
+        using var newClient = CreateAuthenticatedClient(isolatedFactory, rotation.Credential);
+        using var accepted = await newClient.PostAsJsonAsync(ApiRoutes.Sync, CreateRequest());
+        Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+    }
+
+    [Fact]
+    public async Task CredentialRevocationInvalidatesCurrentCredential()
+    {
+        await using var isolatedFactory = new ServerApiFactory();
+        using var client = CreateAuthenticatedClient(isolatedFactory, ServerApiFactory.Credential);
+
+        using var revocationResponse = await client.DeleteAsync(ApiRoutes.RevokeCurrentInstallation);
+        Assert.Equal(HttpStatusCode.NoContent, revocationResponse.StatusCode);
+
+        using var rejected = await client.PostAsJsonAsync(ApiRoutes.Sync, CreateRequest());
+        Assert.Equal(HttpStatusCode.Unauthorized, rejected.StatusCode);
+    }
+
+    [Fact]
     public async Task ValidCallerRequestIdIsReturned()
     {
         using var client = this.CreateAuthenticatedClient();
@@ -150,11 +200,13 @@ public sealed class SyncEndpointTests : IClassFixture<ServerApiFactory>
         Assert.Equal("test-request-42", Assert.Single(response.Headers.GetValues("X-Request-ID")));
     }
 
-    private HttpClient CreateAuthenticatedClient()
+    private HttpClient CreateAuthenticatedClient() =>
+        CreateAuthenticatedClient(this.factory, ServerApiFactory.Credential);
+
+    private static HttpClient CreateAuthenticatedClient(ServerApiFactory factory, string credential)
     {
-        var client = this.factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", ServerApiFactory.Credential);
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", credential);
         return client;
     }
 

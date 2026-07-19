@@ -29,6 +29,15 @@ Credentials are XIV.fm installation credentials, not Last.fm keys or sessions. T
 
 Successful and error responses include `X-Request-ID`. The server controls request IDs and may replace invalid caller-provided values.
 
+Initial credential provisioning is internal to successful account-link completion; no unauthenticated credential-creation endpoint exists. Authenticated installations can manage the current credential:
+
+```http
+POST   /v1/installations/current/credential
+DELETE /v1/installations/current
+```
+
+Rotation invalidates the authenticating credential atomically and returns its replacement exactly once. Revocation makes the current credential unusable. Both operations are rate-limited and return `Cache-Control: no-store`.
+
 ## Duty invariant
 
 A duty-bound client does not call `/v1/sync` or any other XIV.fm endpoint. On duty entry it cancels in-flight work where possible, clears cards, and sends no final leave request. Existing presence expires through its short server TTL. Duty state is therefore not present in any request schema and is not trusted as server input.

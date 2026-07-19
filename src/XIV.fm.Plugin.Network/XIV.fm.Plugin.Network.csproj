@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>XIV.fm.Plugin.Network</AssemblyName>
+    <RootNamespace>XIV.fm.Plugin.Network</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../XIV.fm.Contracts/XIV.fm.Contracts.csproj" />
+  </ItemGroup>
+</Project>

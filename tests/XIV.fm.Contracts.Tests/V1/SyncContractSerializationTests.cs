@@ -73,8 +73,10 @@ public sealed class SyncContractSerializationTests
     }
 
     [Fact]
-    public void SyncRouteIsVersioned()
+    public void RoutesAreVersioned()
     {
         Assert.Equal("/v1/sync", ApiRoutes.Sync);
+        Assert.Equal("/v1/installations/current/credential", ApiRoutes.RotateCurrentInstallation);
+        Assert.Equal("/v1/installations/current", ApiRoutes.RevokeCurrentInstallation);
     }
 }

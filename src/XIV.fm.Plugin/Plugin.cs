@@ -5,6 +5,7 @@ using XIV.fm.Plugin.Adapters;
 using XIV.fm.Plugin.Core.Overlay;
 using XIV.fm.Plugin.Core.Policy;
 using XIV.fm.Plugin.Development;
+using XIV.fm.Plugin.Network;
 using XIV.fm.Plugin.UI;
 
 namespace XIV.fm.Plugin;
@@ -21,6 +22,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly OverlayStateStore stateStore;
     private readonly NameplateCardRenderer cardRenderer;
     private readonly DevelopmentOverlayCoordinator developmentCoordinator;
+    private readonly ServerSyncCoordinator serverSyncCoordinator;
 
     public Plugin(
         IDalamudPluginInterface pluginInterface,
@@ -37,6 +39,9 @@ public sealed class Plugin : IDalamudPlugin
         this.chatGui = chatGui;
         this.condition = condition;
         this.configuration = pluginInterface.GetPluginConfig() as PluginConfiguration ?? new PluginConfiguration();
+        this.configuration.Version = 2;
+        this.configuration.DeveloperServerBaseUrl ??= "http://127.0.0.1:5080";
+        this.configuration.DeveloperInstallationCredential ??= string.Empty;
         this.configuration.RemoteCardDistanceYalms = this.configuration.NormalizedRemoteCardDistanceYalms;
 
         this.stateStore = new OverlayStateStore();
@@ -53,6 +58,17 @@ public sealed class Plugin : IDalamudPlugin
             this.stateStore,
             () => this.configuration.DeveloperMockRemoteCards,
             () => this.CurrentDutyPolicy.IsInDuty);
+        this.serverSyncCoordinator = new ServerSyncCoordinator(
+            framework,
+            clientState,
+            objectTable,
+            new ServerSyncApiClient(),
+            () => this.CurrentDutyPolicy,
+            () => new DeveloperSyncSettings(
+                this.configuration.DeveloperServerEnabled,
+                this.configuration.DeveloperServerBaseUrl,
+                this.configuration.DeveloperInstallationCredential),
+            typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "0.0.0.0");
 
         this.commandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
@@ -65,6 +81,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         this.pluginInterface.UiBuilder.Draw -= this.cardRenderer.Draw;
         this.commandManager.RemoveHandler(CommandName);
+        this.serverSyncCoordinator.Dispose();
         this.developmentCoordinator.Dispose();
     }
 
@@ -119,8 +136,10 @@ public sealed class Plugin : IDalamudPlugin
         var dutyPolicy = this.CurrentDutyPolicy;
         var duty = dutyPolicy.IsInDuty ? "yes" : "no";
         var participation = dutyPolicy.AllowsServerRequests ? "active" : "suspended";
+        var sync = this.serverSyncCoordinator.State;
+        var syncDetail = sync.Error is null ? sync.Status.ToString().ToLowerInvariant() : $"{sync.Status.ToString().ToLowerInvariant()} ({sync.Error})";
         this.chatGui.Print(
-            $"Cards: {cards}; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; snapshot: {snapshot.Cards.Length}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
+            $"Cards: {cards}; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; sync: {syncDetail}; snapshot: {snapshot.Cards.Length}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
             "XIV.fm");
     }
 }

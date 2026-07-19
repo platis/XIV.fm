@@ -16,6 +16,72 @@
     }
   ],
   "paths": {
+    "/v1/installations/current/credential": {
+      "post": {
+        "operationId": "rotateCurrentInstallationCredential",
+        "summary": "Rotate the current installation credential",
+        "description": "Invalidates the authenticating credential and returns its replacement exactly once.",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credential rotated.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationCredentialResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/installations/current": {
+      "delete": {
+        "operationId": "revokeCurrentInstallation",
+        "summary": "Revoke the current installation",
+        "description": "Revokes the authenticating credential. Repeated calls with that credential are unauthorized.",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Installation revoked.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
     "/v1/sync": {
       "post": {
         "operationId": "syncPresence",
@@ -199,6 +265,21 @@
       }
     },
     "schemas": {
+      "InstallationCredentialResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "credential"
+        ],
+        "properties": {
+          "credential": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 512,
+            "description": "New opaque credential returned exactly once."
+          }
+        }
+      },
       "SyncRequest": {
         "type": "object",
         "additionalProperties": false,

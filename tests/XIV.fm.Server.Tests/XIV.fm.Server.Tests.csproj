@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/XIV.fm.Contracts/XIV.fm.Contracts.csproj" />
+    <ProjectReference Include="../../src/XIV.fm.Plugin.Network/XIV.fm.Plugin.Network.csproj" />
     <ProjectReference Include="../../src/XIV.fm.Server.Api/XIV.fm.Server.Api.csproj" />
     <ProjectReference Include="../../src/XIV.fm.Server.Application/XIV.fm.Server.Application.csproj" />
     <ProjectReference Include="../../src/XIV.fm.Server.Domain/XIV.fm.Server.Domain.csproj" />

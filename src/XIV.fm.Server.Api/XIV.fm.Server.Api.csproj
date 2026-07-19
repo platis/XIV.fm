@@ -6,6 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../XIV.fm.Contracts/XIV.fm.Contracts.csproj" />
     <ProjectReference Include="../XIV.fm.Server.Application/XIV.fm.Server.Application.csproj" />
     <ProjectReference Include="../XIV.fm.Server.Domain/XIV.fm.Server.Domain.csproj" />

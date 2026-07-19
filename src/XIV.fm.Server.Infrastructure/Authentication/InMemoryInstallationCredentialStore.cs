@@ -30,6 +30,23 @@ public sealed class InMemoryInstallationCredentialStore : IInstallationCredentia
         }
     }
 
+    public async ValueTask<IssuedInstallationCredential> ProvisionAsync(CancellationToken cancellationToken)
+    {
+        var installationId = new InstallationId(Guid.NewGuid());
+        var credential = InstallationCredentialGenerator.Generate();
+        await this.RegisterAsync(installationId, credential, cancellationToken).ConfigureAwait(false);
+        return new IssuedInstallationCredential(installationId, credential);
+    }
+
+    public async ValueTask<string> RotateAndIssueAsync(
+        InstallationId installationId,
+        CancellationToken cancellationToken)
+    {
+        var credential = InstallationCredentialGenerator.Generate();
+        await this.RotateAsync(installationId, credential, cancellationToken).ConfigureAwait(false);
+        return credential;
+    }
+
     public ValueTask RegisterAsync(
         InstallationId installationId,
         string credential,

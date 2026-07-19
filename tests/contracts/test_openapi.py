@@ -12,9 +12,11 @@ class OpenApiContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.document = json.loads(OPENAPI_PATH.read_text(encoding="utf-8"))
 
-    def test_document_declares_openapi_31_and_versioned_sync(self) -> None:
+    def test_document_declares_openapi_31_and_versioned_routes(self) -> None:
         self.assertEqual("3.1.0", self.document["openapi"])
         self.assertIn("post", self.document["paths"]["/v1/sync"])
+        self.assertIn("post", self.document["paths"]["/v1/installations/current/credential"])
+        self.assertIn("delete", self.document["paths"]["/v1/installations/current"])
 
     def test_sync_request_contains_only_approved_presence_fields(self) -> None:
         properties = self.document["components"]["schemas"]["SyncRequest"]["properties"]

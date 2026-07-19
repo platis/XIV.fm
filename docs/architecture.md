@@ -31,6 +31,8 @@ No module is deployed as an independent microservice.
 
 `XIV.fm.Contracts` contains versioned transport records shared by the plugin and server. The frozen v1 sync behavior is documented in [`api-v1.md`](api-v1.md) and [`openapi/v1.openapi.json`](openapi/v1.openapi.json). Contracts contain wire shapes, not application behavior or infrastructure dependencies.
 
+`XIV.fm.Plugin.Network` contains the bounded typed HTTP client. It depends only on the v1 contracts and is integration-tested against the real ASP.NET Core endpoint.
+
 `XIV.fm.Plugin.Core` contains behavior that can be tested without Dalamud:
 
 - Sync state machine and timing policy.
@@ -66,7 +68,7 @@ XIV.fm.Contracts              versioned transport contracts (implemented)
 
 Dependencies point inward. Domain/application code does not depend on HTTP, EF Core, Redis, or Last.fm JSON.
 
-The first server vertical slice authenticates a hashed opaque installation credential, validates and stores a heartbeat in process memory, and returns unavailable own-listening state plus an empty versioned snapshot. It performs no Last.fm or social-presence lookup. Custom visibility fails closed until Relay membership authorization exists. In-memory credential and presence stores implement application ports and will be replaced by PostgreSQL/Redis adapters without moving policy into HTTP or storage code.
+The first server vertical slice authenticates a hashed opaque installation credential, validates and stores a heartbeat, and returns unavailable own-listening state plus an empty versioned snapshot. It performs no Last.fm or social-presence lookup. Custom visibility fails closed until Relay membership authorization exists. Application ports have both in-memory test adapters and durable PostgreSQL credential/Redis heartbeat adapters, without moving policy into HTTP or storage code.
 
 The API composition root provides bounded JSON input, stable problem responses, server-controlled request IDs, per-installation sync rate limiting, liveness/readiness checks, and label-free `System.Diagnostics.Metrics` counters. Metrics have no public HTTP endpoint; a private collector/exporter will be configured during deployment work.
 
@@ -117,9 +119,9 @@ The plugin is a public client and contains no Last.fm secret.
 
 ## Persistence
 
-PostgreSQL stores installations, account links, link sessions, Custom Relays, memberships, hashed invitations, ownership, removal restrictions, and quota events.
+PostgreSQL currently stores installation IDs and unique SHA-256 hashes of high-entropy credentials, including rotation/revocation timestamps, through checked-in EF Core migrations. Later migrations add account links, link sessions, Custom Relays, memberships, hashed invitations, ownership, removal restrictions, and quota events.
 
-Redis stores current presence, normalized track cache, snapshot material, expirations, poll leases, single-flight locks, and rate counters. Listening history is not retained in the initial architecture.
+Redis currently stores installation heartbeat/presence records with server-controlled TTLs. Later adapters add normalized track cache, snapshot material, poll leases, single-flight locks, and distributed rate counters. Listening history is not retained in the initial architecture.
 
 ## Security and privacy
 

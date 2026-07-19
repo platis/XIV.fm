@@ -9,8 +9,11 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 - Frozen v1 sync request, response, snapshot, listening-state, visibility, and structured-error contracts.
 - OpenAPI 3.1 documentation and wire-format compatibility tests.
 - ASP.NET Core API, Application, Domain, and Infrastructure module foundations.
-- Authenticated in-memory sync with hashed opaque credentials, rotation/revocation primitives, bounded validation, structured errors, request IDs, rate limits, health checks, and metrics instrumentation.
-- Server integration tests for authentication, heartbeat storage, snapshot reuse, validation, and failure behavior.
+- Authenticated sync with hashed opaque credentials, rotation/revocation, bounded validation, structured errors, request IDs, rate limits, health checks, and metrics instrumentation.
+- PostgreSQL credential migrations and Redis expiring-presence adapters.
+- Pinned non-root server image and a disposable container integration stack with loopback-only API ingress and no database/cache host ports.
+- Typed bounded plugin HTTP client and one cancellable duty-aware development sync coordinator.
+- Integration tests for typed plugin/server sync, authentication, credential lifecycle, heartbeat storage, snapshot reuse, validation, and failure behavior.
 
 ## [0.1.2] - 2026-07-19
 

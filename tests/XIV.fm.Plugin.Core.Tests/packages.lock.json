@@ -99,8 +99,14 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
-      "xiv.fm.plugin.core": {
+      "xiv.fm.contracts": {
         "type": "Project"
+      },
+      "xiv.fm.plugin.core": {
+        "type": "Project",
+        "dependencies": {
+          "XIV.fm.Contracts": "[1.0.0, )"
+        }
       }
     }
   }
