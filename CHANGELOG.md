@@ -2,7 +2,7 @@
 
 All notable XIV.fm changes are documented here. Development builds remain prereleases until the plugin and server reach their stable acceptance criteria.
 
-## Unreleased
+## [0.1.2] - 2026-07-19
 
 ### Added
 
