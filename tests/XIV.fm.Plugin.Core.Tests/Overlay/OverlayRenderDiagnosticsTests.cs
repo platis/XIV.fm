@@ -14,5 +14,6 @@ public sealed class OverlayRenderDiagnosticsTests
         Assert.Equal(0, diagnostics.InRangePlayers);
         Assert.Equal(0, diagnostics.ProjectedAnchors);
         Assert.Equal(0, diagnostics.RenderedCards);
+        Assert.Null(diagnostics.LocalNameplateHeightYalms);
     }
 }

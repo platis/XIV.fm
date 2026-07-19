@@ -9,7 +9,8 @@ public sealed record OverlayRenderDiagnostics(
     int InRangePlayers,
     int ProjectedAnchors,
     int RenderedCards,
-    DateTimeOffset CapturedAt)
+    DateTimeOffset CapturedAt,
+    float? LocalNameplateHeightYalms)
 {
-    public static OverlayRenderDiagnostics Empty { get; } = new(0, 0, 0, 0, 0, DateTimeOffset.MinValue);
+    public static OverlayRenderDiagnostics Empty { get; } = new(0, 0, 0, 0, 0, DateTimeOffset.MinValue, null);
 }

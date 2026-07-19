@@ -15,6 +15,7 @@ Implemented:
 - Dalamud-independent plugin core project.
 - Atomic immutable overlay-state snapshots.
 - One local/remote player-card rendering path.
+- Pose-aware anchoring from the game's current nameplate world position, including emote and mount offsets.
 - Strict character name and home-world matching.
 - Typed location snapshots using current world, territory, map, and instance IDs.
 - Immediate snapshot invalidation/wake-up for login, logout, and location changes.
@@ -58,6 +59,7 @@ Save the settings, open the plugin installer, search for **XIV.fm**, and install
 - [`docs/relays.md`](docs/relays.md) — Custom Relay API, authorization, and limits.
 - [`docs/releasing.md`](docs/releasing.md) — automated prerelease process.
 - [`docs/lastfm-compliance.md`](docs/lastfm-compliance.md) — reviewed provider constraints and public-use gates.
+- [`docs/adr/`](docs/adr/) — approved architecture decisions and safety reviews.
 - [`CHANGELOG.md`](CHANGELOG.md) — user-visible release history.
 
 ## Repository layout

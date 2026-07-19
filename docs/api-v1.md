@@ -108,7 +108,7 @@ The sync itself is the heartbeat. A client does not need a separate recurring he
 {
   "serverTime": "2026-07-19T08:00:00Z",
   "presenceExpiresAt": "2026-07-19T08:01:00Z",
-  "nextSyncAfterSeconds": 30,
+  "nextSyncAfterSeconds": 10,
   "ownListening": {
     "status": "playing",
     "isStale": false,
@@ -139,7 +139,7 @@ The sync itself is the heartbeat. A client does not need a separate recurring he
 }
 ```
 
-`nextSyncAfterSeconds` is server guidance and must be clamped by the plugin's safe timing policy. It is not permission to bypass local backoff or the duty gate.
+`nextSyncAfterSeconds` is server guidance and must be clamped by the plugin's safe timing policy. The server currently requests a responsive 10-second cadence while the client's cached track is fresh and playing, then returns to the normal 30-second cadence for not-playing, unavailable, or stale state. This changes only cached server sync traffic; it does not increase Last.fm polling. The guidance is not permission to bypass local backoff or the duty gate.
 
 Listening status is one of:
 

@@ -52,14 +52,14 @@ public sealed class NameplateCardRenderer
         var snapshot = this.stateStore.Current;
         if (!this.isEnabled())
         {
-            this.PublishDiagnostics(snapshot.Cards.Length, 0, 0, 0, 0);
+            this.PublishDiagnostics(snapshot.Cards.Length, 0, 0, 0, 0, null);
             return;
         }
 
         var localPlayer = this.objectTable.LocalPlayer;
         if (localPlayer is null || snapshot.Cards.IsEmpty)
         {
-            this.PublishDiagnostics(snapshot.Cards.Length, 0, 0, 0, 0);
+            this.PublishDiagnostics(snapshot.Cards.Length, 0, 0, 0, 0, null);
             return;
         }
 
@@ -67,6 +67,7 @@ public sealed class NameplateCardRenderer
         var inRangePlayers = 0;
         var projectedAnchors = 0;
         var renderedCards = 0;
+        float? localNameplateHeightYalms = null;
         var loadedPlayers = this.objectTable.PlayerObjects.OfType<IPlayerCharacter>().ToArray();
         foreach (var card in snapshot.Cards)
         {
@@ -87,7 +88,11 @@ public sealed class NameplateCardRenderer
             }
 
             inRangePlayers++;
-            if (!this.TryGetScreenAnchor(target, out var screenAnchor))
+            if (!DalamudNameplateAnchor.TryGetWorldPosition(target, out var worldAnchor))
+                continue;
+            if (card.IsLocal)
+                localNameplateHeightYalms = OverlayAnchor.GetHeightYalms(target.Position, worldAnchor);
+            if (!this.gameGui.WorldToScreen(worldAnchor, out var screenAnchor))
                 continue;
 
             projectedAnchors++;
@@ -100,7 +105,8 @@ public sealed class NameplateCardRenderer
             matchedPlayers,
             inRangePlayers,
             projectedAnchors,
-            renderedCards);
+            renderedCards,
+            localNameplateHeightYalms);
     }
 
     private static IPlayerCharacter? FindLoadedPlayer(
@@ -151,18 +157,13 @@ public sealed class NameplateCardRenderer
         }
     }
 
-    private bool TryGetScreenAnchor(IPlayerCharacter player, out Vector2 screenAnchor)
-    {
-        var worldAnchor = OverlayAnchor.AboveCharacter(player.Position);
-        return this.gameGui.WorldToScreen(worldAnchor, out screenAnchor);
-    }
-
     private void PublishDiagnostics(
         int requestedCards,
         int matchedPlayers,
         int inRangePlayers,
         int projectedAnchors,
-        int renderedCards)
+        int renderedCards,
+        float? localNameplateHeightYalms)
     {
         var now = DateTimeOffset.UtcNow;
         if (now < this.nextDiagnosticsPublishAt)
@@ -177,6 +178,7 @@ public sealed class NameplateCardRenderer
                 inRangePlayers,
                 projectedAnchors,
                 renderedCards,
-                now));
+                now,
+                localNameplateHeightYalms));
     }
 }

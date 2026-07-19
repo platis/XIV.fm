@@ -4,8 +4,15 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.5] - 2026-07-19
+
+### Added
+
+- Follow the game's current pose-aware nameplate world position instead of assuming a fixed standing height, with anchor-height diagnostics for in-game validation.
+
 ### Fixed
 
+- Reduce visible track-change latency by syncing fresh playing state from the XIV.fm cache every 10 seconds without increasing Last.fm polling.
 - Use Last.fm web authorization so browser approval redirects to XIV.fm; the previous flow incorrectly mixed a pre-issued desktop token with callback polling and remained pending.
 
 ## [0.1.4] - 2026-07-19

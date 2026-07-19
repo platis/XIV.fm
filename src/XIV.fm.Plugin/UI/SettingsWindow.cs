@@ -276,6 +276,7 @@ public sealed class SettingsWindow : Window
         ImGui.BulletText($"Snapshot cards: {snapshot.Cards.Length}");
         ImGui.BulletText($"Location: {snapshot.Location?.ToString() ?? "unavailable"}");
         ImGui.BulletText($"Render requested/matched/in-range/projected/drawn: {render.RequestedCards}/{render.MatchedPlayers}/{render.InRangePlayers}/{render.ProjectedAnchors}/{render.RenderedCards}");
+        ImGui.BulletText($"Local pose-aware nameplate height: {(render.LocalNameplateHeightYalms is float height ? $"{height:F2} yalms" : "unavailable")}");
         if (!string.IsNullOrWhiteSpace(sync.Error))
             ImGui.TextWrapped($"Sync error: {sync.Error}");
         if (!string.IsNullOrWhiteSpace(link.Error))

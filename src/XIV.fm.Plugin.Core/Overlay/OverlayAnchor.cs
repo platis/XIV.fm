@@ -3,18 +3,31 @@ using System.Numerics;
 namespace XIV.fm.Plugin.Core.Overlay;
 
 /// <summary>
-/// Computes the world-space point used to place a card above a character.
-/// Screen projection remains a Dalamud adapter responsibility.
+/// Validates the pose-aware world point supplied by the game for a character nameplate.
+/// Screen projection and native game access remain Dalamud adapter responsibilities.
 /// </summary>
 public static class OverlayAnchor
 {
-    public const float DefaultHeightYalms = 2.45f;
+    public const float MaximumNameplateOffsetYalms = 50f;
 
-    public static Vector3 AboveCharacter(Vector3 characterPosition, float heightYalms = DefaultHeightYalms)
+    public static bool IsValidNameplatePosition(Vector3 characterPosition, Vector3 nameplatePosition)
     {
-        if (!float.IsFinite(heightYalms) || heightYalms <= 0)
-            throw new ArgumentOutOfRangeException(nameof(heightYalms), "Anchor height must be finite and positive.");
+        if (!IsFinite(characterPosition) || !IsFinite(nameplatePosition))
+            return false;
 
-        return characterPosition + new Vector3(0, heightYalms, 0);
+        var offset = nameplatePosition - characterPosition;
+        return offset.Y > 0f &&
+            offset.LengthSquared() <= MaximumNameplateOffsetYalms * MaximumNameplateOffsetYalms;
     }
+
+    public static float GetHeightYalms(Vector3 characterPosition, Vector3 nameplatePosition)
+    {
+        if (!IsValidNameplatePosition(characterPosition, nameplatePosition))
+            throw new ArgumentOutOfRangeException(nameof(nameplatePosition), "Nameplate position is not valid for the character.");
+
+        return nameplatePosition.Y - characterPosition.Y;
+    }
+
+    private static bool IsFinite(Vector3 value) =>
+        float.IsFinite(value.X) && float.IsFinite(value.Y) && float.IsFinite(value.Z);
 }

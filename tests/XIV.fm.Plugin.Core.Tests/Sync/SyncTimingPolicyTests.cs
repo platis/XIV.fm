@@ -6,6 +6,7 @@ public sealed class SyncTimingPolicyTests
 {
     [Theory]
     [InlineData(0, 5)]
+    [InlineData(10, 10)]
     [InlineData(30, 30)]
     [InlineData(600, 300)]
     public void ServerDelayIsClamped(int requested, int expected)

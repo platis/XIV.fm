@@ -118,6 +118,8 @@ This phase is intentionally collaborative with the product owner.
 - [x] Replace placeholder onboarding with account-link setup and clear states.
   - `/xivfm` and Dalamud's configuration button open an Account-first settings window with browser-link progress, failure, duty-suspension, and connected states.
   - Diagnostics exposes explicit loopback/private-test server selection so unreleased server builds can be linked without weakening production URL validation.
+- [x] Replace the fixed standing-height card offset with the game's current pose-aware nameplate world position.
+  - The read-only native boundary and safety review are recorded in [`ADR 0001`](adr/0001-pose-aware-nameplate-anchor.md); standing, sitting, ground-sitting, lying, mounted, and transformed states still require in-game acceptance.
 - [ ] Design Account, Overlay, Privacy, Custom Relays, and Diagnostics settings.
 - [ ] Finalize card typography, sizing, animation, accessibility, scale, and obstruction behavior; add album art only if the provider grants permission.
 - [ ] Add preview tools without mixing them into production state.

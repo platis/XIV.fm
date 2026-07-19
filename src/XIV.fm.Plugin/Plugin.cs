@@ -321,8 +321,11 @@ public sealed class Plugin : IDalamudPlugin
         var link = this.accountLinkCoordinator.State;
         var linkDetail = this.configuration.LinkedLastFmAccountName ??
             (link.Error is null ? link.Status.ToString().ToLowerInvariant() : $"{link.Status.ToString().ToLowerInvariant()} ({link.Error})");
+        var anchorHeight = diagnostics.LocalNameplateHeightYalms is float height
+            ? $"{height:F2} yalms"
+            : "unavailable";
         this.chatGui.Print(
-            $"Cards: {cards}; Last.fm: {linkDetail}; visibility: {this.configuration.Visibility.ToString().ToLowerInvariant()}; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; sync: {syncDetail}; snapshot: {snapshot.Cards.Length}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
+            $"Cards: {cards}; Last.fm: {linkDetail}; visibility: {this.configuration.Visibility.ToString().ToLowerInvariant()}; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; sync: {syncDetail}; snapshot: {snapshot.Cards.Length}; anchor height: {anchorHeight}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
             "XIV.fm");
     }
 }
