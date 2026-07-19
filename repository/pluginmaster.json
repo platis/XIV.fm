@@ -3,10 +3,10 @@
     "Author": "platis",
     "Name": "XIV.fm",
     "InternalName": "XIV.fm",
-    "AssemblyVersion": "0.1.4.0",
+    "AssemblyVersion": "0.1.5.0",
     "Punchline": "Share what you are listening to in Final Fantasy XIV.",
     "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
-    "Changelog": "Private testing build: adds first-run XIV.fm settings and browser-based Last.fm linking, real local listening cards, Private/Public presence, nearby remote cards, duty-safe networking, and the Custom Relay backend. Open /xivfm, enable the development server in Diagnostics, and use https://oracle-dev.tail9c4140.ts.net while connected to the XIV.fm Tailscale network.",
+    "Changelog": "Pose-aware card anchoring now follows FFXIV's current game-computed nameplate position, including sitting, lying, emote, and mount offsets.\n\nAdds local anchor-height diagnostics for in-game validation and includes the corrected Last.fm browser callback flow.",
     "Tags": [
       "lastfm",
       "music",
@@ -15,8 +15,8 @@
     ],
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.4/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.4/latest.zip",
+    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.5/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.5/latest.zip",
     "RepoUrl": "https://github.com/platis/XIV.fm"
   }
 ]
