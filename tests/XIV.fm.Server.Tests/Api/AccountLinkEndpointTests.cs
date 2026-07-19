@@ -26,7 +26,7 @@ public sealed class AccountLinkEndpointTests : IClassFixture<ServerApiFactory>
 
         var started = await StartAsync(client);
         var authorizationQuery = ParseQuery(started.AuthorizationUrl);
-        var providerToken = authorizationQuery["token"];
+        var providerToken = CreateProviderToken(started);
         var callback = new Uri(authorizationQuery["cb"]);
 
         using var callbackResponse = await client.GetAsync(
@@ -132,7 +132,7 @@ public sealed class AccountLinkEndpointTests : IClassFixture<ServerApiFactory>
             "0.1.3.0",
             CancellationToken.None);
         var authorizationQuery = ParseQuery(started.AuthorizationUrl);
-        var providerToken = authorizationQuery["token"];
+        var providerToken = CreateProviderToken(started);
         var callback = new Uri(authorizationQuery["cb"]);
         using var callbackResponse = await transport.GetAsync(
             $"{callback.PathAndQuery}&token={Uri.EscapeDataString(providerToken)}");
@@ -154,7 +154,7 @@ public sealed class AccountLinkEndpointTests : IClassFixture<ServerApiFactory>
         using var client = this.factory.CreateClient();
         var started = await StartAsync(client);
         var authorizationQuery = ParseQuery(started.AuthorizationUrl);
-        var providerToken = authorizationQuery["token"];
+        var providerToken = CreateProviderToken(started);
         var callback = new Uri(authorizationQuery["cb"]);
 
         using var invalid = await client.GetAsync(
@@ -205,6 +205,9 @@ public sealed class AccountLinkEndpointTests : IClassFixture<ServerApiFactory>
             pair => Uri.UnescapeDataString(pair[0]),
             pair => Uri.UnescapeDataString(pair[1]),
             StringComparer.Ordinal);
+
+    private static string CreateProviderToken(StartAccountLinkResponse started) =>
+        $"lastfm-test-callback-token-{started.LinkSessionId:N}";
 
     private static SyncRequest CreateSyncRequest() => new(
         "0.1.3.0",

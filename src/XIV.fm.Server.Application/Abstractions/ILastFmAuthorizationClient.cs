@@ -4,9 +4,7 @@ namespace XIV.fm.Server.Application.Abstractions;
 
 public interface ILastFmAuthorizationClient
 {
-    ValueTask<string> RequestTokenAsync(CancellationToken cancellationToken);
-
-    Uri CreateAuthorizationUri(string providerToken, Uri callbackUri);
+    Uri CreateAuthorizationUri(Uri callbackUri);
 
     ValueTask<LastFmAccountIdentity> CompleteAuthorizationAsync(
         string providerToken,

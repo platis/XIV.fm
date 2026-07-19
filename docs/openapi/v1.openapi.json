@@ -20,7 +20,7 @@
       "post": {
         "operationId": "startAccountLink",
         "summary": "Start Last.fm account linking",
-        "description": "Creates a short-lived link session. The returned high-entropy linkCredential becomes the installation credential only after Last.fm ownership proof succeeds.",
+        "description": "Creates a short-lived Last.fm web-authorization session without an inline provider call. The returned high-entropy linkCredential becomes the installation credential only after callback ownership proof succeeds.",
         "responses": {
           "201": {
             "description": "Link session created.",
@@ -101,7 +101,7 @@
       "get": {
         "operationId": "completeAccountLink",
         "summary": "Complete the Last.fm browser callback",
-        "description": "Validates and atomically consumes one callback state and matching Last.fm request token. Callback secrets are replay-protected.",
+        "description": "Validates one-time callback state, atomically associates the newly issued Last.fm web-authorization token with the session, and consumes both for ownership proof.",
         "parameters": [
           {
             "name": "linkSessionId",

@@ -23,27 +23,13 @@ public sealed class LastFmAuthorizationClient : ILastFmAuthorizationClient
         this.requestBudget = requestBudget;
     }
 
-    public async ValueTask<string> RequestTokenAsync(CancellationToken cancellationToken)
-    {
-        var parameters = this.CreateSignedParameters("auth.getToken", null);
-        using var document = await this.SendAsync(parameters, cancellationToken).ConfigureAwait(false);
-        if (!document.RootElement.TryGetProperty("token", out var tokenElement))
-            throw CreateProviderError(document.RootElement, "Last.fm did not return an authorization token.");
-
-        var token = tokenElement.GetString();
-        return !string.IsNullOrWhiteSpace(token)
-            ? token
-            : throw new LastFmAuthorizationException("Last.fm returned an empty authorization token.");
-    }
-
-    public Uri CreateAuthorizationUri(string providerToken, Uri callbackUri)
+    public Uri CreateAuthorizationUri(Uri callbackUri)
     {
         var apiKey = this.GetApiKey();
         return BuildUri(
             this.options.BrowserBaseUri,
             [
                 new("api_key", apiKey),
-                new("token", providerToken),
                 new("cb", callbackUri.AbsoluteUri),
             ]);
     }

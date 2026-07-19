@@ -25,7 +25,7 @@ public sealed class InMemoryAccountLinkStore : IAccountLinkStore, ILinkedAccount
         var stored = new Session(
             SecretHash.Compute(session.LinkCredential),
             SecretHash.Compute(session.CallbackState),
-            SecretHash.Compute(session.ProviderToken),
+            session.ProviderToken is null ? null : SecretHash.Compute(session.ProviderToken),
             StoredAccountLinkStatus.Pending,
             session.ExpiresAt,
             null);
@@ -46,17 +46,23 @@ public sealed class InMemoryAccountLinkStore : IAccountLinkStore, ILinkedAccount
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var providerTokenHash = SecretHash.Compute(providerToken);
         lock (this.gate)
         {
             if (!this.sessions.TryGetValue(sessionId, out var session) ||
                 session.Status != StoredAccountLinkStatus.Pending ||
                 session.ExpiresAt <= now ||
                 !StringComparer.Ordinal.Equals(session.CallbackStateHash, SecretHash.Compute(callbackState)) ||
-                !StringComparer.Ordinal.Equals(session.ProviderTokenHash, SecretHash.Compute(providerToken)))
+                (session.ProviderTokenHash is not null &&
+                    !StringComparer.Ordinal.Equals(session.ProviderTokenHash, providerTokenHash)) ||
+                this.sessions.Any(pair =>
+                    pair.Key != sessionId &&
+                    StringComparer.Ordinal.Equals(pair.Value.ProviderTokenHash, providerTokenHash)))
             {
                 return ValueTask.FromResult(false);
             }
 
+            session.ProviderTokenHash = providerTokenHash;
             session.Status = StoredAccountLinkStatus.Authorizing;
             return ValueTask.FromResult(true);
         }
@@ -161,7 +167,7 @@ public sealed class InMemoryAccountLinkStore : IAccountLinkStore, ILinkedAccount
         public Session(
             string linkCredentialHash,
             string callbackStateHash,
-            string providerTokenHash,
+            string? providerTokenHash,
             StoredAccountLinkStatus status,
             DateTimeOffset expiresAt,
             Account? account)
@@ -178,7 +184,7 @@ public sealed class InMemoryAccountLinkStore : IAccountLinkStore, ILinkedAccount
 
         public string CallbackStateHash { get; }
 
-        public string ProviderTokenHash { get; }
+        public string? ProviderTokenHash { get; set; }
 
         public StoredAccountLinkStatus Status { get; set; }
 

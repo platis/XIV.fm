@@ -8,7 +8,7 @@ public sealed class AccountLinkSessionEntity
 
     public string CallbackStateHash { get; set; } = string.Empty;
 
-    public string ProviderTokenHash { get; set; } = string.Empty;
+    public string? ProviderTokenHash { get; set; }
 
     public int Status { get; set; }
 

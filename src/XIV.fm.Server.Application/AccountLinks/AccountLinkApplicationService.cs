@@ -29,19 +29,15 @@ public sealed class AccountLinkApplicationService
         var sessionId = new AccountLinkSessionId(Guid.NewGuid());
         var linkCredential = SecretGenerator.Generate();
         var callbackState = SecretGenerator.Generate();
-        var providerToken = await this.lastFm.RequestTokenAsync(cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(providerToken) || providerToken.Length > 512)
-            throw new LastFmAuthorizationException("Last.fm returned an invalid authorization token.");
-
         var callbackUri = CreateCallbackUri(this.options.PublicBaseUri, sessionId, callbackState);
-        var authorizationUri = this.lastFm.CreateAuthorizationUri(providerToken, callbackUri);
+        var authorizationUri = this.lastFm.CreateAuthorizationUri(callbackUri);
         var expiresAt = now.Add(this.options.Lifetime);
         await this.store.CreateAsync(
             new NewAccountLinkSession(
                 sessionId,
                 linkCredential,
                 callbackState,
-                providerToken,
+                null,
                 now,
                 expiresAt),
             cancellationToken).ConfigureAwait(false);

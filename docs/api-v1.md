@@ -21,15 +21,15 @@ For linked installations, sync returns the latest normalized cached Last.fm obse
 
 Initial installation credentials are created only after Last.fm account proof:
 
-1. `POST /v1/account-links` creates a ten-minute session and returns a Last.fm `authorizationUrl`, a session ID, and a high-entropy `linkCredential` exactly once.
+1. `POST /v1/account-links` creates a ten-minute session and returns a Last.fm web-authorization `authorizationUrl`, a session ID, and a high-entropy `linkCredential` exactly once. Starting a session does not call Last.fm inline; the browser authorization URL contains the API key and callback, not a pre-issued desktop token.
 2. The plugin stores that secret locally, opens the authorization URL, and polls `POST /v1/account-links/{linkSessionId}/status` with the secret in a bounded JSON body.
-3. Last.fm redirects the browser to `GET /v1/account-links/{linkSessionId}/callback` with the one-time state and provider request token. The server atomically claims both values before exchanging the provider token.
+3. Last.fm redirects the browser to `GET /v1/account-links/{linkSessionId}/callback` with the one-time state and the provider token created by web authorization. The server atomically associates and claims both values before exchanging the provider token.
 4. Successful proof records the canonical Last.fm identity and promotes the existing link-credential hash to a new installation credential in the same logical completion operation. The plaintext secret is not returned again.
 5. The Last.fm session key is checked as proof and immediately discarded. XIV.fm remains read-only and later uses `user.getRecentTracks`, which does not require that key.
 
-Callback state, provider tokens, and link/installation credentials are independently hashed at rest. A callback is invalid after expiry or its first claim, so replay does not repeat provider exchange or credential issuance. Status lookup deliberately returns the same `404 account_link_not_found` response for an unknown session and a wrong link credential.
+Callback state and link credentials are independently hashed when the session is created; the provider token is first received at the callback and is atomically stored only as a hash. Installation credentials remain hashed at rest. A callback is invalid after expiry or its first claim, so replay does not repeat provider exchange or credential issuance. Status lookup deliberately returns the same `404 account_link_not_found` response for an unknown session and a wrong link credential.
 
-Account-link routes are the only unauthenticated non-health operations. They have per-IP route limits, no-store responses, bounded ten-second Last.fm calls, and share the initial 3.5-request/second Last.fm budget. Durable replicas coordinate that budget through Redis. They do not provision a credential without provider proof.
+Account-link routes are the only unauthenticated non-health operations. They have per-IP route limits and no-store responses. Callback token exchange uses a bounded ten-second Last.fm call and the shared initial 3.5-request/second Last.fm budget; session start and status polling perform no provider call. Durable replicas coordinate that budget through Redis. They do not provision a credential without provider proof.
 
 ## Custom Relays
 

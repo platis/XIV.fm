@@ -62,8 +62,7 @@ public sealed class XivFmDbContext : DbContext
         linkSession.Property(entity => entity.ProviderTokenHash)
             .HasColumnName("provider_token_hash")
             .HasMaxLength(64)
-            .IsFixedLength()
-            .IsRequired();
+            .IsFixedLength();
         linkSession.HasIndex(entity => entity.ProviderTokenHash).IsUnique();
         linkSession.Property(entity => entity.Status).HasColumnName("status");
         linkSession.Property(entity => entity.CreatedAt).HasColumnName("created_at");

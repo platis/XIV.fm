@@ -21,14 +21,12 @@ public sealed class LastFmAuthorizationClientTests
                 LastFmAuthorizationOptions.DefaultBrowserBaseUri),
             new ImmediateBudget());
 
-        var providerToken = await client.RequestTokenAsync(CancellationToken.None);
+        const string providerToken = "provider-token-00000000000000000";
         var identity = await client.CompleteAuthorizationAsync(providerToken, CancellationToken.None);
 
-        Assert.Equal("provider-token-00000000000000000", providerToken);
         Assert.Equal("CanonicalListener", identity.CanonicalName);
-        Assert.Equal(2, handler.Requests.Count);
-        Assert.Contains("api_sig=37ee171c86dcb38eadd5c8f8d9668df6", handler.Requests[0].Query, StringComparison.Ordinal);
-        Assert.Contains("api_sig=93382cada7100d2e60011dfba834e2e1", handler.Requests[1].Query, StringComparison.Ordinal);
+        var request = Assert.Single(handler.Requests);
+        Assert.Contains("api_sig=93382cada7100d2e60011dfba834e2e1", request.Query, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -45,10 +43,10 @@ public sealed class LastFmAuthorizationClientTests
             new ImmediateBudget());
         var callback = new Uri("https://xiv.fm/v1/account-links/example/callback?state=secret");
 
-        var result = client.CreateAuthorizationUri("provider-token", callback);
+        var result = client.CreateAuthorizationUri(callback);
 
         Assert.Contains("api_key=key", result.Query, StringComparison.Ordinal);
-        Assert.Contains("token=provider-token", result.Query, StringComparison.Ordinal);
+        Assert.DoesNotContain("token=", result.Query, StringComparison.Ordinal);
         Assert.Contains(Uri.EscapeDataString(callback.AbsoluteUri), result.Query, StringComparison.Ordinal);
     }
 
@@ -72,9 +70,7 @@ public sealed class LastFmAuthorizationClientTests
             cancellationToken.ThrowIfCancellationRequested();
             var uri = Assert.IsType<Uri>(request.RequestUri);
             this.Requests.Add(uri);
-            var content = uri.Query.Contains("auth.getToken", StringComparison.Ordinal)
-                ? "{\"token\":\"provider-token-00000000000000000\"}"
-                : "{\"session\":{\"name\":\"CanonicalListener\",\"key\":\"discard-this-session-key\"}}";
+            const string content = "{\"session\":{\"name\":\"CanonicalListener\",\"key\":\"discard-this-session-key\"}}";
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(content, Encoding.UTF8, "application/json"),

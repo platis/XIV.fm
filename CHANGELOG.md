@@ -4,6 +4,10 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Fixed
+
+- Use Last.fm web authorization so browser approval redirects to XIV.fm; the previous flow incorrectly mixed a pre-issued desktop token with callback polling and remained pending.
+
 ## [0.1.4] - 2026-07-19
 
 ### Added

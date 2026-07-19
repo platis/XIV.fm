@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using XIV.fm.Server.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using XIV.fm.Server.Infrastructure.Persistence;
 namespace XIV.fm.Server.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(XivFmDbContext))]
-    partial class XivFmDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260719151156_UseLastFmWebAuthorization")]
+    partial class UseLastFmWebAuthorization
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

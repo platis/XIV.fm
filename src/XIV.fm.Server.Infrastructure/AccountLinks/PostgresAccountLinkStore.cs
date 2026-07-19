@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using XIV.fm.Server.Application.Abstractions;
 using XIV.fm.Server.Domain.AccountLinks;
 using XIV.fm.Server.Domain.Accounts;
@@ -25,7 +26,9 @@ public sealed class PostgresAccountLinkStore : IAccountLinkStore, ILinkedAccount
             SessionId = session.SessionId.Value,
             LinkCredentialHash = SecretHash.Compute(session.LinkCredential),
             CallbackStateHash = SecretHash.Compute(session.CallbackState),
-            ProviderTokenHash = SecretHash.Compute(session.ProviderToken),
+            ProviderTokenHash = session.ProviderToken is null
+                ? null
+                : SecretHash.Compute(session.ProviderToken),
             Status = (int)StoredAccountLinkStatus.Pending,
             CreatedAt = session.CreatedAt,
             ExpiresAt = session.ExpiresAt,
@@ -41,20 +44,29 @@ public sealed class PostgresAccountLinkStore : IAccountLinkStore, ILinkedAccount
         CancellationToken cancellationToken)
     {
         await using var context = await this.contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var changed = await context.AccountLinkSessions
-            .Where(entity =>
-                entity.SessionId == sessionId.Value &&
-                entity.Status == (int)StoredAccountLinkStatus.Pending &&
-                entity.ExpiresAt > now &&
-                entity.CallbackStateHash == SecretHash.Compute(callbackState) &&
-                entity.ProviderTokenHash == SecretHash.Compute(providerToken))
-            .ExecuteUpdateAsync(
-                updates => updates
-                    .SetProperty(entity => entity.Status, (int)StoredAccountLinkStatus.Authorizing)
-                    .SetProperty(entity => entity.AuthorizationStartedAt, now),
-                cancellationToken)
-            .ConfigureAwait(false);
-        return changed == 1;
+        var providerTokenHash = SecretHash.Compute(providerToken);
+        try
+        {
+            var changed = await context.AccountLinkSessions
+                .Where(entity =>
+                    entity.SessionId == sessionId.Value &&
+                    entity.Status == (int)StoredAccountLinkStatus.Pending &&
+                    entity.ExpiresAt > now &&
+                    entity.CallbackStateHash == SecretHash.Compute(callbackState) &&
+                    (entity.ProviderTokenHash == null || entity.ProviderTokenHash == providerTokenHash))
+                .ExecuteUpdateAsync(
+                    updates => updates
+                        .SetProperty(entity => entity.ProviderTokenHash, providerTokenHash)
+                        .SetProperty(entity => entity.Status, (int)StoredAccountLinkStatus.Authorizing)
+                        .SetProperty(entity => entity.AuthorizationStartedAt, now),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return changed == 1;
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            return false;
+        }
     }
 
     public async ValueTask CompleteAsync(

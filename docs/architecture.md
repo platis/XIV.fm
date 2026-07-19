@@ -70,7 +70,7 @@ Dependencies point inward. Domain/application code does not depend on HTTP, EF C
 
 The first server vertical slice authenticates a hashed opaque installation credential, validates and stores a heartbeat, and returns an empty versioned social snapshot. Linked installations receive cached own-listening state without an inline provider lookup; unlinked development installations receive unavailable state. Custom visibility validates every selected Relay and revalidates durable membership revisions around shared snapshot reads. Application ports have in-memory test adapters and durable PostgreSQL/Redis adapters without moving policy into HTTP code.
 
-Phase 3 account linking now uses a ten-minute server-created session with separate high-entropy callback state, provider-token proof, and link credential. The callback claim is atomic and one-time. Successful Last.fm proof records a normalized canonical account and promotes the already-hashed link credential to an installation credential; no unauthenticated path can perform that promotion. Provider session keys are validated inside the Last.fm adapter and never leave it.
+Phase 3 account linking uses Last.fm web authorization and a ten-minute server-created session with separate high-entropy callback state and link credential. Last.fm creates the provider token only after browser approval; the callback atomically associates its hash with the session and claims the state/token pair once. Successful Last.fm proof records a normalized canonical account and promotes the already-hashed link credential to an installation credential; no unauthenticated path can perform that promotion. Provider session keys are validated inside the Last.fm adapter and never leave it.
 
 The API composition root provides bounded JSON input, stable problem responses, server-controlled request IDs, per-installation sync rate limiting, liveness/readiness checks, and label-free `System.Diagnostics.Metrics` counters. Metrics have no public HTTP endpoint; a private collector/exporter will be configured during deployment work.
 
@@ -111,9 +111,9 @@ The plugin retains unchanged snapshots until their server expiry, maps entries i
 
 The plugin is a public client and contains no Last.fm secret.
 
-1. Plugin requests a short-lived device/link session.
-2. Browser completes Last.fm authorization.
-3. Server validates one-time state and exchanges the provider token.
+1. Plugin requests a short-lived link session and receives a Last.fm web-authorization URL with an explicit callback.
+2. Browser completes Last.fm authorization; session start and plugin status polling make no provider request.
+3. Last.fm redirects the browser with a newly issued provider token; the server atomically validates one-time state, hashes the token, and exchanges it under the global budget.
 4. Server records the canonical Last.fm account.
 5. Plugin receives an opaque, revocable XIV.fm installation credential.
 

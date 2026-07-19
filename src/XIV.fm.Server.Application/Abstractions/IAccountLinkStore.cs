@@ -15,7 +15,7 @@ public sealed record NewAccountLinkSession(
     AccountLinkSessionId SessionId,
     string LinkCredential,
     string CallbackState,
-    string ProviderToken,
+    string? ProviderToken,
     DateTimeOffset CreatedAt,
     DateTimeOffset ExpiresAt);
 
