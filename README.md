@@ -19,6 +19,7 @@ Implemented:
 - Typed location snapshots using current world, territory, map, and instance IDs.
 - Immediate snapshot invalidation/wake-up for login, logout, and location changes.
 - Duty participation gating that hides cards and blocks future server requests while bound by duty.
+- Versioned v1 sync transport contracts and an OpenAPI 3.1 document.
 - Client-side remote distance filtering, defaulting to 8 yalms and clamped to 1–20.
 - `/xivfm status` diagnostics for matching, range, projection, rendering, and location.
 - Unit-tested anchoring, identity, snapshot, and visibility behavior.
@@ -44,6 +45,7 @@ Save the settings, open the plugin installer, search for **XIV.fm**, and install
 ## Documentation
 
 - [`docs/product.md`](docs/product.md) — product scope and terminology.
+- [`docs/api-v1.md`](docs/api-v1.md) — frozen v1 sync behavior and wire contract.
 - [`docs/architecture.md`](docs/architecture.md) — target plugin/server architecture.
 - [`docs/plan.md`](docs/plan.md) — phased delivery plan and acceptance criteria.
 - [`docs/relays.md`](docs/relays.md) — Custom Relay API, authorization, and limits.
@@ -53,13 +55,15 @@ Save the settings, open the plugin installer, search for **XIV.fm**, and install
 ## Repository layout
 
 ```text
+src/XIV.fm.Contracts/          Versioned plugin/server transport contracts
 src/XIV.fm.Plugin/             Dalamud adapter and placeholder UI
 src/XIV.fm.Plugin.Core/        Dalamud-independent plugin behavior
+tests/XIV.fm.Contracts.Tests   Wire-format contract tests
 tests/XIV.fm.Plugin.Core.Tests Core unit tests
-docs/                          Product, architecture, API, and delivery decisions
+docs/                          Product, OpenAPI, architecture, and delivery decisions
 ```
 
-Server projects and versioned contracts will be introduced when the local-overlay foundation is accepted.
+The v1 contracts are frozen; server projects are the next development slice. No backend is deployed yet.
 
 ## Development controls
 
@@ -106,6 +110,7 @@ Equivalent commands:
 ```bash
 dotnet restore XIV.fm.slnx --locked-mode
 dotnet format XIV.fm.slnx --verify-no-changes --no-restore
+dotnet test tests/XIV.fm.Contracts.Tests/XIV.fm.Contracts.Tests.csproj --no-restore -c Release
 dotnet test tests/XIV.fm.Plugin.Core.Tests/XIV.fm.Plugin.Core.Tests.csproj --no-restore -c Release
 dotnet build src/XIV.fm.Plugin/XIV.fm.Plugin.csproj --no-restore -c Release
 ```

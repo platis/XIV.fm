@@ -1,0 +1,588 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "XIV.fm API",
+    "version": "1.0.0",
+    "description": "Authenticated XIV.fm plugin synchronization. Duty-bound clients make no requests.",
+    "license": {
+      "name": "All rights reserved",
+      "identifier": "LicenseRef-Proprietary"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Same-origin API deployment; the production host is configured externally."
+    }
+  ],
+  "paths": {
+    "/v1/sync": {
+      "post": {
+        "operationId": "syncPresence",
+        "summary": "Refresh installation presence and read cached listening state",
+        "description": "Authenticates one installation heartbeat, updates its server-authoritative visibility, and returns cached own-listening and reusable location-presence state. The handler does not perform an unbounded Last.fm request inline.",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Heartbeat accepted and cached state returned.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "installationBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque XIV.fm installation credential",
+        "description": "A revocable XIV.fm installation credential. This is not a Last.fm credential."
+      }
+    },
+    "headers": {
+      "RequestId": {
+        "description": "Server-controlled request correlation identifier.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "RetryAfter": {
+        "description": "Seconds until the request may be retried.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Malformed or invalid bounded input.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing, invalid, expired, or revoked installation credential.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Linked-account or Relay authorization failed.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Installation or account state conflicts with the operation.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "A route, account, installation, or IP quota was exceeded.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "Retry-After": {
+            "$ref": "#/components/headers/RetryAfter"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "A required server dependency is unavailable and no safe cached response can be returned.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "Retry-After": {
+            "$ref": "#/components/headers/RetryAfter"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "SyncRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pluginVersion",
+          "character",
+          "location",
+          "visibility"
+        ],
+        "properties": {
+          "pluginVersion": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$",
+            "maxLength": 32
+          },
+          "character": {
+            "$ref": "#/components/schemas/CharacterIdentity"
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationScope"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/VisibilitySelection"
+          },
+          "knownSnapshotVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Opaque version copied from a prior LocationPresence result."
+          }
+        }
+      },
+      "SyncResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "serverTime",
+          "presenceExpiresAt",
+          "nextSyncAfterSeconds",
+          "ownListening",
+          "locationPresence"
+        ],
+        "properties": {
+          "serverTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "presenceExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nextSyncAfterSeconds": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 300
+          },
+          "ownListening": {
+            "$ref": "#/components/schemas/ListeningState"
+          },
+          "locationPresence": {
+            "$ref": "#/components/schemas/SnapshotResult"
+          }
+        }
+      },
+      "CharacterIdentity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "homeWorldId"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Trimmed canonical in-game character display name."
+          },
+          "homeWorldId": {
+            "$ref": "#/components/schemas/NonZeroUInt32"
+          }
+        }
+      },
+      "LocationScope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "currentWorldId",
+          "territoryId",
+          "mapId",
+          "instanceId"
+        ],
+        "properties": {
+          "currentWorldId": {
+            "$ref": "#/components/schemas/NonZeroUInt32"
+          },
+          "territoryId": {
+            "$ref": "#/components/schemas/NonZeroUInt32"
+          },
+          "mapId": {
+            "$ref": "#/components/schemas/NonZeroUInt32"
+          },
+          "instanceId": {
+            "$ref": "#/components/schemas/UInt32"
+          }
+        },
+        "description": "Typed location scope. Character coordinates are never transmitted."
+      },
+      "VisibilitySelection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "relayIds"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "private",
+              "public",
+              "custom"
+            ]
+          },
+          "relayIds": {
+            "type": "array",
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "description": "Private/Public require no Relay IDs. Custom requires at least one currently authorized Relay ID."
+      },
+      "ListeningState": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "isStale",
+          "observedAt",
+          "track"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "playing",
+              "notPlaying",
+              "unavailable"
+            ]
+          },
+          "isStale": {
+            "type": "boolean"
+          },
+          "observedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "track": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Track"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "description": "Playing requires a track. NotPlaying and Unavailable require a null track."
+      },
+      "Track": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "artist",
+          "album",
+          "albumArtUrl",
+          "trackUrl",
+          "startedAt"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "artist": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "album": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 512
+          },
+          "albumArtUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "maxLength": 2048
+          },
+          "trackUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "maxLength": 2048
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "PresenceEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "character",
+          "listening"
+        ],
+        "properties": {
+          "character": {
+            "$ref": "#/components/schemas/CharacterIdentity"
+          },
+          "listening": {
+            "$ref": "#/components/schemas/ListeningState"
+          }
+        }
+      },
+      "PresenceSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "location",
+          "generatedAt",
+          "expiresAt",
+          "entries"
+        ],
+        "properties": {
+          "location": {
+            "$ref": "#/components/schemas/LocationScope"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PresenceEntry"
+            }
+          }
+        }
+      },
+      "SnapshotResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "snapshot"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Opaque shared-snapshot version."
+          },
+          "snapshot": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PresenceSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when the request's knownSnapshotVersion is still current."
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code",
+          "requestId"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$",
+            "maxLength": 128
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2048
+          },
+          "instance": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2048
+          },
+          "errors": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 512
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "UInt32": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 4294967295
+      },
+      "NonZeroUInt32": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 4294967295
+      }
+    }
+  }
+}

@@ -2,6 +2,13 @@
 
 All notable XIV.fm changes are documented here. Development builds remain prereleases until the plugin and server reach their stable acceptance criteria.
 
+## Unreleased
+
+### Added
+
+- Frozen v1 sync request, response, snapshot, listening-state, visibility, and structured-error contracts.
+- OpenAPI 3.1 documentation and wire-format compatibility tests.
+
 ## [0.1.2] - 2026-07-19
 
 ### Added

@@ -46,7 +46,7 @@ _Status: complete; validated in game through v0.1.2_
 
 ## Phase 2 — contracts and server foundation
 
-- [ ] Add versioned `XIV.fm.Contracts` and an OpenAPI document, including duty-suspended client behavior.
+- [x] Add versioned `XIV.fm.Contracts` and an OpenAPI document, including duty-suspended client behavior.
 - [ ] Scaffold ASP.NET Core API, Application, Domain, and Infrastructure projects.
 - [ ] Implement structured errors, request IDs, validation, health, readiness, and metrics.
 - [ ] Add PostgreSQL migrations and Redis adapters through testable ports.
@@ -117,6 +117,6 @@ This phase is intentionally collaborative with the product owner.
 
 ## Immediate next steps
 
-1. Freeze the v1 sync contract using the validated identity, location, lifecycle, distance, and duty behavior.
-2. Add the versioned contracts project and OpenAPI document.
-3. Scaffold the ASP.NET Core server foundation against that contract.
+1. Scaffold the ASP.NET Core API, Application, Domain, and Infrastructure projects against the frozen v1 contract.
+2. Implement request IDs, structured errors, bounded validation, health, and readiness.
+3. Add an authenticated in-memory sync vertical slice before introducing PostgreSQL and Redis adapters.

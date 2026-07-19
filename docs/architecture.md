@@ -29,6 +29,8 @@ No module is deployed as an independent microservice.
 
 ## Plugin boundaries
 
+`XIV.fm.Contracts` contains versioned transport records shared by the plugin and server. The frozen v1 sync behavior is documented in [`api-v1.md`](api-v1.md) and [`openapi/v1.openapi.json`](openapi/v1.openapi.json). Contracts contain wire shapes, not application behavior or infrastructure dependencies.
+
 `XIV.fm.Plugin.Core` contains behavior that can be tested without Dalamud:
 
 - Sync state machine and timing policy.
@@ -59,7 +61,7 @@ XIV.fm.Server.Api             HTTP/authentication/validation
 XIV.fm.Server.Application     use cases, scheduling, authorization
 XIV.fm.Server.Domain          accounts, tracks, presence, Relays
 XIV.fm.Server.Infrastructure  Last.fm, PostgreSQL, Redis, telemetry
-XIV.fm.Contracts              versioned transport contracts
+XIV.fm.Contracts              versioned transport contracts (implemented)
 ```
 
 Dependencies point inward. Domain/application code does not depend on HTTP, EF Core, Redis, or Last.fm JSON.

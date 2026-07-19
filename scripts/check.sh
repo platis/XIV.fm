@@ -29,11 +29,20 @@ command -v python3 >/dev/null 2>&1 || {
 printf 'Testing release tools...\n'
 python3 -m unittest discover -s tests/release_tools -p 'test_*.py'
 
+printf 'Validating API contracts...\n'
+python3 -m unittest discover -s tests/contracts -p 'test_*.py'
+
 printf 'Restoring locked dependencies...\n'
 dotnet restore XIV.fm.slnx --locked-mode
 
 printf 'Checking formatting...\n'
 dotnet format XIV.fm.slnx --verify-no-changes --no-restore
+
+printf 'Running contract tests...\n'
+dotnet test tests/XIV.fm.Contracts.Tests/XIV.fm.Contracts.Tests.csproj \
+    --no-restore \
+    --configuration Release \
+    --verbosity minimal
 
 printf 'Running core tests...\n'
 dotnet test tests/XIV.fm.Plugin.Core.Tests/XIV.fm.Plugin.Core.Tests.csproj \
