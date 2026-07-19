@@ -3,10 +3,10 @@
     "Author": "platis",
     "Name": "XIV.fm",
     "InternalName": "XIV.fm",
-    "AssemblyVersion": "0.1.0.0",
+    "AssemblyVersion": "0.1.1.0",
     "Punchline": "Share what you are listening to in Final Fantasy XIV.",
     "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
-    "Changelog": "Initial XIV.fm development build.\n\n- Renders a placeholder card above the local player.\n- Provides developer mock cards for loaded remote players.\n- Applies strict character/world matching and an 8-yalm default range.\n- Captures typed world, territory, map, and instance diagnostics.\n\nThis prerelease is intended only for placement and lifecycle testing. Last.fm linking and the XIV.fm server are not implemented yet.",
+    "Changelog": "Fix plugin loading by deferring initial game object access to the Dalamud framework thread.",
     "Tags": [
       "lastfm",
       "music",
@@ -15,8 +15,8 @@
     ],
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.0/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.0/latest.zip",
+    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.1/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.1/latest.zip",
     "RepoUrl": "https://github.com/platis/XIV.fm"
   }
 ]
