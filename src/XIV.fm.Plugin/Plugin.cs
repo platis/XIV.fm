@@ -1,7 +1,9 @@
 using Dalamud.Game.Command;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using XIV.fm.Plugin.Adapters;
 using XIV.fm.Plugin.Core.Overlay;
+using XIV.fm.Plugin.Core.Policy;
 using XIV.fm.Plugin.Development;
 using XIV.fm.Plugin.UI;
 
@@ -14,6 +16,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly ICommandManager commandManager;
     private readonly IChatGui chatGui;
+    private readonly ICondition condition;
     private readonly PluginConfiguration configuration;
     private readonly OverlayStateStore stateStore;
     private readonly NameplateCardRenderer cardRenderer;
@@ -26,11 +29,13 @@ public sealed class Plugin : IDalamudPlugin
         IClientState clientState,
         IObjectTable objectTable,
         IGameGui gameGui,
-        IFramework framework)
+        IFramework framework,
+        ICondition condition)
     {
         this.pluginInterface = pluginInterface;
         this.commandManager = commandManager;
         this.chatGui = chatGui;
+        this.condition = condition;
         this.configuration = pluginInterface.GetPluginConfig() as PluginConfiguration ?? new PluginConfiguration();
         this.configuration.RemoteCardDistanceYalms = this.configuration.NormalizedRemoteCardDistanceYalms;
 
@@ -39,14 +44,15 @@ public sealed class Plugin : IDalamudPlugin
             objectTable,
             gameGui,
             this.stateStore,
-            () => this.configuration.ShowPlaceholderCards,
+            () => this.configuration.ShowPlaceholderCards && this.CurrentDutyPolicy.AllowsOverlay,
             () => this.configuration.NormalizedRemoteCardDistanceYalms);
         this.developmentCoordinator = new DevelopmentOverlayCoordinator(
             framework,
             clientState,
             objectTable,
             this.stateStore,
-            () => this.configuration.DeveloperMockRemoteCards);
+            () => this.configuration.DeveloperMockRemoteCards,
+            () => this.CurrentDutyPolicy.IsInDuty);
 
         this.commandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
@@ -99,6 +105,8 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    private DutyParticipationPolicy CurrentDutyPolicy => new(DalamudDutyState.IsInDuty(this.condition));
+
     private void SaveConfiguration() => this.pluginInterface.SavePluginConfig(this.configuration);
 
     private void PrintStatus()
@@ -108,8 +116,11 @@ public sealed class Plugin : IDalamudPlugin
         var snapshot = this.stateStore.Current;
         var diagnostics = this.cardRenderer.Diagnostics;
         var location = snapshot.Location?.ToString() ?? "unavailable";
+        var dutyPolicy = this.CurrentDutyPolicy;
+        var duty = dutyPolicy.IsInDuty ? "yes" : "no";
+        var participation = dutyPolicy.AllowsServerRequests ? "active" : "suspended";
         this.chatGui.Print(
-            $"Cards: {cards}; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; snapshot: {snapshot.Cards.Length}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
+            $"Cards: {cards}; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; snapshot: {snapshot.Cards.Length}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
             "XIV.fm");
     }
 }

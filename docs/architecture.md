@@ -46,6 +46,8 @@ No module is deployed as an independent microservice.
 
 Rendering reads an immutable snapshot. It does not call the server, Last.fm, storage, or asynchronous loaders directly.
 
+A shared duty-participation policy gates both rendering and networking. While Dalamud reports any bound-by-duty condition, the plugin publishes an empty overlay snapshot, renders no cards, cancels in-flight requests where possible, and starts no server request. It does not send a final leave request from inside the duty; short presence TTLs remove stale publication. The future sync coordinator must evaluate this policy before every request and resume only after duty exit.
+
 The initial card uses a world point projected above the local character. Before social cards are accepted, the anchor adapter must be tested against actual nameplates across races, UI scales, camera angles, world travel, crowded locations, and hidden nameplate conditions.
 
 ## Server modules

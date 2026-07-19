@@ -35,7 +35,7 @@ _Visual direction: placeholder until Phase 6_
 - [x] Support local and remote card instances through one renderer pipeline.
 - [x] Add client-side 8-yalm filtering with a configurable 1–20 range for remote players.
 - [x] Handle login/logout, typed location changes, object disappearance, projection failure, and plugin disposal.
-- [ ] Define and implement the duty rendering policy.
+- [x] Hide all cards while bound by duty and define the same gate for every future server request.
 - [x] Add developer-only remote mock state.
 - [x] Add projected-anchor pipeline diagnostics.
 
@@ -43,7 +43,7 @@ _Visual direction: placeholder until Phase 6_
 
 ## Phase 2 — contracts and server foundation
 
-- [ ] Add versioned `XIV.fm.Contracts` and an OpenAPI document.
+- [ ] Add versioned `XIV.fm.Contracts` and an OpenAPI document, including duty-suspended client behavior.
 - [ ] Scaffold ASP.NET Core API, Application, Domain, and Infrastructure projects.
 - [ ] Implement structured errors, request IDs, validation, health, readiness, and metrics.
 - [ ] Add PostgreSQL migrations and Redis adapters through testable ports.
@@ -114,6 +114,6 @@ This phase is intentionally collaborative with the product owner.
 
 ## Immediate next steps
 
-1. Decide whether cards are hidden in all duties or only selected combat/PvP contexts.
-2. Freeze the v1 sync contract using the validated identity, location, lifecycle, and distance behavior.
+1. Validate in game that entering a duty immediately hides all cards and `/xivfm status` reports suspended participation.
+2. Freeze the v1 sync contract using the validated identity, location, lifecycle, distance, and duty behavior.
 3. Begin Phase 2 with versioned contracts and the server foundation.

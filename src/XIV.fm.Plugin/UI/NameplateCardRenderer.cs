@@ -50,8 +50,14 @@ public sealed class NameplateCardRenderer
     public void Draw()
     {
         var snapshot = this.stateStore.Current;
+        if (!this.isEnabled())
+        {
+            this.PublishDiagnostics(snapshot.Cards.Length, 0, 0, 0, 0);
+            return;
+        }
+
         var localPlayer = this.objectTable.LocalPlayer;
-        if (!this.isEnabled() || localPlayer is null || snapshot.Cards.IsEmpty)
+        if (localPlayer is null || snapshot.Cards.IsEmpty)
         {
             this.PublishDiagnostics(snapshot.Cards.Length, 0, 0, 0, 0);
             return;

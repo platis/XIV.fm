@@ -2,6 +2,13 @@
 
 All notable XIV.fm changes are documented here. Development builds remain prereleases until the plugin and server reach their stable acceptance criteria.
 
+## Unreleased
+
+### Added
+
+- Hide all cards while bound by duty and expose the same policy for future server-request gating.
+- Report duty suspension in `/xivfm status` diagnostics.
+
 ## [0.1.1] - 2026-07-19
 
 ### Fixed

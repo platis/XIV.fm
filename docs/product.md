@@ -46,6 +46,18 @@ The server never needs character coordinates. It returns relevant location snaps
 
 Offline linked accounts are not polled. FFXIV AFK state alone does not stop polling because an AFK player may still be listening.
 
+## Duty behavior
+
+XIV.fm participation is suspended whenever the local player is bound by duty:
+
+- Local and remote cards are hidden.
+- The plugin starts no sync, heartbeat, linking, Relay, or other XIV.fm server request.
+- Entering a duty cancels in-flight plugin requests where possible; no final leave request is sent from inside the duty.
+- Previously published presence expires through its normal short server TTL.
+- Participation resumes after leaving the duty.
+
+The plugin uses Dalamud's typed duty condition flags. Duty state is never inferred from territory names or client-supplied server data.
+
 ## Non-goals for the first stable release
 
 - Last.fm scrobbling or write operations.

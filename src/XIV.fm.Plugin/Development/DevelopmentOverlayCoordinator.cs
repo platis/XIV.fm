@@ -1,6 +1,7 @@
 using Dalamud.Plugin.Services;
 using XIV.fm.Plugin.Adapters;
 using XIV.fm.Plugin.Core.Overlay;
+using XIV.fm.Plugin.Core.Policy;
 
 namespace XIV.fm.Plugin.Development;
 
@@ -17,20 +18,24 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
     private readonly IObjectTable objectTable;
     private readonly OverlayStateStore stateStore;
     private readonly Func<bool> showMockRemoteCards;
+    private readonly Func<bool> isInDuty;
     private DateTimeOffset nextCaptureAt = DateTimeOffset.MinValue;
+    private bool wasInDuty;
 
     public DevelopmentOverlayCoordinator(
         IFramework framework,
         IClientState clientState,
         IObjectTable objectTable,
         OverlayStateStore stateStore,
-        Func<bool> showMockRemoteCards)
+        Func<bool> showMockRemoteCards,
+        Func<bool> isInDuty)
     {
         this.framework = framework;
         this.clientState = clientState;
         this.objectTable = objectTable;
         this.stateStore = stateStore;
         this.showMockRemoteCards = showMockRemoteCards;
+        this.isInDuty = isInDuty;
         this.framework.Update += this.OnFrameworkUpdate;
         this.clientState.Login += this.OnLogin;
         this.clientState.Logout += this.OnLogout;
@@ -67,6 +72,20 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
 
     private void OnFrameworkUpdate(IFramework framework)
     {
+        var dutyPolicy = new DutyParticipationPolicy(this.isInDuty());
+        if (!dutyPolicy.AllowsOverlay)
+        {
+            if (!this.wasInDuty)
+                this.stateStore.Publish(OverlaySnapshot.Empty);
+
+            this.wasInDuty = true;
+            return;
+        }
+
+        if (this.wasInDuty)
+            this.RequestCapture();
+
+        this.wasInDuty = false;
         var now = DateTimeOffset.UtcNow;
         if (now < this.nextCaptureAt)
             return;
