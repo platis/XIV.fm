@@ -22,7 +22,8 @@ _Visual direction: placeholder until Phase 6_
 - [x] Create a placeholder card projected above the local character.
 - [x] Verify the packaged development plugin in FFXIV/Dalamud.
   - v0.1.1 loads successfully, renders the local placeholder, and responds correctly to the `/xivfm` overlay toggle.
-- [ ] Confirm the placeholder sits above the real nameplate across representative races, camera distances, and UI scales.
+- [x] Confirm the placeholder follows real nameplates across representative races, camera distances, and UI scales.
+  - The development card renders slightly too high; final vertical placement is deferred to Phase 6 visual design.
 
 **Exit:** CI and local checks pass, and an in-game screenshot/test confirms the anchor behavior.
 
@@ -113,8 +114,6 @@ This phase is intentionally collaborative with the product owner.
 
 ## Immediate next steps
 
-1. Run `/xivfm mock` in a Dalamud development environment and validate local/remote anchors visually.
-2. Record findings for race/height, nameplate visibility, camera, UI scale, and the 8-yalm boundary.
-3. Validate lifecycle and projected-anchor diagnostics from `/xivfm status`.
-4. Validate current-world, territory, map, and instance changes in game before freezing the v1 sync contract.
-5. Decide whether cards are hidden in all duties or only selected combat/PvP contexts.
+1. Decide whether cards are hidden in all duties or only selected combat/PvP contexts.
+2. Freeze the v1 sync contract using the validated identity, location, lifecycle, and distance behavior.
+3. Begin Phase 2 with versioned contracts and the server foundation.
