@@ -1,24 +1,58 @@
 # Releasing XIV.fm
 
-Use semantic versioning (`MAJOR.MINOR.PATCH`) unless the package ecosystem imposes another format. Git tags and GitHub releases use `vMAJOR.MINOR.PATCH`.
+XIV.fm uses numeric semantic versions (`MAJOR.MINOR.PATCH`). Git tags use `vMAJOR.MINOR.PATCH`; the generated Dalamud assembly version has a fourth `.0` component.
+
+## Development prerelease
+
+The `Release XIV.fm` GitHub Actions workflow is manually dispatched from `main`. It:
+
+1. Validates that the requested version is numeric, greater than the current project version, and not already tagged.
+2. Updates the plugin project version.
+3. Downloads the current Dalamud API 15 development distribution.
+4. Runs release-tool tests, locked restore, formatting, core tests, and a Release plugin build.
+5. Generates `repository/pluginmaster.json` from the packaged manifest.
+6. Commits the version and manifest as `release: vMAJOR.MINOR.PATCH`.
+7. Creates and pushes an annotated tag.
+8. Publishes `latest.zip` as a versioned GitHub release asset.
+9. Uploads the same ZIP as a workflow artifact.
+
+Start it from GitHub Actions → **Release XIV.fm** → **Run workflow**, supplying a new version and user-facing notes. Keep **prerelease** enabled until stable-release criteria are complete.
+
+The workflow has narrowly scoped `contents: write` permission because it must commit the generated manifest, push the release tag, and create the release. Other CI remains read-only.
+
+## Public Dalamud repository
+
+Dalamud reads:
+
+```text
+https://raw.githubusercontent.com/platis/XIV.fm/main/repository/pluginmaster.json
+```
+
+The manifest references an immutable versioned asset:
+
+```text
+https://github.com/platis/XIV.fm/releases/download/vMAJOR.MINOR.PATCH/latest.zip
+```
+
+Do not manually replace an existing release asset or reuse a version. Dalamud determines updates from `AssemblyVersion`, so every distributed behavior change needs a greater numeric version.
 
 ## Checklist
 
+Before dispatching:
+
 1. Start from a clean, current `main` branch.
-2. Run the documented formatter, linter, tests, and production build.
-3. Update the changelog and user-facing documentation.
-4. Update the package version and lockfiles where applicable.
-5. Commit the release as `release: vMAJOR.MINOR.PATCH`.
-6. Create an annotated tag: `git tag -a vMAJOR.MINOR.PATCH -m "vMAJOR.MINOR.PATCH"`.
-7. Push the commit and tag, then wait for CI to pass.
-8. Create the GitHub release from the tag with reviewed release notes.
-9. Publish ecosystem packages or deployment artifacts only after the tagged build passes.
-10. Verify installation or deployment and record any rollback instructions.
+2. Ensure normal CI is green.
+3. Update `CHANGELOG.md` and user documentation in a reviewed commit.
+4. Confirm no credentials, private data, generated binaries, or local configuration are staged.
+5. Choose a greater numeric version and concise release notes.
 
-Example GitHub command after CI succeeds:
+After dispatching:
 
-```bash
-gh release create vMAJOR.MINOR.PATCH --verify-tag --generate-notes
-```
+1. Confirm the release workflow and the CI triggered by its metadata commit both pass.
+2. Fetch `pluginmaster.json` without GitHub authentication and validate its JSON.
+3. Fetch the release ZIP URL without authentication.
+4. Install/update through Dalamud using the public custom-repository URL.
+5. Verify the plugin loads, `/xivfm status` works, cards track expected characters, and unloading is clean.
+6. Record rollback or follow-up findings.
 
-Never place registry tokens or release credentials in the repository. Use GitHub environments or ecosystem-specific trusted publishing where available.
+Never place Last.fm, GitHub, registry, or deployment credentials in the repository. The release workflow uses GitHub's short-lived repository token.

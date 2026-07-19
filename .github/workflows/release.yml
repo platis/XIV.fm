@@ -1,0 +1,106 @@
+name: Release XIV.fm
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Numeric plugin version, for example 0.1.1
+        required: true
+        type: string
+      release_notes:
+        description: User-facing release notes
+        required: true
+        type: string
+      prerelease:
+        description: Publish as a GitHub prerelease
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: XIV.fm-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DALAMUD_HOME: /tmp/dalamud
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_NOTES: ${{ inputs.release_notes }}
+      RELEASE_PRERELEASE: ${{ inputs.prerelease }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.301
+
+      - name: Install Dalamud development files
+        run: ./scripts/setup-dalamud.sh
+
+      - name: Prepare version and release notes
+        run: |
+          set -Eeuo pipefail
+          tag="v${RELEASE_VERSION}"
+          git rev-parse --verify --quiet "refs/tags/${tag}" && {
+            echo "Tag ${tag} already exists" >&2
+            exit 1
+          }
+          python3 scripts/set-version.py "$RELEASE_VERSION" --require-increase
+          printf '%s\n' "$RELEASE_NOTES" > "$RUNNER_TEMP/release-notes.md"
+
+      - name: Run quality gates
+        run: ./scripts/check.sh
+
+      - name: Generate Dalamud repository manifest
+        run: |
+          python3 scripts/write-pluginmaster.py \
+            --version "$RELEASE_VERSION" \
+            --tag "v${RELEASE_VERSION}" \
+            --changelog-file "$RUNNER_TEMP/release-notes.md"
+
+      - name: Commit and tag release metadata
+        run: |
+          set -Eeuo pipefail
+          tag="v${RELEASE_VERSION}"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/XIV.fm.Plugin/XIV.fm.Plugin.csproj repository/pluginmaster.json
+          git diff --cached --check
+          git commit -m "release: ${tag}"
+          git tag --annotate "$tag" --message "$tag"
+          git push origin main "$tag"
+
+      - name: Publish GitHub release
+        run: |
+          set -Eeuo pipefail
+          flags=()
+          if [[ "$RELEASE_PRERELEASE" == 'true' ]]; then
+            flags+=(--prerelease)
+          fi
+          gh release create "v${RELEASE_VERSION}" \
+            src/XIV.fm.Plugin/bin/Release/XIV.fm/latest.zip \
+            --title "XIV.fm v${RELEASE_VERSION}" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            "${flags[@]}"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: XIV.fm-v${{ inputs.version }}
+          path: src/XIV.fm.Plugin/bin/Release/XIV.fm/latest.zip
+          if-no-files-found: error

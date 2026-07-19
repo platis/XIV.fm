@@ -30,13 +30,24 @@ Not yet implemented:
 - Custom Relay creation, invitations, membership, or kicking.
 - Final card and settings design.
 
+## Install the development build
+
+In Dalamud Settings, open **Experimental → Custom Plugin Repositories** and add:
+
+```text
+https://raw.githubusercontent.com/platis/XIV.fm/main/repository/pluginmaster.json
+```
+
+Save the settings, open the plugin installer, search for **XIV.fm**, and install it. Development releases are prereleases intended for in-game testing and are not an official Dalamud repository listing.
+
 ## Documentation
 
 - [`docs/product.md`](docs/product.md) — product scope and terminology.
 - [`docs/architecture.md`](docs/architecture.md) — target plugin/server architecture.
 - [`docs/plan.md`](docs/plan.md) — phased delivery plan and acceptance criteria.
 - [`docs/relays.md`](docs/relays.md) — Custom Relay API, authorization, and limits.
-- [`docs/releasing.md`](docs/releasing.md) — release checklist.
+- [`docs/releasing.md`](docs/releasing.md) — automated prerelease process.
+- [`CHANGELOG.md`](CHANGELOG.md) — user-visible release history.
 
 ## Repository layout
 

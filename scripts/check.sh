@@ -21,6 +21,14 @@ if [[ ! -f "$DALAMUD_HOME/Dalamud.dll" ]]; then
     "$repository_root/scripts/setup-dalamud.sh" "$DALAMUD_HOME"
 fi
 
+command -v python3 >/dev/null 2>&1 || {
+    echo 'python3 is required for release-tool tests' >&2
+    exit 1
+}
+
+printf 'Testing release tools...\n'
+python3 -m unittest discover -s tests/release_tools -p 'test_*.py'
+
 printf 'Restoring locked dependencies...\n'
 dotnet restore XIV.fm.slnx --locked-mode
 
