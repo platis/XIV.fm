@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AssemblyName>XIV.fm</AssemblyName>
     <RootNamespace>XIV.fm</RootNamespace>
-    <Version>0.1.3</Version>
+    <Version>0.1.4</Version>
     <!-- Dalamud.NET.Sdk injects versioned package references and is not CPM-compatible. -->
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
     <Use_Dalamud_FFXIVClientStructs>false</Use_Dalamud_FFXIVClientStructs>
