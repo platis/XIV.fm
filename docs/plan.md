@@ -62,7 +62,7 @@ _Status: complete; validated through typed client/API integration tests and the 
 
 ## Phase 3 — Last.fm linking and local listening
 
-_Status: implementation complete; live-provider and in-game acceptance remain release gates_
+_Status: complete; live provider linking, polling, sync, and in-game local-card rendering validated through v0.1.4_
 
 - [x] Implement short-lived browser/device link sessions with replay protection.
 - [x] Complete Last.fm authorization server-side and record the canonical account.
@@ -73,6 +73,7 @@ _Status: implementation complete; live-provider and in-game acceptance remain re
 - [x] Load-test the scheduler and review Last.fm terms/limits before public use.
   - Simulated tests cover 100 worst-case active accounts across 1,000 installation notifications and 200 mixed-use cached accounts.
   - The provider publishes no guaranteed numeric quota. [`lastfm-compliance.md`](lastfm-compliance.md) records the non-commercial, attribution/link, caching, no-artwork, and public-approval constraints.
+  - A real Last.fm account completed web authorization through the private tailnet backend; adaptive polling returned the active track through sync and the v0.1.4 plugin rendered it in game.
 
 **Exit:** Private mode provides reliable local listening state without unbounded upstream traffic.
 
@@ -140,6 +141,6 @@ This phase is intentionally collaborative with the product owner.
 
 ## Immediate next steps
 
-1. Validate Phases 3–5 end to end in game against a private server and multiple real linked accounts.
+1. Extend the successful Phase 3 private-server validation to multiple linked accounts and Phase 4–5 social presence.
 2. Begin the collaborative Phase 6 account, privacy, Custom Relay, diagnostics, and card UX work.
 3. Keep public rollout blocked on the Last.fm approval and capacity gates recorded for Phase 7.
