@@ -5,6 +5,14 @@ namespace XIV.fm.Plugin.Core.Tests.Overlay;
 public sealed class OverlayStateStoreTests
 {
     [Fact]
+    public void NewStoreStartsWithEmptySnapshot()
+    {
+        var store = new OverlayStateStore();
+
+        Assert.Same(OverlaySnapshot.Empty, store.Current);
+    }
+
+    [Fact]
     public void PublishReplacesTheCompleteSnapshot()
     {
         var store = new OverlayStateStore();

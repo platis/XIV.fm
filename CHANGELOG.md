@@ -2,6 +2,12 @@
 
 All notable XIV.fm changes are documented here. Development builds remain prereleases until the plugin and server reach their stable acceptance criteria.
 
+## [0.1.1] - 2026-07-19
+
+### Fixed
+
+- Defer initial object-table access to Dalamud's framework thread so the plugin can load safely.
+
 ## [0.1.0] - 2026-07-18
 
 ### Added

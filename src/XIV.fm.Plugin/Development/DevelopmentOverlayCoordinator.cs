@@ -37,7 +37,9 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
         this.clientState.TerritoryChanged += this.OnLocationChanged;
         this.clientState.MapIdChanged += this.OnLocationChanged;
         this.clientState.InstanceChanged += this.OnLocationChanged;
-        this.PublishSnapshot();
+
+        // Dalamud may construct plugins on a worker thread. The initial empty state is
+        // replaced by OnFrameworkUpdate, where ObjectTable access is permitted.
     }
 
     public void Dispose()
@@ -72,8 +74,6 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
         this.nextCaptureAt = now.AddSeconds(1);
         this.PublishSnapshot(now);
     }
-
-    private void PublishSnapshot() => this.PublishSnapshot(DateTimeOffset.UtcNow);
 
     private void PublishSnapshot(DateTimeOffset capturedAt)
     {
