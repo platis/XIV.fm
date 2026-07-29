@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.17] - 2026-07-29
+
 ### Changed
 
 - Increase listening-card vertical padding from 6 to 8 px and reduce its surface opacity by 20%, from 86% to 68.8%.
