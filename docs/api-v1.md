@@ -22,7 +22,7 @@ For linked installations, sync returns the latest normalized cached Last.fm obse
 Initial installation credentials are created only after Last.fm account proof:
 
 1. `POST /v1/account-links` creates a ten-minute session and returns a Last.fm web-authorization `authorizationUrl`, a session ID, and a high-entropy `linkCredential` exactly once. Starting a session does not call Last.fm inline; the browser authorization URL contains the API key and callback, not a pre-issued desktop token.
-2. The plugin stores that secret locally, opens the authorization URL, and polls `POST /v1/account-links/{linkSessionId}/status` with the secret in a bounded JSON body.
+2. The plugin stores that secret and authorization URL locally, asks the operating system to open the URL in the default browser, keeps manual reopen/copy fallbacks available, and polls `POST /v1/account-links/{linkSessionId}/status` with the secret in a bounded JSON body.
 3. Last.fm redirects the browser to `GET /v1/account-links/{linkSessionId}/callback` with the one-time state and the provider token created by web authorization. The server atomically associates and claims both values before exchanging the provider token.
 4. Successful proof records the canonical Last.fm identity and promotes the existing link-credential hash to a new installation credential in the same logical completion operation. The plaintext secret is not returned again.
 5. The Last.fm session key is checked as proof and immediately discarded. XIV.fm remains read-only and later uses `user.getRecentTracks`, which does not require that key.
@@ -147,7 +147,7 @@ Listening status is one of:
 - `notPlaying` — no current track; `track` is null.
 - `unavailable` — no usable provider/cache result; `track` is null.
 
-The `albumArtUrl` field remains nullable. Last.fm artwork mapping is disabled by default because the reviewed provider terms exclude artwork. The private development backend can explicitly opt in to map a safe HTTPS provider image for card testing; public deployments must keep it disabled unless the compliance review and provider permission are updated.
+The `albumArtUrl` field remains nullable. Last.fm artwork mapping is disabled by default because the reviewed provider terms exclude artwork. The controlled development backend can explicitly opt in at the product owner's direction to map a safe HTTPS provider image for private or invited external card testing; broader public deployments must keep it disabled unless the compliance review and provider permission are updated.
 
 `isStale` explicitly describes cached freshness. Playing observations become stale after 60 seconds and not-playing observations after 180 seconds. During provider errors the last cache remains available and its age continues increasing; a missing or expired cache returns `unavailable`. `observedAt` is null only when no upstream observation exists.
 

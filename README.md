@@ -27,7 +27,7 @@ Implemented:
 - A typed plugin network client and cancellable duty-aware development sync coordinator.
 - Ten-minute replay-protected Last.fm browser-link sessions, server-side ownership proof, canonical account persistence, and proof-gated installation credentials.
 - Normalized cached Last.fm listening state with Redis single-flight leases, a distributed 3.5-request/second budget, latency-oriented adaptive 15/20-second polling, jitter, backoff, circuit breaking, and explicit stale metadata through five-second sync.
-- Duty-gated plugin browser linking, persisted installation credentials, real local playing/not-playing/unavailable cards, explicit stale metadata in sync/diagnostics, and Last.fm track/profile links.
+- Duty-gated plugin browser linking with automatic default-browser launch, persistent manual reopen/copy fallbacks, persisted installation credentials, real local playing/not-playing/unavailable cards, explicit stale metadata in sync/diagnostics, and Last.fm track/profile links.
 - Private/Public selection, shared 20-second location snapshots with opaque versions and metrics, strict loaded-character matching, and server-authoritative remote listening cards.
 - Custom Relay ownership, bounded membership, soft deletion, replay-safe creation, hashed single-use invitations, join/leave/kick restrictions, and durable quota enforcement.
 - Membership-authorized Custom sync and shared Relay/location snapshots with revision-based immediate kick invalidation.
@@ -39,7 +39,7 @@ Implemented:
 
 Not yet implemented:
 
-- Public use of provider album covers, which remains blocked until an artwork source grants appropriate permission; private development can explicitly opt in for testing.
+- Broader public use of provider album covers, which remains blocked until an artwork source grants appropriate permission; controlled private or invited external testing can explicitly opt in at the product owner's direction.
 
 ## Install the development build
 
@@ -50,6 +50,16 @@ https://raw.githubusercontent.com/platis/XIV.fm/main/repository/pluginmaster.jso
 ```
 
 Save the settings, open the plugin installer, search for **XIV.fm**, and install it. Development releases are prereleases intended for in-game testing and are not an official Dalamud repository listing.
+
+## Join the invited external test
+
+Open **XIV.fm Settings → Diagnostics → Development server**, enable **Use development server**, and enter:
+
+```text
+https://oracle-dev.tail9c4140.ts.net
+```
+
+The endpoint is temporary and intended only for invited testing. At the product owner's direction, Last.fm artwork is enabled for this controlled test; linking, listening-state sync, Public presence, and Custom Relays are available.
 
 ## Documentation
 
@@ -77,7 +87,7 @@ tests/XIV.fm.Server.Tests      Server integration and credential-lifecycle tests
 docs/                          Product, OpenAPI, architecture, and delivery decisions
 ```
 
-A private ARM64 backend stack is running on the development server with PostgreSQL persistence, ephemeral Redis, no published container ports, and private Tailscale HTTPS. Last.fm credentials are configured outside Git and an upstream-backed link-session start is verified; browser proof and in-game acceptance remain. See [`src/XIV.fm.Server.Api/README.md`](src/XIV.fm.Server.Api/README.md) for development and runtime details.
+An ARM64 controlled-test backend stack is running with PostgreSQL persistence, ephemeral Redis, no published container ports, and temporary public HTTPS through Tailscale Funnel. Last.fm credentials are configured outside Git, artwork is explicitly enabled for the controlled test, and browser proof, linked sync, and in-game card behavior have been validated. See [`src/XIV.fm.Server.Api/README.md`](src/XIV.fm.Server.Api/README.md) for development and runtime details.
 
 ## Development controls
 
@@ -95,7 +105,7 @@ A private ARM64 backend stack is running on the development server with PostgreS
 
 Remote mock state is disabled by default and exists only to validate matching, distance, and nameplate placement before server development. The color-coded `.FM` shortcut in the native server info bar mirrors the Overlay setting; its tooltip reports whether cards are visible.
 
-The production client accepts HTTPS; explicit development mode additionally accepts loopback HTTP/HTTPS. `/xivfm link` stores the proof-gated opaque installation credential in Dalamud's local plugin configuration and sync begins automatically. Linking, polling, sync, and rendering all suspend while bound by duty.
+The production client accepts HTTPS; explicit development mode additionally accepts loopback HTTP/HTTPS. `/xivfm link` creates a short-lived connection link, attempts to open it in the operating-system default browser, and keeps **Open Last.fm authorization** and **Copy connection link** available in Account settings until linking completes. Successful proof stores the opaque installation credential in Dalamud's local plugin configuration and sync begins automatically. Linking, polling, sync, and rendering all suspend while bound by duty.
 
 ## Toolchain
 
@@ -148,4 +158,4 @@ Never place the Last.fm API secret in the plugin, configuration, manifests, logs
 
 ## Deployment
 
-The private test backend runs from `/srv/stacks/xivfm` and exposes only a host Unix socket intended for Tailscale Serve HTTPS; Funnel remains disabled. PostgreSQL and Redis publish no host ports. Sanitized definitions live in the infrastructure repository, while credentials and persistent data remain outside Git. A future approved public rollout will use Nginx and a public HTTPS domain.
+The controlled-test backend runs from `/srv/stacks/xivfm` and exposes only a host Unix socket. HTTPS 443 temporarily uses Tailscale Funnel for invited external testing; PostgreSQL and Redis publish no host ports, and unrelated Tailscale Serve handlers remain private. Sanitized definitions live in the infrastructure repository, while credentials and persistent data remain outside Git. Funnel must return to tailnet-only Serve after testing. A future approved public rollout will use Nginx and a public HTTPS domain.

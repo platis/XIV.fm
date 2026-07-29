@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
@@ -54,10 +55,11 @@ public sealed class Plugin : IDalamudPlugin
         this.chatGui = chatGui;
         this.condition = condition;
         this.configuration = pluginInterface.GetPluginConfig() as PluginConfiguration ?? new PluginConfiguration();
-        this.configuration.Version = 8;
+        this.configuration.Version = 9;
         this.configuration.ServerBaseUrl ??= "https://xiv.fm";
         this.configuration.InstallationCredential ??= string.Empty;
         this.configuration.PendingLinkCredential ??= string.Empty;
+        this.configuration.PendingLinkAuthorizationUrl ??= string.Empty;
         this.configuration.DeveloperServerBaseUrl ??= "http://127.0.0.1:5080";
         this.configuration.DeveloperInstallationCredential ??= string.Empty;
         this.configuration.SelectedRelayIds ??= [];
@@ -123,7 +125,7 @@ public sealed class Plugin : IDalamudPlugin
             this.SavePendingLink,
             this.CompleteAccountLink,
             this.ClearPendingLink,
-            uri => Util.OpenLink(uri.AbsoluteUri),
+            this.TryOpenAuthorizationLink,
             typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "0.0.0.0");
         this.accountDisconnectCoordinator = new AccountDisconnectCoordinator(
             framework,
@@ -146,6 +148,7 @@ public sealed class Plugin : IDalamudPlugin
             this.accountLinkCoordinator.CancelPending,
             this.TryDisconnectAccount,
             this.OpenCurrentLastFmPage,
+            this.TryOpenAuthorizationLink,
             this.serverSyncCoordinator.RequestImmediateSync,
             () => this.HasInstallationCredential,
             () => this.CurrentDutyPolicy,
@@ -207,7 +210,7 @@ public sealed class Plugin : IDalamudPlugin
             case "link":
                 var linkError = this.TryStartAccountLink();
                 if (linkError is null)
-                    this.chatGui.Print("Opening Last.fm authorization in your browser…", "XIV.fm");
+                    this.chatGui.Print("Creating a Last.fm connection link…", "XIV.fm");
                 else
                     this.chatGui.PrintError(linkError, "XIV.fm");
                 this.OpenSettings();
@@ -270,6 +273,37 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     private void OpenGitHub() => Util.OpenLink("https://github.com/platis/XIV.fm");
+
+    private string? TryOpenAuthorizationLink(Uri authorizationUri)
+    {
+        if (authorizationUri.Scheme != Uri.UriSchemeHttps)
+            return "The Last.fm authorization link is invalid. Copy the link and open it manually.";
+
+        try
+        {
+            using var browser = Process.Start(new ProcessStartInfo
+            {
+                FileName = authorizationUri.AbsoluteUri,
+                UseShellExecute = true,
+            });
+            if (browser is not null)
+                return null;
+        }
+        catch
+        {
+            // Dalamud's browser helper handles environments where shell execution is unavailable.
+        }
+
+        try
+        {
+            Util.OpenLink(authorizationUri.AbsoluteUri);
+            return null;
+        }
+        catch
+        {
+            return "Your default browser could not be opened. Copy the connection link and open it manually.";
+        }
+    }
 
     private void CompleteOnboarding()
     {
@@ -392,19 +426,31 @@ public sealed class Plugin : IDalamudPlugin
         ? serverBaseUri!
         : new Uri("https://xiv.fm");
 
-    private PendingAccountLink? GetPendingLink() =>
-        this.configuration.PendingLinkSessionId is Guid sessionId &&
-        sessionId != Guid.Empty &&
-        this.configuration.PendingLinkCredential.Length >= 32 &&
-        this.configuration.PendingLinkExpiresAt is DateTimeOffset expiresAt
-            ? new PendingAccountLink(sessionId, this.configuration.PendingLinkCredential, expiresAt)
-            : null;
+    private PendingAccountLink? GetPendingLink()
+    {
+        if (this.configuration.PendingLinkSessionId is not Guid sessionId ||
+            sessionId == Guid.Empty ||
+            this.configuration.PendingLinkCredential.Length < 32 ||
+            this.configuration.PendingLinkExpiresAt is not DateTimeOffset expiresAt ||
+            !Uri.TryCreate(this.configuration.PendingLinkAuthorizationUrl, UriKind.Absolute, out var authorizationUri) ||
+            authorizationUri.Scheme != Uri.UriSchemeHttps)
+        {
+            return null;
+        }
+
+        return new PendingAccountLink(
+            sessionId,
+            this.configuration.PendingLinkCredential,
+            expiresAt,
+            authorizationUri);
+    }
 
     private void SavePendingLink(PendingAccountLink pending)
     {
         this.configuration.PendingLinkSessionId = pending.SessionId;
         this.configuration.PendingLinkCredential = pending.Credential;
         this.configuration.PendingLinkExpiresAt = pending.ExpiresAt;
+        this.configuration.PendingLinkAuthorizationUrl = pending.AuthorizationUri.AbsoluteUri;
         this.SaveConfiguration();
     }
 
@@ -447,6 +493,7 @@ public sealed class Plugin : IDalamudPlugin
         this.configuration.PendingLinkSessionId = null;
         this.configuration.PendingLinkCredential = string.Empty;
         this.configuration.PendingLinkExpiresAt = null;
+        this.configuration.PendingLinkAuthorizationUrl = string.Empty;
         if (save)
             this.SaveConfiguration();
     }

@@ -6,7 +6,7 @@ namespace XIV.fm.Plugin;
 
 public sealed class PluginConfiguration : IPluginConfiguration
 {
-    public int Version { get; set; } = 8;
+    public int Version { get; set; } = 9;
 
     public bool HasSeenAccountOnboarding { get; set; }
 
@@ -31,6 +31,8 @@ public sealed class PluginConfiguration : IPluginConfiguration
     public string PendingLinkCredential { get; set; } = string.Empty;
 
     public DateTimeOffset? PendingLinkExpiresAt { get; set; }
+
+    public string PendingLinkAuthorizationUrl { get; set; } = string.Empty;
 
     public bool DeveloperServerEnabled { get; set; }
 

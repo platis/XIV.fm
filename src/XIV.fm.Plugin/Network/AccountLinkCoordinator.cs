@@ -19,9 +19,14 @@ public sealed record AccountLinkRuntimeState(
     AccountLinkRuntimeStatus Status,
     DateTimeOffset UpdatedAt,
     string? AccountName = null,
-    string? Error = null);
+    string? Error = null,
+    Uri? AuthorizationUri = null);
 
-public sealed record PendingAccountLink(Guid SessionId, string Credential, DateTimeOffset ExpiresAt);
+public sealed record PendingAccountLink(
+    Guid SessionId,
+    string Credential,
+    DateTimeOffset ExpiresAt,
+    Uri AuthorizationUri);
 
 public sealed record AccountLinkSettings(Uri ServerBaseUri, PendingAccountLink? PendingLink);
 
@@ -35,7 +40,7 @@ public sealed class AccountLinkCoordinator : IDisposable
     private readonly Action<PendingAccountLink> savePending;
     private readonly Action<string, string> completeLink;
     private readonly Action clearPending;
-    private readonly Action<Uri> openBrowser;
+    private readonly Func<Uri, string?> openBrowser;
     private readonly string pluginVersion;
     private readonly ConcurrentQueue<Action> frameworkActions = new();
     private readonly CancellationTokenSource disposalCancellation = new();
@@ -53,7 +58,7 @@ public sealed class AccountLinkCoordinator : IDisposable
         Action<PendingAccountLink> savePending,
         Action<string, string> completeLink,
         Action clearPending,
-        Action<Uri> openBrowser,
+        Func<Uri, string?> openBrowser,
         string pluginVersion)
     {
         this.framework = framework;
@@ -224,15 +229,28 @@ public sealed class AccountLinkCoordinator : IDisposable
                 var pending = new PendingAccountLink(
                     started.LinkSessionId,
                     started.LinkCredential,
-                    started.ExpiresAt);
+                    started.ExpiresAt,
+                    started.AuthorizationUrl);
                 this.savePending(pending);
                 this.nextPollAt = DateTimeOffset.UtcNow.AddSeconds(started.PollAfterSeconds);
+                var now = DateTimeOffset.UtcNow;
                 Volatile.Write(
                     ref this.state,
                     new AccountLinkRuntimeState(
                         AccountLinkRuntimeStatus.WaitingForBrowser,
-                        DateTimeOffset.UtcNow));
-                this.openBrowser(started.AuthorizationUrl);
+                        now,
+                        AuthorizationUri: started.AuthorizationUrl));
+                var browserError = this.openBrowser(started.AuthorizationUrl);
+                if (browserError is not null)
+                {
+                    Volatile.Write(
+                        ref this.state,
+                        new AccountLinkRuntimeState(
+                            AccountLinkRuntimeStatus.WaitingForBrowser,
+                            now,
+                            Error: browserError,
+                            AuthorizationUri: started.AuthorizationUrl));
+                }
             });
         }
         catch (OperationCanceledException) when (requestCancellation.IsCancellationRequested)
@@ -291,7 +309,8 @@ public sealed class AccountLinkCoordinator : IDisposable
                             ref this.state,
                             new AccountLinkRuntimeState(
                                 AccountLinkRuntimeStatus.WaitingForBrowser,
-                                DateTimeOffset.UtcNow));
+                                DateTimeOffset.UtcNow,
+                                AuthorizationUri: pending.AuthorizationUri));
                         break;
                     default:
                         this.clearPending();
@@ -311,14 +330,15 @@ public sealed class AccountLinkCoordinator : IDisposable
         }
         catch (Exception exception) when (exception is ServerSyncException or HttpRequestException or TaskCanceledException)
         {
-            this.QueueFailure(requestCancellation, requestGeneration, exception);
+            this.QueueFailure(requestCancellation, requestGeneration, exception, pending.AuthorizationUri);
         }
     }
 
     private void QueueFailure(
         CancellationTokenSource requestCancellation,
         long requestGeneration,
-        Exception exception) =>
+        Exception exception,
+        Uri? authorizationUri = null) =>
         this.frameworkActions.Enqueue(() =>
         {
             if (!this.IsCurrentGeneration(requestGeneration))
@@ -337,7 +357,8 @@ public sealed class AccountLinkCoordinator : IDisposable
                 new AccountLinkRuntimeState(
                     AccountLinkRuntimeStatus.Failed,
                     DateTimeOffset.UtcNow,
-                    Error: error));
+                    Error: error,
+                    AuthorizationUri: authorizationUri ?? this.State.AuthorizationUri));
         });
 
     private bool IsCurrentGeneration(long requestGeneration)

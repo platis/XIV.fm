@@ -24,6 +24,6 @@ The default 60%-opaque FFXIV-style charcoal surface separates the card from both
 
 The card contains no `XIV.fm` heading, separator, or `Last.fm` suffix. The card bottom is projected from a point 0.4 yalms above the game's pose-aware nameplate anchor. Dalamud's global UI scale is applied uniformly, then the appropriate local/other-player size setting scales the complete card without changing its proportions.
 
-Private Last.fm artwork testing is explicitly enabled only on the controlled development backend; public artwork remains blocked under the current compliance review.
+Last.fm artwork testing is explicitly enabled only on the controlled development backend for private or invited external testing at the product owner's direction; broader public artwork rollout remains blocked under the current compliance review.
 
 `enable-icon.svg` records the product-owner-supplied concept for the server-info-bar shortcut. Dalamud's native DTR entry accepts game text and bitmap-font icons rather than custom SVG textures, so the runtime uses the compact game-font label `.FM`. It inherits the server-info bar’s default yellow while cards are visible and renders red while hidden.

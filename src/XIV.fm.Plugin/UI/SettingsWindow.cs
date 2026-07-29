@@ -29,6 +29,7 @@ public sealed class SettingsWindow : Window
     private readonly Action cancelAccountLink;
     private readonly Func<string?> disconnectAccount;
     private readonly Action openLastFm;
+    private readonly Func<Uri, string?> openAuthorizationLink;
     private readonly Action requestSync;
     private readonly Func<bool> hasInstallationCredential;
     private readonly Func<DutyParticipationPolicy> dutyPolicy;
@@ -55,6 +56,7 @@ public sealed class SettingsWindow : Window
         Action cancelAccountLink,
         Func<string?> disconnectAccount,
         Action openLastFm,
+        Func<Uri, string?> openAuthorizationLink,
         Action requestSync,
         Func<bool> hasInstallationCredential,
         Func<DutyParticipationPolicy> dutyPolicy,
@@ -72,6 +74,7 @@ public sealed class SettingsWindow : Window
         this.cancelAccountLink = cancelAccountLink;
         this.disconnectAccount = disconnectAccount;
         this.openLastFm = openLastFm;
+        this.openAuthorizationLink = openAuthorizationLink;
         this.requestSync = requestSync;
         this.hasInstallationCredential = hasInstallationCredential;
         this.dutyPolicy = dutyPolicy;
@@ -273,9 +276,10 @@ public sealed class SettingsWindow : Window
                 break;
             case AccountLinkRuntimeStatus.WaitingForBrowser:
                 DrawStatusPanel(
-                    "Waiting for your browser",
-                    "Approve XIV.fm in the browser. This screen updates automatically when authorization completes.",
+                    "Waiting for Last.fm",
+                    state.Error ?? "Approve XIV.fm on Last.fm. If your browser did not open automatically, use the buttons below.",
                     Warning);
+                this.DrawAuthorizationActions(state);
                 if (DrawSecondaryButton("Cancel and start over"))
                 {
                     this.cancelAccountLink();
@@ -297,6 +301,7 @@ public sealed class SettingsWindow : Window
                 if (this.configuration.PendingLinkSessionId is not null)
                 {
                     ImGui.TextDisabled("XIV.fm will keep retrying while this link session remains valid.");
+                    this.DrawAuthorizationActions(state);
                     if (DrawSecondaryButton("Cancel and start over"))
                     {
                         this.cancelAccountLink();
@@ -333,7 +338,7 @@ public sealed class SettingsWindow : Window
         if (DrawPrimaryButton("Connect Last.fm in browser", new Vector2(240f * ImGuiHelpers.GlobalScale, 0f)))
         {
             var error = this.startAccountLink();
-            this.interactionMessage = error ?? "Opening Last.fm authorization in your browser…";
+            this.interactionMessage = error ?? "Creating a Last.fm connection link…";
         }
 
         if (!duty.AllowsServerRequests)
@@ -341,6 +346,42 @@ public sealed class SettingsWindow : Window
 
         if (!duty.AllowsServerRequests)
             ImGui.TextDisabled("Unavailable while duty-bound.");
+    }
+
+    private void DrawAuthorizationActions(AccountLinkRuntimeState state)
+    {
+        var authorizationUri = state.AuthorizationUri;
+        if (authorizationUri is null)
+        {
+            ImGui.TextDisabled("The connection link is unavailable. Cancel and start over to create a new one.");
+            ImGui.Spacing();
+            return;
+        }
+
+        const string openLabel = "Open Last.fm authorization";
+        const string copyLabel = "Copy connection link";
+        var spacing = ImGui.GetStyle().ItemSpacing.X;
+        var actionsFitInline = ImGui.GetContentRegionAvail().X >=
+            GetButtonWidth(openLabel) + GetButtonWidth(copyLabel) + spacing;
+
+        if (DrawPrimaryButton(openLabel))
+        {
+            this.interactionMessage = this.openAuthorizationLink(authorizationUri) ??
+                "Last.fm authorization was opened in your default browser.";
+        }
+
+        if (actionsFitInline)
+            ImGui.SameLine();
+        else
+            ImGui.Spacing();
+
+        if (DrawSecondaryButton(copyLabel))
+        {
+            ImGui.SetClipboardText(authorizationUri.AbsoluteUri);
+            this.interactionMessage = "Connection link copied to the clipboard.";
+        }
+
+        ImGui.Spacing();
     }
 
     private void DrawOverlayTab()

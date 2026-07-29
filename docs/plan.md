@@ -116,7 +116,7 @@ _Status: product-owner accepted through v0.1.26; final card-scale and DTR refine
 This phase is intentionally collaborative with the product owner.
 
 - [x] Replace placeholder onboarding with account-link setup and clear states.
-  - First use opens a brief, plain-language welcome with direct Last.fm linking, a GitHub link, and a skip option. Returning users go straight to the Account-first settings window with browser-link progress, failure, duty-suspension, connected, and confirmed disconnect states.
+  - First use opens a brief, plain-language welcome with direct Last.fm linking, a GitHub link, and a skip option. Returning users go straight to the Account-first settings window with browser-link progress, persistent manual reopen/copy fallbacks, failure, duty-suspension, connected, and confirmed disconnect states.
   - `/xivfm` and Dalamud's configuration button open settings directly after onboarding.
   - Diagnostics exposes explicit loopback/private-test server selection so unreleased server builds can be linked without weakening production URL validation.
 - [x] Replace the fixed standing-height card offset with the game's current pose-aware nameplate world position.
@@ -127,7 +127,7 @@ This phase is intentionally collaborative with the product owner.
 - [x] Finalize the card's visual design: typography, sizing, spacing, conditional artwork layout, and surface treatment.
   - Product-owner refinement established the final visual baseline: content-sized up to 297×75.2 px with uniform 10 px outer padding, 55.2×55.2 conditional artwork explicitly centered with no reserved gap or fallback when unavailable, a 10 px artwork-to-text gap, bottom-aligned 20%-larger close-set typography, ellipsized overflow, a configurable FFXIV-style charcoal surface defaulting to 60% opacity, independent 50–150% local/other-player scaling, no plugin/provider label, and a 0.4-yalm world-space safety height. The SVG records the maximum-width artwork layout.
   - The bounded background texture pipeline retires covers no longer referenced by the snapshot and retries transient loads with backoff; listening-state changes request an immediate card snapshot refresh.
-  - Last.fm artwork is disabled by default. The private development backend may explicitly enable image mapping for in-game testing, but public rollout remains blocked until permission is recorded.
+  - Last.fm artwork is disabled by default. The controlled development backend may explicitly enable image mapping for private or invited external in-game testing at the product owner's direction, but broader public rollout remains blocked until permission is recorded.
 - [x] Complete card motion, legibility, UI-scale, obstruction, and broader in-game validation for the current prerelease scope.
   - Cards deliberately follow projected nameplates without delayed motion. Full HD and HD were accepted at default UI scale; HD can optionally use the independent card-size controls. Mock-card testing covered representative races, poses, and nearby-player counts. Duty entry/exit was validated separately.
   - Controller-specific navigation and a broader hardware matrix are deferred to the private alpha rather than blocking the approved design.

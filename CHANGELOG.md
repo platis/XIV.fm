@@ -4,6 +4,16 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.28] - 2026-07-29
+
+### Added
+
+- Add persistent **Open Last.fm authorization** and **Copy connection link** actions while account linking is pending.
+
+### Fixed
+
+- Open Last.fm authorization through the operating-system default-browser shell with Dalamud fallback, and preserve the connection link across plugin restarts.
+
 ## [0.1.27] - 2026-07-29
 
 ### Added
