@@ -13,10 +13,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Assets/development-cover.png" LogicalName="XIV.fm.Plugin.Assets.DevelopmentCover.png" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="../XIV.fm.Contracts/XIV.fm.Contracts.csproj" />
     <ProjectReference Include="../XIV.fm.Plugin.Core/XIV.fm.Plugin.Core.csproj" />
     <ProjectReference Include="../XIV.fm.Plugin.Network/XIV.fm.Plugin.Network.csproj" />

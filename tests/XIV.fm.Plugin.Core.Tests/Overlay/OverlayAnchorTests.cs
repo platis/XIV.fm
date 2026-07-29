@@ -16,13 +16,13 @@ public sealed class OverlayAnchorTests
     }
 
     [Fact]
-    public void SafetyHeightAddsTwoTenthsOfAYalmAboveTheNameplate()
+    public void SafetyHeightAddsFourTenthsOfAYalmAboveTheNameplate()
     {
         var nameplatePosition = new Vector3(10f, 21.25f, 30f);
 
         var cardAnchor = OverlayAnchor.AddSafetyHeight(nameplatePosition);
 
-        Assert.Equal(new Vector3(10f, 21.45f, 30f), cardAnchor);
+        Assert.Equal(new Vector3(10f, 21.65f, 30f), cardAnchor);
     }
 
     [Fact]

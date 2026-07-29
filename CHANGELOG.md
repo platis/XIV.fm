@@ -4,6 +4,11 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Changed
+
+- Refine the compact card into a 222×58 layout with a reserved 42×42 artwork area, no fallback image when artwork is unavailable, a visually bold track title, and no red `XIV.fm` heading or separator.
+- Raise the world-space nameplate safety height from 0.2 to 0.4 yalms based on in-game placement feedback.
+
 ## [0.1.8] - 2026-07-29
 
 ### Changed

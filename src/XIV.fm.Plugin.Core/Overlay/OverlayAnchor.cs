@@ -9,7 +9,7 @@ namespace XIV.fm.Plugin.Core.Overlay;
 public static class OverlayAnchor
 {
     public const float MaximumNameplateOffsetYalms = 50f;
-    public const float NameplateSafetyHeightYalms = 0.2f;
+    public const float NameplateSafetyHeightYalms = 0.4f;
 
     public static bool IsValidNameplatePosition(Vector3 characterPosition, Vector3 nameplatePosition)
     {

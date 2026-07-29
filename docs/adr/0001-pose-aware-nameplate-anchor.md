@@ -21,7 +21,7 @@ The adapter will:
 - Obtain the generated `Character*` only by casting the non-zero `Address` of a currently valid typed `IPlayerCharacter`; no offset arithmetic is performed.
 - Call only the generated, typed `GetNamePlateWorldPosition` function.
 - Validate that the returned point is finite, above the character base, and within a generous 50-yalm sanity bound.
-- Add a 0.2-yalm vertical safety height to the validated point before projection so the card clears the player name and title in world space without sitting excessively high.
+- Add a 0.4-yalm vertical safety height to the validated point before projection so the compact card clears the player name and title in world space.
 - Skip that card for the frame if the object, pointer, result, validation, or screen projection is unavailable.
 - Keep the unsafe operation isolated in one adapter and keep validation behavior in `XIV.fm.Plugin.Core`.
 
@@ -44,4 +44,4 @@ The remaining inherent risk is that any generated native call can become invalid
 
 ## Consequences
 
-Cards follow the same pose-aware world point used by the game rather than an estimated standing height. A 0.2-yalm world-space safety height keeps placement stable across camera distance better than a fixed pixel gap; it remains subject to in-game acceptance. This introduces a narrowly scoped unsafe dependency on FFXIVClientStructs, so the plugin project explicitly enables that SDK reference and unsafe compilation.
+Cards follow the same pose-aware world point used by the game rather than an estimated standing height. A 0.4-yalm world-space safety height keeps placement stable across camera distance better than a fixed pixel gap; it remains subject to in-game acceptance. This introduces a narrowly scoped unsafe dependency on FFXIVClientStructs, so the plugin project explicitly enables that SDK reference and unsafe compilation.

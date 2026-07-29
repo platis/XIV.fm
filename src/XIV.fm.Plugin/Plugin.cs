@@ -67,6 +67,7 @@ public sealed class Plugin : IDalamudPlugin
             objectTable,
             gameGui,
             this.stateStore,
+            this.artworkCache,
             () => this.configuration.ShowPlaceholderCards && this.CurrentDutyPolicy.AllowsOverlay,
             () => this.configuration.NormalizedRemoteCardDistanceYalms);
         DevelopmentOverlayCoordinator? overlayCoordinator = null;
