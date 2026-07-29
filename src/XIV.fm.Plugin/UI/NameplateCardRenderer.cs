@@ -23,7 +23,7 @@ public sealed class NameplateCardRenderer
     private const float ArtistFontSize = 19.2f;
     private const float ArtistOffsetY = 23f;
     private const float TitleBoldOffsetX = 0.78f;
-    private const int MaximumTextFitCacheEntries = 256;
+    private const int MaximumMarqueeStateEntries = 512;
 
     private const ImGuiWindowFlags CardWindowFlags =
         ImGuiWindowFlags.NoTitleBar |
@@ -31,21 +31,25 @@ public sealed class NameplateCardRenderer
         ImGuiWindowFlags.NoSavedSettings |
         ImGuiWindowFlags.NoResize |
         ImGuiWindowFlags.NoFocusOnAppearing |
+        ImGuiWindowFlags.NoBringToFrontOnFocus |
         ImGuiWindowFlags.NoNav |
-        ImGuiWindowFlags.NoMouseInputs |
         ImGuiWindowFlags.NoBackground;
 
     private readonly IObjectTable objectTable;
     private readonly IGameGui gameGui;
     private readonly OverlayStateStore stateStore;
     private readonly AlbumArtworkCache artworkCache;
-    private readonly Dictionary<(string Text, float FontSize, float MaximumWidth), string> textFitCache = [];
+    private readonly Dictionary<
+        (CharacterIdentity Character, string TrackTitle, string TrackArtist, string Text, bool IsTitle),
+        double> marqueeStartedAt = [];
     private readonly Func<bool> isEnabled;
     private readonly Func<bool> showOwnCard;
     private readonly Func<int> remoteDistanceYalms;
     private readonly Func<float> cardOpacity;
     private readonly Func<float> ownCardScale;
     private readonly Func<float> otherCardScale;
+    private readonly Func<bool> isInteractionModifierHeld;
+    private readonly Action<Uri> openTrackLink;
     private OverlayRenderDiagnostics diagnostics = OverlayRenderDiagnostics.Empty;
     private DateTimeOffset nextDiagnosticsPublishAt = DateTimeOffset.MinValue;
 
@@ -59,7 +63,9 @@ public sealed class NameplateCardRenderer
         Func<int> remoteDistanceYalms,
         Func<float> cardOpacity,
         Func<float> ownCardScale,
-        Func<float> otherCardScale)
+        Func<float> otherCardScale,
+        Func<bool> isInteractionModifierHeld,
+        Action<Uri> openTrackLink)
     {
         this.objectTable = objectTable;
         this.gameGui = gameGui;
@@ -71,6 +77,8 @@ public sealed class NameplateCardRenderer
         this.cardOpacity = cardOpacity;
         this.ownCardScale = ownCardScale;
         this.otherCardScale = otherCardScale;
+        this.isInteractionModifierHeld = isInteractionModifierHeld;
+        this.openTrackLink = openTrackLink;
     }
 
     public OverlayRenderDiagnostics Diagnostics => Volatile.Read(ref this.diagnostics);
@@ -96,6 +104,8 @@ public sealed class NameplateCardRenderer
         var projectedAnchors = 0;
         var renderedCards = 0;
         float? localNameplateHeightYalms = null;
+        var interactionModifierHeld = this.isInteractionModifierHeld();
+        var maximumRemoteDistanceYalms = this.remoteDistanceYalms();
         var loadedPlayers = this.objectTable.PlayerObjects.OfType<IPlayerCharacter>().ToArray();
         foreach (var card in snapshot.Cards)
         {
@@ -110,12 +120,18 @@ public sealed class NameplateCardRenderer
                 continue;
 
             matchedPlayers++;
-            if (!card.IsLocal && !OverlayVisibility.IsRemoteWithinRange(
-                    localPlayer.Position,
-                    target.Position,
-                    this.remoteDistanceYalms()))
+            var distanceYalms = 0f;
+            if (!card.IsLocal)
             {
-                continue;
+                distanceYalms = Vector3.Distance(localPlayer.Position, target.Position);
+                if (!float.IsFinite(distanceYalms) ||
+                    !OverlayVisibility.IsRemoteWithinRange(
+                        localPlayer.Position,
+                        target.Position,
+                        maximumRemoteDistanceYalms))
+                {
+                    continue;
+                }
             }
 
             inRangePlayers++;
@@ -128,7 +144,12 @@ public sealed class NameplateCardRenderer
                 continue;
 
             projectedAnchors++;
-            this.DrawCard(card, screenAnchor);
+            this.DrawCard(
+                card,
+                screenAnchor,
+                distanceYalms,
+                maximumRemoteDistanceYalms,
+                interactionModifierHeld);
             renderedCards++;
         }
 
@@ -154,25 +175,25 @@ public sealed class NameplateCardRenderer
         return null;
     }
 
-    private void DrawCard(OverlayCard card, Vector2 screenAnchor)
+    private void DrawCard(
+        OverlayCard card,
+        Vector2 screenAnchor,
+        float distanceYalms,
+        int maximumRemoteDistanceYalms,
+        bool interactionModifierHeld)
     {
-        var configuredScale = card.IsLocal ? this.ownCardScale() : this.otherCardScale();
+        var configuredScale = card.IsLocal
+            ? this.ownCardScale()
+            : CardAppearance.ScaleForRemoteDistance(
+                this.otherCardScale(),
+                distanceYalms,
+                maximumRemoteDistanceYalms);
         var scale = ImGuiHelpers.GlobalScale * Math.Clamp(configuredScale, 0.5f, 1.5f);
         var opacity = Math.Clamp(this.cardOpacity(), 0f, 1f);
         var hasArtwork = this.artworkCache.TryGet(card.ArtworkUrl, out var artwork) && artwork is not null;
         var leadingContentWidth = hasArtwork ? ArtworkSize + TextGap : 0f;
-        var maximumTextWidth = (MaximumCardWidth - (2f * HorizontalCardPadding) - leadingContentWidth) * scale;
         var artist = card.IsStale ? $"{card.Artist} · cached" : card.Artist;
-        var title = this.FitTextWithEllipsis(
-            card.Title,
-            TitleFontSize * scale,
-            maximumTextWidth - (TitleBoldOffsetX * scale));
-        artist = this.FitTextWithEllipsis(
-            artist,
-            ArtistFontSize * scale,
-            maximumTextWidth);
-
-        var titleWidth = MeasureTextWidth(title, TitleFontSize * scale) + (TitleBoldOffsetX * scale);
+        var titleWidth = MeasureTextWidth(card.Title, TitleFontSize * scale) + (TitleBoldOffsetX * scale);
         var artistWidth = MeasureTextWidth(artist, ArtistFontSize * scale);
         var cardSize = new Vector2(
             ContentSizedCardWidth.Calculate(
@@ -193,9 +214,13 @@ public sealed class NameplateCardRenderer
         ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
 
         var windowId = $"XIV.fm card###XIV.fm.Card.{card.Character.Name}.{card.Character.HomeWorldId}";
+        var isInteractive = interactionModifierHeld && card.TrackUrl is not null;
+        var windowFlags = isInteractive
+            ? CardWindowFlags
+            : CardWindowFlags | ImGuiWindowFlags.NoMouseInputs;
         try
         {
-            var shouldDrawContents = ImGui.Begin(windowId, CardWindowFlags);
+            var shouldDrawContents = ImGui.Begin(windowId, windowFlags);
             try
             {
                 if (!shouldDrawContents)
@@ -208,7 +233,21 @@ public sealed class NameplateCardRenderer
                     ((CardHeight - ArtworkSize) / 2f) * scale);
                 var artworkMaximum = contentMinimum + new Vector2(ArtworkSize * scale);
                 var drawList = ImGui.GetWindowDrawList();
-                DrawCardSurface(drawList, cardMinimum, cardMaximum, scale, opacity);
+                var isHovered = false;
+                if (isInteractive)
+                {
+                    ImGui.SetCursorScreenPos(cardMinimum);
+                    if (ImGui.InvisibleButton("Open track on Last.fm", cardSize))
+                        this.openTrackLink(card.TrackUrl!);
+                    isHovered = ImGui.IsItemHovered();
+                    if (isHovered)
+                    {
+                        ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+                        ImGui.SetTooltip("Open track on Last.fm");
+                    }
+                }
+
+                DrawCardSurface(drawList, cardMinimum, cardMaximum, scale, opacity, isHovered);
                 if (hasArtwork)
                 {
                     var artworkRounding = 3f * scale;
@@ -242,24 +281,28 @@ public sealed class NameplateCardRenderer
                 var artistColor = ImGui.GetColorU32(artistColorValue);
 
                 drawList.PushClipRect(textMinimum, textMaximum, true);
-                drawList.AddText(
-                    ImGui.GetFont(),
+                this.DrawMarqueeText(
+                    drawList,
+                    card,
+                    card.Title,
+                    true,
                     TitleFontSize * scale,
                     textMinimum,
+                    textMaximum.X,
                     titleColor,
-                    title);
-                drawList.AddText(
-                    ImGui.GetFont(),
-                    TitleFontSize * scale,
-                    textMinimum + new Vector2(TitleBoldOffsetX * scale, 0f),
-                    titleColor,
-                    title);
-                drawList.AddText(
-                    ImGui.GetFont(),
+                    TitleBoldOffsetX * scale,
+                    scale);
+                this.DrawMarqueeText(
+                    drawList,
+                    card,
+                    artist,
+                    false,
                     ArtistFontSize * scale,
                     textMinimum + new Vector2(0f, ArtistOffsetY * scale),
+                    textMaximum.X,
                     artistColor,
-                    artist);
+                    0f,
+                    scale);
                 drawList.PopClipRect();
             }
             finally
@@ -278,13 +321,18 @@ public sealed class NameplateCardRenderer
         Vector2 minimum,
         Vector2 maximum,
         float scale,
-        float opacity)
+        float opacity,
+        bool isHovered)
     {
         var rounding = 5f * scale;
         var shadowColor = ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.2f));
         var softShadowColor = ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.09f));
-        var borderColor = ImGui.GetColorU32(GetAdaptiveBorderColor());
-        var highlightColor = ImGui.GetColorU32(GetAdaptiveHighlightColor());
+        var borderColor = ImGui.GetColorU32(isHovered
+            ? new Vector4(0.88f, 0.23f, 0.36f, 0.9f)
+            : GetAdaptiveBorderColor());
+        var highlightColor = ImGui.GetColorU32(isHovered
+            ? new Vector4(1f, 1f, 1f, 0.22f)
+            : GetAdaptiveHighlightColor());
 
         drawList.PushClipRectFullScreen();
         drawList.AddRectFilled(
@@ -328,21 +376,64 @@ public sealed class NameplateCardRenderer
     private static float GetRelativeLuminance(Vector4 color) =>
         (0.2126f * color.X) + (0.7152f * color.Y) + (0.0722f * color.Z);
 
-    private string FitTextWithEllipsis(string text, float fontSize, float maximumWidth)
+    private void DrawMarqueeText(
+        ImDrawListPtr drawList,
+        OverlayCard card,
+        string text,
+        bool isTitle,
+        float fontSize,
+        Vector2 origin,
+        float maximumX,
+        uint color,
+        float boldOffsetX,
+        float scale)
     {
-        var key = (text, fontSize, maximumWidth);
-        if (this.textFitCache.TryGetValue(key, out var cached))
-            return cached;
+        var textWidth = MeasureTextWidth(text, fontSize) + boldOffsetX;
+        var availableWidth = MathF.Max(0f, maximumX - origin.X);
+        if (!TextMarquee.ShouldScroll(textWidth, availableWidth))
+        {
+            DrawTextCopy(drawList, text, fontSize, origin, color, boldOffsetX);
+            return;
+        }
 
-        if (this.textFitCache.Count >= MaximumTextFitCacheEntries)
-            this.textFitCache.Clear();
+        var key = (card.Character, card.Title, card.Artist, text, isTitle);
+        if (!this.marqueeStartedAt.TryGetValue(key, out var startedAt))
+        {
+            if (this.marqueeStartedAt.Count >= MaximumMarqueeStateEntries)
+                this.marqueeStartedAt.Clear();
 
-        var fitted = TextEllipsis.Fit(
+            startedAt = ImGui.GetTime();
+            this.marqueeStartedAt[key] = startedAt;
+        }
+
+        var gap = TextMarquee.GapPixels * scale;
+        var offset = TextMarquee.CalculateOffset(
+            ImGui.GetTime() - startedAt,
+            textWidth,
+            gap,
+            TextMarquee.SpeedPixelsPerSecond * scale);
+        var firstOrigin = origin - new Vector2(offset, 0f);
+        DrawTextCopy(drawList, text, fontSize, firstOrigin, color, boldOffsetX);
+        DrawTextCopy(
+            drawList,
             text,
-            maximumWidth,
-            candidate => MeasureTextWidth(candidate, fontSize));
-        this.textFitCache[key] = fitted;
-        return fitted;
+            fontSize,
+            firstOrigin + new Vector2(textWidth + gap, 0f),
+            color,
+            boldOffsetX);
+    }
+
+    private static void DrawTextCopy(
+        ImDrawListPtr drawList,
+        string text,
+        float fontSize,
+        Vector2 origin,
+        uint color,
+        float boldOffsetX)
+    {
+        drawList.AddText(ImGui.GetFont(), fontSize, origin, color, text);
+        if (boldOffsetX > 0f)
+            drawList.AddText(ImGui.GetFont(), fontSize, origin + new Vector2(boldOffsetX, 0f), color, text);
     }
 
     private static float MeasureTextWidth(string text, float fontSize)

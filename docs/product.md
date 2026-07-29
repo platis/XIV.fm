@@ -37,6 +37,8 @@ The server never needs character coordinates. It returns relevant location snaps
 - Default distance: 8 yalms.
 - Planned configurable range: 1–20 yalms.
 - Cards outside the range are not rendered.
+- Other players’ cards remain at their configured size through 2 yalms, then shrink smoothly with distance while retaining a readable minimum size.
+- Cards remain click-through during normal gameplay. Holding Alt temporarily enables interaction so a listening card can open its validated Last.fm track link in the user’s browser.
 
 ## Account activity terminology
 

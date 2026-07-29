@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Dalamud.Game.ClientState.Keys;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
@@ -48,7 +49,8 @@ public sealed class Plugin : IDalamudPlugin
         IDtrBar dtrBar,
         ITextureProvider textureProvider,
         IFramework framework,
-        ICondition condition)
+        ICondition condition,
+        IKeyState keyState)
     {
         this.pluginInterface = pluginInterface;
         this.commandManager = commandManager;
@@ -122,7 +124,9 @@ public sealed class Plugin : IDalamudPlugin
             () => this.configuration.NormalizedRemoteCardDistanceYalms,
             () => CardAppearance.ToOpacity(this.configuration.NormalizedCardOpacityPercent),
             () => CardAppearance.ToScale(this.configuration.NormalizedOwnCardSizePercent),
-            () => CardAppearance.ToScale(this.configuration.NormalizedOtherCardSizePercent));
+            () => CardAppearance.ToScale(this.configuration.NormalizedOtherCardSizePercent),
+            () => keyState[VirtualKey.MENU],
+            this.OpenTrackLink);
         DevelopmentOverlayCoordinator? overlayCoordinator = null;
         this.serverSyncCoordinator = new ServerSyncCoordinator(
             framework,
@@ -384,9 +388,9 @@ public sealed class Plugin : IDalamudPlugin
     private void OpenCurrentLastFmPage()
     {
         var trackUrl = this.serverSyncCoordinator.OwnListening.Track?.TrackUrl;
-        if (trackUrl is not null && trackUrl.Scheme == Uri.UriSchemeHttps)
+        if (LastFmLinkPolicy.IsAllowed(trackUrl))
         {
-            Util.OpenLink(trackUrl.AbsoluteUri);
+            this.OpenTrackLink(trackUrl!);
             return;
         }
 
@@ -398,6 +402,15 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         this.chatGui.PrintError("No linked Last.fm page is available yet.", "XIV.fm");
+    }
+
+    private void OpenTrackLink(Uri trackUrl)
+    {
+        if (!LastFmLinkPolicy.IsAllowed(trackUrl))
+            return;
+
+        if (this.TryOpenAuthorizationLink(trackUrl) is not null)
+            this.chatGui.PrintError("The Last.fm track could not be opened in your default browser.", "XIV.fm");
     }
 
     private bool HasInstallationCredential => this.GetSyncSettings().InstallationCredential.Length >= 32;

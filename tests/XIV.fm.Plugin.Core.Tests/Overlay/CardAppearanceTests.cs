@@ -35,4 +35,25 @@ public sealed class CardAppearanceTests
     {
         Assert.Equal(expected, CardAppearance.NormalizeSizePercent(configured));
     }
+
+    [Theory]
+    [InlineData(0f, 1f)]
+    [InlineData(2f, 1f)]
+    [InlineData(5f, 0.825f)]
+    [InlineData(8f, 0.65f)]
+    [InlineData(20f, 0.65f)]
+    public void RemoteCardsShrinkSmoothlyAcrossTheVisibleRange(float distance, float expected)
+    {
+        var scale = CardAppearance.ScaleForRemoteDistance(1f, distance, 8);
+
+        Assert.Equal(expected, scale, precision: 3);
+    }
+
+    [Fact]
+    public void RemoteDistanceScalingPreservesConfiguredAndReadableBounds()
+    {
+        Assert.Equal(0.5f, CardAppearance.ScaleForRemoteDistance(0.5f, 8f, 8));
+        Assert.Equal(0.975f, CardAppearance.ScaleForRemoteDistance(1.5f, 8f, 8), precision: 3);
+        Assert.Equal(1f, CardAppearance.ScaleForRemoteDistance(1f, float.NaN, 8));
+    }
 }

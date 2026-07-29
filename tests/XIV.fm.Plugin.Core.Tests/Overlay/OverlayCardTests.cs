@@ -86,13 +86,14 @@ public sealed class OverlayCardTests
     }
 
     [Fact]
-    public void PublicSnapshotListeningStateCreatesRemoteCard()
+    public void PublicSnapshotListeningStateCreatesRemoteCardWithSafeTrackLink()
     {
+        var trackUrl = new Uri("https://www.last.fm/music/remote/track");
         var listening = new ListeningState(
             ListeningStatus.Playing,
             false,
             Now,
-            new Track("Remote Track", "Remote Artist", null, null, null, null));
+            new Track("Remote Track", "Remote Artist", null, null, trackUrl, null));
 
         var card = OverlayCard.RemoteListening(Character, listening, Now);
 
@@ -100,6 +101,23 @@ public sealed class OverlayCardTests
         Assert.False(card.IsLocal);
         Assert.True(card.IsLastFm);
         Assert.Equal("Remote Track", card.Title);
+        Assert.Equal(trackUrl, card.TrackUrl);
+    }
+
+    [Fact]
+    public void NonLastFmTrackLinkIsNotInteractive()
+    {
+        var card = OverlayCard.LocalListening(
+            Character,
+            new ListeningState(
+                ListeningStatus.Playing,
+                false,
+                Now,
+                new Track("Track", "Artist", null, null, new Uri("https://example.com/track"), null)),
+            Now);
+
+        Assert.NotNull(card);
+        Assert.Null(card.TrackUrl);
     }
 
     [Fact]

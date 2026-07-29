@@ -4,6 +4,14 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.31] - 2026-07-29
+
+### Added
+
+- Scale other players’ listening cards smoothly from their configured size to 65% of that size as they move from 2 yalms toward the selected render-distance limit, while preserving the existing 50% readability floor.
+- Make safe Last.fm listening cards clickable while Alt is held, with immediate hover feedback and default-browser opening for validated Last.fm HTTPS track links.
+- Replace title and artist ellipses with a clipped, slow leftward marquee that pauses for reading and loops seamlessly only when text overflows.
+
 ## [0.1.30] - 2026-07-29
 
 ### Changed

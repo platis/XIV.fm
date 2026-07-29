@@ -12,7 +12,8 @@ public sealed record OverlayCard(
     bool IsLocal,
     bool IsStale = false,
     bool IsLastFm = false,
-    Uri? ArtworkUrl = null)
+    Uri? ArtworkUrl = null,
+    Uri? TrackUrl = null)
 {
     public static OverlayCard? LocalListening(
         CharacterIdentity character,
@@ -31,6 +32,9 @@ public sealed record OverlayCard(
             IsLastFm: true,
             ArtworkUrl: ArtworkUriPolicy.IsAllowed(listening.Track.AlbumArtUrl)
                 ? listening.Track.AlbumArtUrl
+                : null,
+            TrackUrl: LastFmLinkPolicy.IsAllowed(listening.Track.TrackUrl)
+                ? listening.Track.TrackUrl
                 : null);
     }
 

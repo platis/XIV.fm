@@ -16,7 +16,7 @@ Implemented:
 - Atomic immutable overlay-state snapshots.
 - One local/remote player-card rendering path.
 - Pose-aware anchoring from the game's current nameplate world position, including emote and mount offsets.
-- A refined compact listening card, content-sized up to 297×75.2 px, with uniform 10 px outer padding, a 10 px artwork/text gap, explicitly centered artwork, bottom-aligned text, a configurable FFXIV-style charcoal surface defaulting to 60% opacity, independent 50–150% local/other-player scaling, optional cover artwork with no reserved gap when unavailable, and a 0.4-yalm nameplate safety height.
+- A refined compact listening card, content-sized up to 297×75.2 px, with uniform 10 px outer padding, a 10 px artwork/text gap, explicitly centered artwork, bottom-aligned text, slow seamless title/artist marquees for overflow, a configurable FFXIV-style charcoal surface defaulting to 60% opacity, independent 50–150% local/other-player sizing, smooth distance-based remote scaling with a 50% readability floor, optional cover artwork with no reserved gap when unavailable, and a 0.4-yalm nameplate safety height.
 - Strict character name and home-world matching.
 - Typed location snapshots using current world, territory, map, and instance IDs.
 - Immediate snapshot invalidation/wake-up for login, logout, and location changes.
@@ -33,7 +33,8 @@ Implemented:
 - Membership-authorized Custom sync and shared Relay/location snapshots with revision-based immediate kick invalidation.
 - A brief first-run welcome with plain-language product guidance, direct Last.fm linking, and a GitHub link, followed by a cohesive FFXIV-style charcoal settings window with live link/sync states, safe Last.fm disconnection, Overlay controls, direct privacy choices, and table-based Custom Relay details and owner controls. Runtime diagnostics and private-test server configuration stay hidden unless `/xivfm dev` is entered.
 - A native `.FM` server-info-bar shortcut that uses the bar’s default yellow while cards are visible and red while hidden; left-click toggles cards and right-click opens settings.
-- Independent global and own-card visibility controls, plus client-side remote distance filtering defaulting to 8 yalms and clamped to 1–20.
+- Independent global and own-card visibility controls, plus client-side remote distance filtering defaulting to 8 yalms and clamped to 1–20. Other players’ cards shrink smoothly beyond 2 yalms toward the configured limit.
+- Hold-Alt card interaction that preserves normal click-through gameplay, highlights hovered listening cards immediately, and opens validated Last.fm HTTPS track links in the operating-system browser.
 - `/xivfm status` diagnostics for matching, range, projection, rendering, and location.
 - Unit-tested anchoring, identity, snapshot, and visibility behavior.
 
@@ -106,7 +107,7 @@ An ARM64 controlled-test backend stack is running with PostgreSQL persistence, e
 
 Remote mock state is disabled by default and exists only to validate matching, distance, and nameplate placement. The Diagnostics tab—including private development-server configuration—is hidden until `/xivfm dev` is entered and is hidden again after the plugin reloads. The color-coded `.FM` shortcut in the native server info bar mirrors the Overlay setting; its tooltip reports whether cards are visible.
 
-The normal client uses the invited public HTTPS endpoint automatically; explicit development mode additionally accepts loopback HTTP/HTTPS. `/xivfm link` creates a short-lived connection link, attempts to open it in the operating-system default browser, and keeps **Open Last.fm authorization** and **Copy connection link** available in Account settings until linking completes. Successful proof stores the opaque installation credential in Dalamud's local plugin configuration and sync begins automatically. Linking, polling, sync, and rendering all suspend while bound by duty.
+The normal client uses the invited public HTTPS endpoint automatically; explicit development mode additionally accepts loopback HTTP/HTTPS. Listening cards remain click-through during normal gameplay; holding Alt temporarily enables card interaction, and clicking a highlighted card opens its validated Last.fm track link. `/xivfm link` creates a short-lived connection link, attempts to open it in the operating-system default browser, and keeps **Open Last.fm authorization** and **Copy connection link** available in Account settings until linking completes. Successful proof stores the opaque installation credential in Dalamud's local plugin configuration and sync begins automatically. Linking, polling, sync, and rendering all suspend while bound by duty.
 
 ## Toolchain
 

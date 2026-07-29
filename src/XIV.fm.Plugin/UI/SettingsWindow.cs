@@ -482,6 +482,7 @@ public sealed class SettingsWindow : Window
         }
 
         ImGui.TextUnformatted("Other players’ cards");
+        ImGui.TextDisabled("Cards shrink smoothly as players approach the distance limit.");
         var otherCardSize = this.configuration.NormalizedOtherCardSizePercent;
         ImGui.SetNextItemWidth(-1f);
         if (ImGui.SliderInt(
@@ -543,6 +544,9 @@ public sealed class SettingsWindow : Window
         {
             ImGui.TextDisabled("8 yalms · recommended");
         }
+
+        ImGui.Spacing();
+        ImGui.TextDisabled("Hold Alt and click a listening card to open its track on Last.fm.");
 
         if (!cards)
             ImGui.EndDisabled();
