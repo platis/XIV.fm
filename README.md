@@ -56,7 +56,7 @@ Save the settings, open the plugin installer, search for **XIV.fm**, and install
 Open **XIV.fm Settings → Diagnostics → Development server**, enable **Use development server**, and enter:
 
 ```text
-https://oracle-dev.tail9c4140.ts.net
+https://xivfm.168.138.129.70.sslip.io
 ```
 
 The endpoint is temporary and intended only for invited testing. At the product owner's direction, Last.fm artwork is enabled for this controlled test; linking, listening-state sync, Public presence, and Custom Relays are available.
@@ -87,7 +87,7 @@ tests/XIV.fm.Server.Tests      Server integration and credential-lifecycle tests
 docs/                          Product, OpenAPI, architecture, and delivery decisions
 ```
 
-An ARM64 controlled-test backend stack is running with PostgreSQL persistence, ephemeral Redis, no published container ports, and temporary public HTTPS through Tailscale Funnel. Last.fm credentials are configured outside Git, artwork is explicitly enabled for the controlled test, and browser proof, linked sync, and in-game card behavior have been validated. See [`src/XIV.fm.Server.Api/README.md`](src/XIV.fm.Server.Api/README.md) for development and runtime details.
+An ARM64 controlled-test backend stack is running with PostgreSQL persistence, ephemeral Redis, no published container ports, and conventional public HTTPS through Nginx at the temporary `sslip.io` hostname. Last.fm credentials are configured outside Git, artwork is explicitly enabled for the controlled test, and browser proof, linked sync, and in-game card behavior have been validated. See [`src/XIV.fm.Server.Api/README.md`](src/XIV.fm.Server.Api/README.md) for development and runtime details.
 
 ## Development controls
 
@@ -158,4 +158,4 @@ Never place the Last.fm API secret in the plugin, configuration, manifests, logs
 
 ## Deployment
 
-The controlled-test backend runs from `/srv/stacks/xivfm` and exposes only a host Unix socket. HTTPS 443 temporarily uses Tailscale Funnel for invited external testing; PostgreSQL and Redis publish no host ports, and unrelated Tailscale Serve handlers remain private. Sanitized definitions live in the infrastructure repository, while credentials and persistent data remain outside Git. Funnel must return to tailnet-only Serve after testing. A future approved public rollout will use Nginx and a public HTTPS domain.
+The controlled-test backend runs from `/srv/stacks/xivfm`, publishes no host ports, and joins the shared proxy network only so Nginx can reach its internal API listener. Public testing uses `https://xivfm.168.138.129.70.sslip.io`; PostgreSQL and Redis remain internal, and unrelated Tailscale Serve handlers remain private. Sanitized definitions live in the infrastructure repository, while credentials and persistent data remain outside Git. The temporary IP-derived hostname must be replaced with an owned domain before an approved public rollout.

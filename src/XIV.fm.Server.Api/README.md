@@ -42,7 +42,7 @@ The script:
 
 ## Controlled-test deployment
 
-The current stack publishes no container or database ports. Kestrel listens on `/srv/data/xivfm/run/api.sock`, exposed at `https://oracle-dev.tail9c4140.ts.net`. HTTPS 443 temporarily uses Tailscale Funnel for explicitly invited external plugin testers; other Tailscale Serve handlers remain tailnet-only. PostgreSQL and Redis use an internal network; only the API has unexposed outbound access for Last.fm HTTPS. At the product owner's direction, provider artwork is explicitly enabled for this controlled external test. Initial migrations were applied as a controlled one-time startup and automatic migration is disabled for normal restarts.
+The current stack publishes no API or database host ports. Kestrel listens on internal container TCP 8080 for Nginx and on `/srv/data/xivfm/run/api.sock` for private compatibility. Nginx exposes `https://xivfm.168.138.129.70.sslip.io` for invited external plugin testers through the shared proxy network; other Tailscale Serve handlers remain tailnet-only. PostgreSQL and Redis use an internal network; only the API has unexposed outbound access for Last.fm HTTPS. At the product owner's direction, provider artwork is explicitly enabled for this controlled external test. Initial migrations were applied as a controlled one-time startup and automatic migration is disabled for normal restarts.
 
 ## Durable configuration
 
