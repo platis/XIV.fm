@@ -4,6 +4,17 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Added
+
+- Add a confirmed Last.fm disconnect action that revokes the current XIV.fm installation, removes its active presence, and leaves the user's Last.fm account and history unchanged.
+- Add a brief first-run welcome that explains XIV.fm in plain language and offers direct Last.fm linking, a GitHub link, and a skip option.
+- Add a music-note shortcut to FFXIV's native server info bar: left-click it to show or hide listening cards, or right-click it to open XIV.fm settings.
+
+### Changed
+
+- Add a 0–100% card-background opacity control to Overlay settings, defaulting to 60% without fading text or artwork.
+- Refine the Phase 6 settings design with a cohesive FFXIV-style charcoal surface system, consistent spacing and rounding, clearer Overlay navigation, and unified Account, Privacy, Relay, and Diagnostics states.
+
 ## [0.1.20] - 2026-07-29
 
 ### Changed

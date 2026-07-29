@@ -74,6 +74,15 @@ public sealed class ServerSyncCoordinator : IDisposable
 
     public void RequestImmediateSync() => this.RestartAfterLifecycleChange();
 
+    public void SuspendForAccountDisconnect()
+    {
+        this.CancelActiveRequest(SyncRuntimeState.Disabled with { UpdatedAt = DateTimeOffset.UtcNow });
+        var listeningChanged = this.OwnListening != UnavailableListening;
+        Volatile.Write(ref this.ownListening, UnavailableListening);
+        if (listeningChanged)
+            this.ownListeningChanged();
+    }
+
     public void Dispose()
     {
         if (this.disposed)

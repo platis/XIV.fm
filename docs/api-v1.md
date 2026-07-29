@@ -60,7 +60,7 @@ POST   /v1/installations/current/credential
 DELETE /v1/installations/current
 ```
 
-Rotation invalidates the authenticating credential atomically and returns its replacement exactly once. Revocation makes the current credential unusable. Both operations are rate-limited and return `Cache-Control: no-store`.
+Rotation invalidates the authenticating credential atomically and returns its replacement exactly once. Revocation makes the current credential unusable and removes that installation's active presence and cached Public or Custom snapshot contribution immediately. It disconnects only the current XIV.fm installation; it does not modify the provider account or its listening history. Both operations are rate-limited and return `Cache-Control: no-store`.
 
 ## Duty invariant
 

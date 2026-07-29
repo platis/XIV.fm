@@ -201,8 +201,8 @@
     "/v1/installations/current": {
       "delete": {
         "operationId": "revokeCurrentInstallation",
-        "summary": "Revoke the current installation",
-        "description": "Revokes the authenticating credential. Repeated calls with that credential are unauthorized.",
+        "summary": "Disconnect the current installation",
+        "description": "Revokes the authenticating credential and removes the installation's active presence. The linked Last.fm account and its listening history are unchanged. Repeated calls with that credential are unauthorized.",
         "security": [
           {
             "installationBearer": []
@@ -210,7 +210,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Installation revoked.",
+            "description": "Installation disconnected and revoked.",
             "headers": {
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"

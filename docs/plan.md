@@ -116,13 +116,15 @@ _Status: in progress; account-link/settings foundation implemented_
 This phase is intentionally collaborative with the product owner.
 
 - [x] Replace placeholder onboarding with account-link setup and clear states.
-  - `/xivfm` and Dalamud's configuration button open an Account-first settings window with browser-link progress, failure, duty-suspension, and connected states.
+  - First use opens a brief, plain-language welcome with direct Last.fm linking, a GitHub link, and a skip option. Returning users go straight to the Account-first settings window with browser-link progress, failure, duty-suspension, connected, and confirmed disconnect states.
+  - `/xivfm` and Dalamud's configuration button open settings directly after onboarding.
   - Diagnostics exposes explicit loopback/private-test server selection so unreleased server builds can be linked without weakening production URL validation.
 - [x] Replace the fixed standing-height card offset with the game's current pose-aware nameplate world position.
   - The read-only native boundary and safety review are recorded in [`ADR 0001`](adr/0001-pose-aware-nameplate-anchor.md); standing, sitting, ground-sitting, lying, mounted, and transformed states still require in-game acceptance.
 - [ ] Design Account, Overlay, Privacy, Custom Relays, and Diagnostics settings.
+  - The current review candidate uses a restrained FFXIV-style charcoal surface system, consistent spacing and rounding, an Account-first hierarchy, direct privacy choices, distinct status tones, and a clearly separated advanced diagnostics area. A native server-info-bar music shortcut provides immediate card visibility control without opening settings. Relay management remains a functional follow-up, but its empty and account-required states follow the same settings language.
 - [x] Finalize the card's visual design: typography, sizing, spacing, conditional artwork layout, and surface treatment.
-  - Product-owner refinement established the final visual baseline: content-sized up to 293×71.2 px with uniform 8 px outer padding, 55.2×55.2 conditional artwork explicitly centered with no reserved gap or fallback when unavailable, a 10 px artwork-to-text gap, bottom-aligned 20%-larger close-set typography, ellipsized overflow, a 61.92%-opaque FFXIV-style charcoal surface, no plugin/provider label, and a 0.4-yalm world-space safety height. The SVG records the maximum-width artwork layout.
+  - Product-owner refinement established the final visual baseline: content-sized up to 293×71.2 px with uniform 8 px outer padding, 55.2×55.2 conditional artwork explicitly centered with no reserved gap or fallback when unavailable, a 10 px artwork-to-text gap, bottom-aligned 20%-larger close-set typography, ellipsized overflow, a configurable FFXIV-style charcoal surface defaulting to 60% opacity, no plugin/provider label, and a 0.4-yalm world-space safety height. The SVG records the maximum-width artwork layout.
   - The bounded background texture pipeline retires covers no longer referenced by the snapshot and retries transient loads with backoff; listening-state changes request an immediate card snapshot refresh.
   - Last.fm artwork is disabled by default. The private development backend may explicitly enable image mapping for in-game testing, but public rollout remains blocked until permission is recorded.
 - [ ] Complete card animation, accessibility, UI-scale, obstruction, and broader in-game validation.

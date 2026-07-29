@@ -85,6 +85,15 @@ public sealed class InMemoryPresenceStore : IPresenceStore
         return ValueTask.FromResult<IReadOnlySet<LocationScope>>(locations);
     }
 
+    public ValueTask<PresenceHeartbeat?> RemoveInstallationAsync(
+        InstallationId installationId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(
+            this.heartbeats.TryRemove(installationId, out var heartbeat) ? heartbeat : null);
+    }
+
     public bool TryGet(InstallationId installationId, out PresenceHeartbeat? heartbeat) =>
         this.heartbeats.TryGetValue(installationId, out heartbeat);
 }

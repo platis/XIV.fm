@@ -12,14 +12,14 @@ Measurements at 1× Dalamud UI scale:
 - Title: 21.6 px (20% larger), visually bold
 - Artist: 19.2 px (20% larger), subdued
 - Artist vertical offset from title origin: 23 px
-- Background: FFXIV-style charcoal gray (`#2B2B2B`) at 61.92% opacity (10% less than the previous 68.8%)
+- Background: FFXIV-style charcoal gray (`#2B2B2B`) with configurable 0–100% opacity, defaulting to 60%
 - Surface separation: compact two-layer shadow, adaptive 1 px border, and a restrained top-edge highlight
 
 The card contracts to the wider of the rendered title and artist lines, including the cover and its gap only when a completed artwork texture is available. Without a cover, text starts at the left padding and no blank artwork area remains. The title and artist fit within the 293 px maximum width, and overlong text is shortened at complete Unicode text-element boundaries with a trailing `...`.
 
 Artwork is positioned from the card bounds rather than ImGui's cursor and explicitly centered between the 8 px top and bottom edges. The text block is then bottom-aligned to the centered artwork. Uniform 8 px outer padding keeps every card edge balanced, while the 10 px artwork-to-text gap preserves clear internal separation. Enlarging the title while retaining the 23 px line offset reduces its visual gap to the artist. Title color follows the active ImGui theme; artist color is blended toward the same text color at 68% so hierarchy remains visible without sacrificing contrast.
 
-The fixed FFXIV-style charcoal surface separates the card from both bright and dark game scenes without reading as black or adding ornamental content. Its border adapts to the surface, the top highlight suggests material thickness, and the shadow stays close to the card so it does not read as a large floating panel. Card motion remains coupled directly to the projected nameplate anchor; no smoothing or entrance animation delays that spatial relationship.
+The default 60%-opaque FFXIV-style charcoal surface separates the card from both bright and dark game scenes without reading as black or adding ornamental content. Overlay settings can adjust only the background surface opacity from 0–100%; text and artwork remain fully opaque for legibility. Its border adapts to the surface, the top highlight suggests material thickness, and the shadow stays close to the card so it does not read as a large floating panel. Card motion remains coupled directly to the projected nameplate anchor; no smoothing or entrance animation delays that spatial relationship.
 
 The card contains no `XIV.fm` heading, separator, or `Last.fm` suffix. The card bottom is projected from a point 0.4 yalms above the game's pose-aware nameplate anchor. Dalamud's global UI scale is applied uniformly.
 

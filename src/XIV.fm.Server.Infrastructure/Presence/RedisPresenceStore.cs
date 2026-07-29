@@ -102,6 +102,34 @@ public sealed class RedisPresenceStore : IPresenceStore
         return locations;
     }
 
+    public async ValueTask<PresenceHeartbeat?> RemoveInstallationAsync(
+        InstallationId installationId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var database = this.connection.GetDatabase();
+        var installationValue = installationId.Value.ToString("D");
+        var dataKey = CreateDataKey(installationValue);
+        var pointerKey = CreatePointerKey(installationValue);
+        var values = await database.StringGetAsync([dataKey, pointerKey]).WaitAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var index in ParseIndexes(values[1]))
+            await database.SortedSetRemoveAsync(index, installationValue).WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        await database.KeyDeleteAsync([dataKey, pointerKey]).WaitAsync(cancellationToken).ConfigureAwait(false);
+        if (values[0].IsNullOrEmpty)
+            return null;
+
+        var stored = JsonSerializer.Deserialize<StoredPresence>((string)values[0]!, JsonOptions);
+        if (stored?.AccountId is Guid accountId)
+        {
+            await database.SetRemoveAsync(
+                CreateAccountInstallationsKey(new AccountId(accountId)),
+                installationValue).WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return stored is null ? null : ToHeartbeat(stored);
+    }
+
     private async ValueTask<IReadOnlyList<PresenceHeartbeat>> GetIndexedAsync(
         RedisKey indexKey,
         LocationScope location,

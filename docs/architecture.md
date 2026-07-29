@@ -72,7 +72,7 @@ The first server vertical slice authenticates a hashed opaque installation crede
 
 Phase 3 account linking uses Last.fm web authorization and a ten-minute server-created session with separate high-entropy callback state and link credential. Last.fm creates the provider token only after browser approval; the callback atomically associates its hash with the session and claims the state/token pair once. Successful Last.fm proof records a normalized canonical account and promotes the already-hashed link credential to an installation credential; no unauthenticated path can perform that promotion. Provider session keys are validated inside the Last.fm adapter and never leave it.
 
-The API composition root provides bounded JSON input, stable problem responses, server-controlled request IDs, per-installation sync rate limiting, liveness/readiness checks, and label-free `System.Diagnostics.Metrics` counters. Metrics have no public HTTP endpoint; a private collector/exporter will be configured during deployment work.
+The API composition root provides bounded JSON input, stable problem responses, server-controlled request IDs, per-installation sync rate limiting, liveness/readiness checks, and label-free `System.Diagnostics.Metrics` counters. Revoking the current installation also removes its ephemeral presence and invalidates affected Public or Custom snapshots, while leaving the Last.fm account itself untouched. Metrics have no public HTTP endpoint; a private collector/exporter will be configured during deployment work.
 
 ## Last.fm scheduling
 

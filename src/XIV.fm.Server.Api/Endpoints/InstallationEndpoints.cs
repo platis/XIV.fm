@@ -2,7 +2,9 @@ using XIV.fm.Contracts.V1;
 using XIV.fm.Server.Api.Authentication;
 using XIV.fm.Server.Api.Http;
 using XIV.fm.Server.Application.Abstractions;
+using XIV.fm.Server.Application.Presence;
 using XIV.fm.Server.Domain.Installations;
+using DomainVisibilityMode = XIV.fm.Server.Domain.Presence.VisibilityMode;
 
 namespace XIV.fm.Server.Api.Endpoints;
 
@@ -57,6 +59,9 @@ public static class InstallationEndpoints
     private static async Task RevokeAsync(
         HttpContext context,
         IInstallationCredentialStore credentialStore,
+        IPresenceStore presenceStore,
+        PublicPresenceSnapshotService publicSnapshotService,
+        RelayPresenceSnapshotService relaySnapshotService,
         CancellationToken cancellationToken)
     {
         if (!TryGetInstallationId(context, out var installationId))
@@ -66,6 +71,25 @@ public static class InstallationEndpoints
         }
 
         await credentialStore.RevokeAsync(installationId, cancellationToken).ConfigureAwait(false);
+        var removedPresence = await presenceStore
+            .RemoveInstallationAsync(installationId, cancellationToken)
+            .ConfigureAwait(false);
+        if (removedPresence?.Visibility.Mode == DomainVisibilityMode.Public)
+        {
+            await publicSnapshotService
+                .InvalidateAsync(removedPresence.Location, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else if (removedPresence?.Visibility.Mode == DomainVisibilityMode.Custom)
+        {
+            await relaySnapshotService
+                .InvalidateAsync(
+                    removedPresence.Visibility.RelayIds,
+                    removedPresence.Location,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         context.Response.StatusCode = StatusCodes.Status204NoContent;
         context.Response.Headers.CacheControl = "no-store";
     }

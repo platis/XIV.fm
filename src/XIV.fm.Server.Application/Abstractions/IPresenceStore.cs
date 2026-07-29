@@ -1,4 +1,5 @@
 using XIV.fm.Server.Domain.Accounts;
+using XIV.fm.Server.Domain.Installations;
 using XIV.fm.Server.Domain.Presence;
 
 namespace XIV.fm.Server.Application.Abstractions;
@@ -25,5 +26,9 @@ public interface IPresenceStore
     ValueTask<IReadOnlySet<LocationScope>> RemoveRelayPublicationAsync(
         AccountId accountId,
         Guid relayId,
+        CancellationToken cancellationToken);
+
+    ValueTask<PresenceHeartbeat?> RemoveInstallationAsync(
+        InstallationId installationId,
         CancellationToken cancellationToken);
 }

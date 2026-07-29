@@ -23,6 +23,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IChatGui chatGui;
     private readonly ICondition condition;
     private readonly PluginConfiguration configuration;
+    private readonly OverlayDtrBarController overlayDtrBarController;
     private readonly OverlayStateStore stateStore;
     private readonly AlbumArtworkCache artworkCache;
     private readonly AlbumArtworkCoordinator artworkCoordinator;
@@ -30,7 +31,9 @@ public sealed class Plugin : IDalamudPlugin
     private readonly DevelopmentOverlayCoordinator developmentCoordinator;
     private readonly ServerSyncCoordinator serverSyncCoordinator;
     private readonly AccountLinkCoordinator accountLinkCoordinator;
+    private readonly AccountDisconnectCoordinator accountDisconnectCoordinator;
     private readonly SettingsWindow settingsWindow;
+    private readonly OnboardingWindow onboardingWindow;
 
     public Plugin(
         IDalamudPluginInterface pluginInterface,
@@ -39,6 +42,7 @@ public sealed class Plugin : IDalamudPlugin
         IClientState clientState,
         IObjectTable objectTable,
         IGameGui gameGui,
+        IDtrBar dtrBar,
         ITextureProvider textureProvider,
         IFramework framework,
         ICondition condition)
@@ -48,14 +52,20 @@ public sealed class Plugin : IDalamudPlugin
         this.chatGui = chatGui;
         this.condition = condition;
         this.configuration = pluginInterface.GetPluginConfig() as PluginConfiguration ?? new PluginConfiguration();
-        this.configuration.Version = 4;
+        this.configuration.Version = 5;
         this.configuration.ServerBaseUrl ??= "https://xiv.fm";
         this.configuration.InstallationCredential ??= string.Empty;
         this.configuration.PendingLinkCredential ??= string.Empty;
         this.configuration.DeveloperServerBaseUrl ??= "http://127.0.0.1:5080";
         this.configuration.DeveloperInstallationCredential ??= string.Empty;
         this.configuration.RemoteCardDistanceYalms = this.configuration.NormalizedRemoteCardDistanceYalms;
+        this.configuration.CardOpacityPercent = this.configuration.NormalizedCardOpacityPercent;
 
+        this.overlayDtrBarController = new OverlayDtrBarController(
+            dtrBar,
+            () => this.configuration.ShowPlaceholderCards,
+            this.ToggleOverlay,
+            this.OpenSettings);
         this.stateStore = new OverlayStateStore();
         this.artworkCache = new AlbumArtworkCache(textureProvider);
         this.artworkCoordinator = new AlbumArtworkCoordinator(
@@ -69,7 +79,8 @@ public sealed class Plugin : IDalamudPlugin
             this.stateStore,
             this.artworkCache,
             () => this.configuration.ShowPlaceholderCards && this.CurrentDutyPolicy.AllowsOverlay,
-            () => this.configuration.NormalizedRemoteCardDistanceYalms);
+            () => this.configuration.NormalizedRemoteCardDistanceYalms,
+            () => CardAppearance.ToOpacity(this.configuration.NormalizedCardOpacityPercent));
         DevelopmentOverlayCoordinator? overlayCoordinator = null;
         this.serverSyncCoordinator = new ServerSyncCoordinator(
             framework,
@@ -103,26 +114,39 @@ public sealed class Plugin : IDalamudPlugin
             this.ClearPendingLink,
             uri => Util.OpenLink(uri.AbsoluteUri),
             typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "0.0.0.0");
+        this.accountDisconnectCoordinator = new AccountDisconnectCoordinator(
+            framework,
+            new ServerSyncApiClient(),
+            () => this.CurrentDutyPolicy,
+            () => this.GetSyncSettings(),
+            this.CompleteAccountDisconnect,
+            typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "0.0.0.0");
         this.settingsWindow = new SettingsWindow(
             this.configuration,
             this.SaveConfiguration,
             this.TryStartAccountLink,
             this.accountLinkCoordinator.CancelPending,
+            this.TryDisconnectAccount,
             this.OpenCurrentLastFmPage,
             this.serverSyncCoordinator.RequestImmediateSync,
             () => this.HasInstallationCredential,
             () => this.CurrentDutyPolicy,
             () => this.accountLinkCoordinator.State,
+            () => this.accountDisconnectCoordinator.State,
             () => this.serverSyncCoordinator.State,
             () => this.stateStore.Current,
             () => this.cardRenderer.Diagnostics);
+        this.onboardingWindow = new OnboardingWindow(
+            this.TryStartAccountLink,
+            this.OpenSettings,
+            this.OpenGitHub,
+            this.CompleteOnboarding,
+            () => this.HasInstallationCredential,
+            () => this.CurrentDutyPolicy);
         this.windowSystem.AddWindow(this.settingsWindow);
+        this.windowSystem.AddWindow(this.onboardingWindow);
         if (!this.configuration.HasSeenAccountOnboarding)
-        {
-            this.configuration.HasSeenAccountOnboarding = true;
-            this.settingsWindow.IsOpen = true;
-            this.SaveConfiguration();
-        }
+            this.onboardingWindow.IsOpen = true;
 
         this.commandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
@@ -140,9 +164,11 @@ public sealed class Plugin : IDalamudPlugin
         this.pluginInterface.UiBuilder.Draw -= this.windowSystem.Draw;
         this.windowSystem.RemoveAllWindows();
         this.commandManager.RemoveHandler(CommandName);
+        this.overlayDtrBarController.Dispose();
         this.artworkCoordinator.Dispose();
         this.artworkCache.Dispose();
         this.accountLinkCoordinator.Dispose();
+        this.accountDisconnectCoordinator.Dispose();
         this.serverSyncCoordinator.Dispose();
         this.developmentCoordinator.Dispose();
     }
@@ -172,8 +198,7 @@ public sealed class Plugin : IDalamudPlugin
                 break;
 
             case "toggle":
-                this.configuration.ShowPlaceholderCards = !this.configuration.ShowPlaceholderCards;
-                this.SaveConfiguration();
+                this.ToggleOverlay();
                 this.PrintStatus();
                 break;
 
@@ -216,7 +241,37 @@ public sealed class Plugin : IDalamudPlugin
 
     private DutyParticipationPolicy CurrentDutyPolicy => new(DalamudDutyState.IsInDuty(this.condition));
 
-    private void OpenSettings() => this.settingsWindow.IsOpen = true;
+    private void OpenSettings()
+    {
+        this.onboardingWindow.Complete();
+        this.settingsWindow.IsOpen = true;
+    }
+
+    private void OpenGitHub() => Util.OpenLink("https://github.com/platis/XIV.fm");
+
+    private void CompleteOnboarding()
+    {
+        if (this.configuration.HasSeenAccountOnboarding)
+            return;
+
+        this.configuration.HasSeenAccountOnboarding = true;
+        this.SaveConfiguration();
+    }
+
+    private void ToggleOverlay()
+    {
+        this.configuration.ShowPlaceholderCards = !this.configuration.ShowPlaceholderCards;
+        this.SaveConfiguration();
+    }
+
+    private string? TryDisconnectAccount()
+    {
+        if (!this.accountDisconnectCoordinator.TryStart(out var error))
+            return error ?? "Last.fm could not be disconnected.";
+
+        this.serverSyncCoordinator.SuspendForAccountDisconnect();
+        return null;
+    }
 
     private string? TryStartAccountLink()
     {
@@ -229,7 +284,11 @@ public sealed class Plugin : IDalamudPlugin
             : error ?? "Account linking could not start.";
     }
 
-    private void SaveConfiguration() => this.pluginInterface.SavePluginConfig(this.configuration);
+    private void SaveConfiguration()
+    {
+        this.pluginInterface.SavePluginConfig(this.configuration);
+        this.overlayDtrBarController.Refresh();
+    }
 
     private void OpenCurrentLastFmPage()
     {
@@ -306,8 +365,24 @@ public sealed class Plugin : IDalamudPlugin
             this.configuration.InstallationCredential = credential;
         this.configuration.LinkedLastFmAccountName = accountName;
         this.ClearPendingLink(save: false);
+        this.accountDisconnectCoordinator.Reset();
         this.SaveConfiguration();
         this.chatGui.Print($"Linked Last.fm account {accountName}.", "XIV.fm");
+    }
+
+    private void CompleteAccountDisconnect()
+    {
+        if (this.configuration.DeveloperServerEnabled)
+            this.configuration.DeveloperInstallationCredential = string.Empty;
+        else
+            this.configuration.InstallationCredential = string.Empty;
+        this.configuration.LinkedLastFmAccountName = null;
+        this.configuration.Visibility = VisibilityMode.Private;
+        this.ClearPendingLink(save: false);
+        this.SaveConfiguration();
+        this.serverSyncCoordinator.SuspendForAccountDisconnect();
+        this.developmentCoordinator.RequestCapture();
+        this.chatGui.Print("Last.fm disconnected from this XIV.fm installation.", "XIV.fm");
     }
 
     private void ClearPendingLink() => this.ClearPendingLink(save: true);
@@ -340,7 +415,7 @@ public sealed class Plugin : IDalamudPlugin
             ? $"{height:F2} yalms"
             : "unavailable";
         this.chatGui.Print(
-            $"Cards: {cards}; Last.fm: {linkDetail}; visibility: {this.configuration.Visibility.ToString().ToLowerInvariant()}; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; sync: {syncDetail}; snapshot: {snapshot.Cards.Length}; anchor height: {anchorHeight}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
+            $"Cards: {cards}; Last.fm: {linkDetail}; visibility: {this.configuration.Visibility.ToString().ToLowerInvariant()}; opacity: {this.configuration.NormalizedCardOpacityPercent}%; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; sync: {syncDetail}; snapshot: {snapshot.Cards.Length}; anchor height: {anchorHeight}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
             "XIV.fm");
     }
 }

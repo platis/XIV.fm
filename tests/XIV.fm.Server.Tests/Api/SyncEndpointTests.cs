@@ -217,16 +217,33 @@ public sealed class SyncEndpointTests : IClassFixture<ServerApiFactory>
     }
 
     [Fact]
-    public async Task CredentialRevocationInvalidatesCurrentCredential()
+    public async Task TypedPluginClientRevokesCredentialAndRemovesPresence()
     {
         await using var isolatedFactory = new ServerApiFactory();
-        using var client = CreateAuthenticatedClient(isolatedFactory, ServerApiFactory.Credential);
+        using var transport = isolatedFactory.CreateClient();
+        using var apiClient = new ServerSyncApiClient(transport);
 
-        using var revocationResponse = await client.DeleteAsync(ApiRoutes.RevokeCurrentInstallation);
-        Assert.Equal(HttpStatusCode.NoContent, revocationResponse.StatusCode);
+        await apiClient.SyncAsync(
+            transport.BaseAddress!,
+            ServerApiFactory.Credential,
+            CreateRequest(),
+            CancellationToken.None);
+        var presence = isolatedFactory.Services.GetRequiredService<InMemoryPresenceStore>();
+        Assert.True(presence.TryGet(ServerApiFactory.InstallationId, out _));
 
-        using var rejected = await client.PostAsJsonAsync(ApiRoutes.Sync, CreateRequest());
-        Assert.Equal(HttpStatusCode.Unauthorized, rejected.StatusCode);
+        await apiClient.RevokeCurrentInstallationAsync(
+            transport.BaseAddress!,
+            ServerApiFactory.Credential,
+            "0.1.21.0",
+            CancellationToken.None);
+
+        Assert.False(presence.TryGet(ServerApiFactory.InstallationId, out _));
+        var rejected = await Assert.ThrowsAsync<ServerSyncException>(() => apiClient.SyncAsync(
+            transport.BaseAddress!,
+            ServerApiFactory.Credential,
+            CreateRequest(),
+            CancellationToken.None));
+        Assert.Equal("installation_credential_required", rejected.Code);
     }
 
     [Fact]

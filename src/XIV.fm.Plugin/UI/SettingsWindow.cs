@@ -18,31 +18,39 @@ public sealed class SettingsWindow : Window
     private static readonly Vector4 Warning = new(0.95f, 0.71f, 0.25f, 1f);
     private static readonly Vector4 Danger = new(0.95f, 0.35f, 0.35f, 1f);
     private static readonly Vector4 Neutral = new(0.62f, 0.65f, 0.7f, 1f);
+    private static readonly Vector4 PanelSurface = new(0.169f, 0.169f, 0.169f, 0.82f);
+    private static readonly Vector4 PanelSurfaceHovered = new(0.215f, 0.215f, 0.215f, 0.9f);
+    private static readonly Vector4 PanelBorder = new(0.42f, 0.42f, 0.44f, 0.5f);
 
     private readonly PluginConfiguration configuration;
     private readonly Action saveConfiguration;
     private readonly Func<string?> startAccountLink;
     private readonly Action cancelAccountLink;
+    private readonly Func<string?> disconnectAccount;
     private readonly Action openLastFm;
     private readonly Action requestSync;
     private readonly Func<bool> hasInstallationCredential;
     private readonly Func<DutyParticipationPolicy> dutyPolicy;
     private readonly Func<AccountLinkRuntimeState> linkState;
+    private readonly Func<AccountDisconnectRuntimeState> disconnectState;
     private readonly Func<SyncRuntimeState> syncState;
     private readonly Func<OverlaySnapshot> overlaySnapshot;
     private readonly Func<OverlayRenderDiagnostics> renderDiagnostics;
     private string? interactionMessage;
+    private bool confirmingDisconnect;
 
     public SettingsWindow(
         PluginConfiguration configuration,
         Action saveConfiguration,
         Func<string?> startAccountLink,
         Action cancelAccountLink,
+        Func<string?> disconnectAccount,
         Action openLastFm,
         Action requestSync,
         Func<bool> hasInstallationCredential,
         Func<DutyParticipationPolicy> dutyPolicy,
         Func<AccountLinkRuntimeState> linkState,
+        Func<AccountDisconnectRuntimeState> disconnectState,
         Func<SyncRuntimeState> syncState,
         Func<OverlaySnapshot> overlaySnapshot,
         Func<OverlayRenderDiagnostics> renderDiagnostics)
@@ -52,11 +60,13 @@ public sealed class SettingsWindow : Window
         this.saveConfiguration = saveConfiguration;
         this.startAccountLink = startAccountLink;
         this.cancelAccountLink = cancelAccountLink;
+        this.disconnectAccount = disconnectAccount;
         this.openLastFm = openLastFm;
         this.requestSync = requestSync;
         this.hasInstallationCredential = hasInstallationCredential;
         this.dutyPolicy = dutyPolicy;
         this.linkState = linkState;
+        this.disconnectState = disconnectState;
         this.syncState = syncState;
         this.overlaySnapshot = overlaySnapshot;
         this.renderDiagnostics = renderDiagnostics;
@@ -69,12 +79,16 @@ public sealed class SettingsWindow : Window
 
     public override void Draw()
     {
-        DrawHeader();
-        ImGui.Spacing();
-
-        ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 5f * ImGuiHelpers.GlobalScale);
+        var scale = ImGuiHelpers.GlobalScale;
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(10f, 8f) * scale);
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(10f, 6f) * scale);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 5f * scale);
+        ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 5f * scale);
         try
         {
+            DrawHeader();
+            ImGui.Spacing();
+
             if (!ImGui.BeginTabBar("XIV.fm.Settings.Tabs"))
                 return;
 
@@ -84,7 +98,7 @@ public sealed class SettingsWindow : Window
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("Cards"))
+            if (ImGui.BeginTabItem("Overlay"))
             {
                 this.DrawOverlayTab();
                 ImGui.EndTabItem();
@@ -112,17 +126,35 @@ public sealed class SettingsWindow : Window
         }
         finally
         {
-            ImGui.PopStyleVar();
+            ImGui.PopStyleVar(4);
         }
     }
 
     private static void DrawHeader()
     {
-        ImGui.TextColored(Accent, "XIV.fm");
-        ImGui.SameLine();
-        ImGui.TextDisabled("Your soundtrack, above your nameplate.");
-        ImGui.Spacing();
-        ImGui.Separator();
+        var scale = ImGuiHelpers.GlobalScale;
+        var width = MathF.Max(1f, ImGui.GetContentRegionAvail().X);
+        var height = 58f * scale;
+        var origin = ImGui.GetCursorScreenPos();
+        var maximum = origin + new Vector2(width, height);
+        var drawList = ImGui.GetWindowDrawList();
+        var style = ImGui.GetStyle();
+
+        drawList.AddRectFilled(origin, maximum, ImGui.GetColorU32(PanelSurface), 7f * scale);
+        drawList.AddRect(origin, maximum, ImGui.GetColorU32(PanelBorder), 7f * scale);
+        drawList.AddRectFilled(
+            origin,
+            new Vector2(origin.X + (3f * scale), maximum.Y),
+            ImGui.GetColorU32(Accent),
+            7f * scale);
+
+        var textOrigin = origin + new Vector2(14f, 10f) * scale;
+        drawList.AddText(textOrigin, ImGui.GetColorU32(Accent), "XIV.fm");
+        drawList.AddText(
+            textOrigin + new Vector2(0f, 24f * scale),
+            ImGui.GetColorU32(style.Colors[(int)ImGuiCol.TextDisabled]),
+            "Your soundtrack, above your nameplate.");
+        ImGui.SetCursorScreenPos(new Vector2(origin.X, maximum.Y + (4f * scale)));
     }
 
     private void DrawAccountTab()
@@ -137,6 +169,7 @@ public sealed class SettingsWindow : Window
 
         if (linked)
         {
+            var disconnect = this.disconnectState();
             var accountName = string.IsNullOrWhiteSpace(this.configuration.LinkedLastFmAccountName)
                 ? "your linked Last.fm account"
                 : this.configuration.LinkedLastFmAccountName;
@@ -145,6 +178,15 @@ public sealed class SettingsWindow : Window
                 $"Listening as {accountName}. Your temporary authorization session was discarded after linking.",
                 Success);
 
+            if (disconnect.Status == AccountDisconnectRuntimeStatus.Disconnecting)
+            {
+                DrawStatusPanel(
+                    "Disconnecting",
+                    "Removing this XIV.fm link…",
+                    Warning);
+                return;
+            }
+
             if (DrawPrimaryButton("Open Last.fm profile"))
                 this.openLastFm();
             ImGui.SameLine();
@@ -152,7 +194,46 @@ public sealed class SettingsWindow : Window
                 this.requestSync();
 
             ImGui.Spacing();
-            ImGui.TextDisabled("Account disconnection with credential revocation is not available yet.");
+            if (disconnect.Status == AccountDisconnectRuntimeStatus.Failed)
+            {
+                DrawStatusPanel(
+                    "Couldn’t disconnect",
+                    "XIV.fm couldn’t remove the link. You can try again.",
+                    Danger);
+            }
+
+            if (!this.confirmingDisconnect)
+            {
+                if (DrawSecondaryButton("Disconnect Last.fm"))
+                    this.confirmingDisconnect = true;
+                return;
+            }
+
+            DrawStatusPanel(
+                "Disconnect Last.fm?",
+                "This removes the XIV.fm link from this device. Your Last.fm account and listening history won’t be changed.",
+                Warning);
+
+            if (!duty.AllowsServerRequests)
+                ImGui.BeginDisabled();
+            if (DrawDangerButton("Disconnect"))
+            {
+                var error = this.disconnectAccount();
+                this.interactionMessage = error;
+                if (error is null)
+                    this.confirmingDisconnect = false;
+            }
+
+            if (!duty.AllowsServerRequests)
+                ImGui.EndDisabled();
+            ImGui.SameLine();
+            if (DrawSecondaryButton("Cancel"))
+                this.confirmingDisconnect = false;
+
+            if (!duty.AllowsServerRequests)
+                ImGui.TextDisabled("You can disconnect after leaving the duty.");
+            if (!string.IsNullOrWhiteSpace(this.interactionMessage))
+                ImGui.TextWrapped(this.interactionMessage);
             return;
         }
 
@@ -258,12 +339,46 @@ public sealed class SettingsWindow : Window
         ImGui.Separator();
         ImGui.Spacing();
 
+        if (!cards)
+            ImGui.BeginDisabled();
+
+        ImGui.TextUnformatted("Card background opacity");
+        ImGui.TextDisabled("Adjust the card surface without fading its text or artwork.");
+        ImGui.Spacing();
+
+        var opacity = this.configuration.NormalizedCardOpacityPercent;
+        ImGui.SetNextItemWidth(-1f);
+        if (ImGui.SliderInt(
+                "##XIV.fm.CardOpacity",
+                ref opacity,
+                CardAppearance.MinimumOpacityPercent,
+                CardAppearance.MaximumOpacityPercent,
+                "%d%%"))
+        {
+            this.configuration.CardOpacityPercent = CardAppearance.NormalizeOpacityPercent(opacity);
+            changed = true;
+        }
+
+        if (opacity != CardAppearance.DefaultOpacityPercent)
+        {
+            if (DrawSecondaryButton("Reset to 60%"))
+            {
+                this.configuration.CardOpacityPercent = CardAppearance.DefaultOpacityPercent;
+                changed = true;
+            }
+        }
+        else
+        {
+            ImGui.TextDisabled("60% · default");
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
         ImGui.TextUnformatted("Nearby listener distance");
         ImGui.TextDisabled("Only cards belonging to other players are filtered by distance.");
         ImGui.Spacing();
-
-        if (!cards)
-            ImGui.BeginDisabled();
 
         var range = this.configuration.NormalizedRemoteCardDistanceYalms;
         ImGui.SetNextItemWidth(-1f);
@@ -364,6 +479,7 @@ public sealed class SettingsWindow : Window
         DrawKeyValue("Account link", link.Status.ToString());
         DrawKeyValue("Sync", sync.Status.ToString());
         DrawKeyValue("Visibility", this.configuration.Visibility.ToString());
+        DrawKeyValue("Card opacity", $"{this.configuration.NormalizedCardOpacityPercent}%");
         DrawKeyValue("Location", snapshot.Location?.ToString() ?? "Unavailable");
         DrawKeyValue("Snapshot cards", snapshot.Cards.Length.ToString(CultureInfo.InvariantCulture));
 
@@ -473,12 +589,8 @@ public sealed class SettingsWindow : Window
         var origin = ImGui.GetCursorScreenPos();
         var maximum = origin + new Vector2(width, height);
         var drawList = ImGui.GetWindowDrawList();
-        var style = ImGui.GetStyle();
-        var panelColor = WithAlpha(style.Colors[(int)ImGuiCol.FrameBg], 0.72f);
-        var borderColor = WithAlpha(style.Colors[(int)ImGuiCol.Border], 0.8f);
-
-        drawList.AddRectFilled(origin, maximum, ImGui.GetColorU32(panelColor), 6f * scale);
-        drawList.AddRect(origin, maximum, ImGui.GetColorU32(borderColor), 6f * scale);
+        drawList.AddRectFilled(origin, maximum, ImGui.GetColorU32(PanelSurface), 6f * scale);
+        drawList.AddRect(origin, maximum, ImGui.GetColorU32(PanelBorder), 6f * scale);
         drawList.AddRectFilled(
             origin,
             new Vector2(origin.X + (3f * scale), maximum.Y),
@@ -516,11 +628,11 @@ public sealed class SettingsWindow : Window
         var style = ImGui.GetStyle();
         var drawList = ImGui.GetWindowDrawList();
         var background = selected
-            ? WithAlpha(Accent, 0.16f)
-            : WithAlpha(style.Colors[(int)ImGuiCol.FrameBg], hovered ? 0.86f : 0.58f);
+            ? Vector4.Lerp(PanelSurface, WithAlpha(Accent, PanelSurface.W), 0.16f)
+            : hovered ? PanelSurfaceHovered : PanelSurface;
         var border = selected
             ? WithAlpha(Accent, 0.82f)
-            : WithAlpha(style.Colors[(int)ImGuiCol.Border], 0.72f);
+            : PanelBorder;
         var titleColor = enabled
             ? style.Colors[(int)ImGuiCol.Text]
             : style.Colors[(int)ImGuiCol.TextDisabled];
@@ -590,6 +702,27 @@ public sealed class SettingsWindow : Window
         {
             ImGui.PopStyleColor(3);
             ImGui.PopStyleVar();
+        }
+    }
+
+    private static bool DrawDangerButton(string label)
+    {
+        var hovered = new Vector4(
+            MathF.Min(1f, Danger.X + 0.06f),
+            MathF.Min(1f, Danger.Y + 0.06f),
+            MathF.Min(1f, Danger.Z + 0.06f),
+            Danger.W);
+        var active = new Vector4(Danger.X * 0.86f, Danger.Y * 0.86f, Danger.Z * 0.86f, Danger.W);
+        ImGui.PushStyleColor(ImGuiCol.Button, Danger);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, hovered);
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, active);
+        try
+        {
+            return ImGui.Button(label);
+        }
+        finally
+        {
+            ImGui.PopStyleColor(3);
         }
     }
 

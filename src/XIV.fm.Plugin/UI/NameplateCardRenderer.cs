@@ -18,7 +18,6 @@ public sealed class NameplateCardRenderer
     private const float HorizontalCardPadding = 8f;
     private const float VerticalCardPadding = 8f;
     private const float CardHeight = ArtworkSize + (2f * VerticalCardPadding);
-    private const float CardOpacity = 0.6192f;
     private const float TextGap = 10f;
     private const float TitleFontSize = 21.6f;
     private const float ArtistFontSize = 19.2f;
@@ -43,6 +42,7 @@ public sealed class NameplateCardRenderer
     private readonly Dictionary<(string Text, float FontSize, float MaximumWidth), string> textFitCache = [];
     private readonly Func<bool> isEnabled;
     private readonly Func<int> remoteDistanceYalms;
+    private readonly Func<float> cardOpacity;
     private OverlayRenderDiagnostics diagnostics = OverlayRenderDiagnostics.Empty;
     private DateTimeOffset nextDiagnosticsPublishAt = DateTimeOffset.MinValue;
 
@@ -52,7 +52,8 @@ public sealed class NameplateCardRenderer
         OverlayStateStore stateStore,
         AlbumArtworkCache artworkCache,
         Func<bool> isEnabled,
-        Func<int> remoteDistanceYalms)
+        Func<int> remoteDistanceYalms,
+        Func<float> cardOpacity)
     {
         this.objectTable = objectTable;
         this.gameGui = gameGui;
@@ -60,6 +61,7 @@ public sealed class NameplateCardRenderer
         this.artworkCache = artworkCache;
         this.isEnabled = isEnabled;
         this.remoteDistanceYalms = remoteDistanceYalms;
+        this.cardOpacity = cardOpacity;
     }
 
     public OverlayRenderDiagnostics Diagnostics => Volatile.Read(ref this.diagnostics);
@@ -143,6 +145,7 @@ public sealed class NameplateCardRenderer
     private void DrawCard(OverlayCard card, Vector2 screenAnchor)
     {
         var scale = ImGuiHelpers.GlobalScale;
+        var opacity = Math.Clamp(this.cardOpacity(), 0f, 1f);
         var hasArtwork = this.artworkCache.TryGet(card.ArtworkUrl, out var artwork) && artwork is not null;
         var leadingContentWidth = hasArtwork ? ArtworkSize + TextGap : 0f;
         var maximumTextWidth = (MaximumCardWidth - (2f * HorizontalCardPadding) - leadingContentWidth) * scale;
@@ -192,7 +195,7 @@ public sealed class NameplateCardRenderer
                     ((CardHeight - ArtworkSize) / 2f) * scale);
                 var artworkMaximum = contentMinimum + new Vector2(ArtworkSize * scale);
                 var drawList = ImGui.GetWindowDrawList();
-                DrawCardSurface(drawList, cardMinimum, cardMaximum, scale);
+                DrawCardSurface(drawList, cardMinimum, cardMaximum, scale, opacity);
                 if (hasArtwork)
                 {
                     var artworkRounding = 3f * scale;
@@ -219,7 +222,7 @@ public sealed class NameplateCardRenderer
                     cardMaximum.X - (HorizontalCardPadding * scale),
                     artworkMaximum.Y);
                 var style = ImGui.GetStyle();
-                var surfaceColor = GetSurfaceColor();
+                var surfaceColor = GetSurfaceColor(opacity);
                 var titleColor = ImGui.GetColorU32(style.Colors[(int)ImGuiCol.Text]);
                 var artistColorValue = Vector4.Lerp(surfaceColor, style.Colors[(int)ImGuiCol.Text], 0.68f);
                 artistColorValue.W = style.Colors[(int)ImGuiCol.Text].W;
@@ -257,7 +260,12 @@ public sealed class NameplateCardRenderer
         }
     }
 
-    private static void DrawCardSurface(ImDrawListPtr drawList, Vector2 minimum, Vector2 maximum, float scale)
+    private static void DrawCardSurface(
+        ImDrawListPtr drawList,
+        Vector2 minimum,
+        Vector2 maximum,
+        float scale,
+        float opacity)
     {
         var rounding = 5f * scale;
         var shadowColor = ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.2f));
@@ -276,7 +284,7 @@ public sealed class NameplateCardRenderer
             maximum + new Vector2(0f, 3f * scale),
             shadowColor,
             rounding + scale);
-        drawList.AddRectFilled(minimum, maximum, ImGui.GetColorU32(GetSurfaceColor()), rounding);
+        drawList.AddRectFilled(minimum, maximum, ImGui.GetColorU32(GetSurfaceColor(opacity)), rounding);
         drawList.AddRect(minimum, maximum, borderColor, rounding);
         drawList.AddLine(
             minimum + new Vector2(rounding, scale),
@@ -286,11 +294,11 @@ public sealed class NameplateCardRenderer
         drawList.PopClipRect();
     }
 
-    private static Vector4 GetSurfaceColor() => new(0.169f, 0.169f, 0.169f, CardOpacity);
+    private static Vector4 GetSurfaceColor(float opacity) => new(0.169f, 0.169f, 0.169f, opacity);
 
     private static Vector4 GetAdaptiveBorderColor()
     {
-        var surface = GetSurfaceColor();
+        var surface = GetSurfaceColor(1f);
         return GetRelativeLuminance(surface) < 0.5f
             ? new Vector4(1f, 1f, 1f, 0.14f)
             : new Vector4(0f, 0f, 0f, 0.18f);
@@ -298,7 +306,7 @@ public sealed class NameplateCardRenderer
 
     private static Vector4 GetAdaptiveHighlightColor()
     {
-        var surface = GetSurfaceColor();
+        var surface = GetSurfaceColor(1f);
         return GetRelativeLuminance(surface) < 0.5f
             ? new Vector4(1f, 1f, 1f, 0.12f)
             : new Vector4(1f, 1f, 1f, 0.28f);
