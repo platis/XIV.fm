@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.8] - 2026-07-29
+
 ### Changed
 
 - Temporarily return the in-game renderer to the compact placeholder-card layout so listening-state delivery can be tested independently from the artwork renderer.
