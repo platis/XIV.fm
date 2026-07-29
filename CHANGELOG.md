@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.7] - 2026-07-29
+
 ### Changed
 
 - Preserve the supplied SVG layout while presenting it uniformly at 70% in game, and anchor its bottom 0.7 yalms above the pose-aware nameplate point so it does not cover player names or titles.
