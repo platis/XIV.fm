@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.20] - 2026-07-29
+
 ### Changed
 
 - Center album artwork explicitly, bottom-align text to it, use uniform 8 px outer padding, and refine the card to a 61.92%-opaque FFXIV-style charcoal surface.
