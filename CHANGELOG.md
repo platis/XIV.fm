@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.13] - 2026-07-29
+
 ### Fixed
 
 - Restore visible border padding around enlarged cover artwork and the bottom-aligned text block.
