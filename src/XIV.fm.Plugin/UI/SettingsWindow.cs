@@ -41,7 +41,6 @@ public sealed class SettingsWindow : Window
     private string? interactionMessage;
     private string newRelayName = string.Empty;
     private string invitationToken = string.Empty;
-    private string previewedInvitationToken = string.Empty;
     private string renameRelayName = string.Empty;
     private Guid? renameRelayId;
     private Guid? confirmingLeaveRelayId;
@@ -483,18 +482,57 @@ public sealed class SettingsWindow : Window
             this.SetVisibility(VisibilityMode.Public);
         }
 
+        var relayState = this.relayCoordinator.State;
         var selectedRelayCount = this.configuration.SelectedRelayIds.Count;
-        var customEnabled = this.hasInstallationCredential() && selectedRelayCount > 0;
+        var hasLinkedAccount = this.hasInstallationCredential();
+        var customEnabled = hasLinkedAccount && selectedRelayCount > 0;
         if (DrawChoiceCard(
                 "XIV.fm.Visibility.Custom",
                 "Custom Relays",
                 customEnabled
-                    ? $"Share with {selectedRelayCount} selected Relay{(selectedRelayCount == 1 ? string.Empty : "s")}."
-                    : "Choose at least one joined Relay on the Relays tab first.",
+                    ? $"Share and receive presence through {selectedRelayCount} selected Relay{(selectedRelayCount == 1 ? string.Empty : "s")}."
+                    : hasLinkedAccount
+                        ? "Select at least one joined Relay below."
+                        : "Connect Last.fm to choose a private Relay audience.",
                 visibility == VisibilityMode.Custom,
                 customEnabled))
         {
             this.SetVisibility(VisibilityMode.Custom);
+        }
+
+        if (hasLinkedAccount)
+        {
+            ImGui.TextUnformatted("Relay audience");
+            ImGui.TextDisabled("Choose up to five Relays to share and receive presence.");
+            if (relayState.Relays.IsEmpty)
+            {
+                ImGui.TextDisabled(relayState.Status is RelayRuntimeStatus.Idle or RelayRuntimeStatus.Loading
+                    ? "Loading your joined Relays…"
+                    : "Create or join a Relay on the Relays tab first.");
+            }
+            else
+            {
+                foreach (var relay in relayState.Relays)
+                {
+                    ImGui.PushID($"PrivacyRelay.{relay.RelayId:D}");
+                    var selected = this.configuration.SelectedRelayIds.Contains(relay.RelayId);
+                    var canSelect = selected || RelaySelection.CanSelect(
+                        this.configuration.SelectedRelayIds,
+                        relay.RelayId);
+                    if (!canSelect)
+                        ImGui.BeginDisabled();
+                    if (ImGui.Checkbox(relay.Name, ref selected))
+                        this.SetRelaySelected(relay.RelayId, selected);
+                    if (!canSelect)
+                        ImGui.EndDisabled();
+                    ImGui.SameLine();
+                    ImGui.TextDisabled(relay.IsOwner ? "Owner" : "Member");
+                    ImGui.PopID();
+                }
+
+                if (selectedRelayCount >= RelaySelection.MaximumSelectedRelays)
+                    ImGui.TextDisabled("Five Relays selected · deselect one to choose another.");
+            }
         }
 
         ImGui.Spacing();
@@ -505,7 +543,7 @@ public sealed class SettingsWindow : Window
     {
         DrawSectionHeader(
             "Custom Relays",
-            "Create or join private audiences, then choose up to five for your listening presence.");
+            "Create, join, and manage private invitation-based groups.");
 
         if (!this.hasInstallationCredential())
         {
@@ -552,20 +590,21 @@ public sealed class SettingsWindow : Window
         ImGui.Spacing();
         ImGui.TextUnformatted("Join with an invitation");
         ImGui.TextDisabled("Invitation tokens are secret, expiring, and single-use.");
-        ImGui.SetNextItemWidth(-1f);
+        const string joinRelayLabel = "Join Relay";
+        ImGui.SetNextItemWidth(GetInlineInputWidth(joinRelayLabel));
         ImGui.InputText(
             "##XIV.fm.RelayInvitationToken",
             ref this.invitationToken,
             512,
             ImGuiInputTextFlags.Password);
-
+        ImGui.SameLine();
         if (!duty.AllowsServerRequests || busy)
             ImGui.BeginDisabled();
-        if (DrawSecondaryButton("Preview invitation"))
+        if (DrawPrimaryButton(joinRelayLabel))
         {
-            if (this.relayCoordinator.TryPreviewInvitation(this.invitationToken, out var error))
+            if (this.relayCoordinator.TryAcceptInvitation(this.invitationToken, out var error))
             {
-                this.previewedInvitationToken = this.invitationToken.Trim();
+                this.invitationToken = string.Empty;
                 this.interactionMessage = null;
             }
             else
@@ -573,48 +612,32 @@ public sealed class SettingsWindow : Window
                 this.interactionMessage = error;
             }
         }
+
         if (!duty.AllowsServerRequests || busy)
             ImGui.EndDisabled();
-
-        if (state.InvitationPreview is { } preview &&
-            string.Equals(this.previewedInvitationToken, this.invitationToken.Trim(), StringComparison.Ordinal))
-        {
-            DrawStatusPanel(
-                preview.RelayName,
-                $"This invitation expires {FormatTimestamp(preview.ExpiresAt)}. Join only if you recognize this Relay.",
-                Accent);
-            if (!duty.AllowsServerRequests || busy)
-                ImGui.BeginDisabled();
-            if (DrawPrimaryButton("Join Relay"))
-            {
-                if (this.relayCoordinator.TryAcceptInvitation(this.invitationToken, out var error))
-                {
-                    this.invitationToken = string.Empty;
-                    this.previewedInvitationToken = string.Empty;
-                }
-                else
-                    this.interactionMessage = error;
-            }
-
-            if (!duty.AllowsServerRequests || busy)
-                ImGui.EndDisabled();
-        }
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
         ImGui.TextUnformatted("Create a Relay");
         ImGui.TextDisabled("Names are 3–48 characters. You can own up to three active Relays.");
-        ImGui.SetNextItemWidth(-1f);
+        const string createRelayLabel = "Create Relay";
+        ImGui.SetNextItemWidth(GetInlineInputWidth(createRelayLabel));
         ImGui.InputText("##XIV.fm.NewRelayName", ref this.newRelayName, 96);
+        ImGui.SameLine();
         if (!duty.AllowsServerRequests || busy)
             ImGui.BeginDisabled();
-        if (DrawPrimaryButton("Create Relay"))
+        if (DrawPrimaryButton(createRelayLabel))
         {
             if (this.relayCoordinator.TryCreate(this.newRelayName, out var error))
+            {
                 this.newRelayName = string.Empty;
+                this.interactionMessage = null;
+            }
             else
+            {
                 this.interactionMessage = error;
+            }
         }
 
         if (!duty.AllowsServerRequests || busy)
@@ -656,24 +679,11 @@ public sealed class SettingsWindow : Window
             if (!ImGui.CollapsingHeader($"{relay.Name}  ·  {role}  ·  {relay.MemberCount} member{(relay.MemberCount == 1 ? string.Empty : "s")}"))
                 return;
 
-            var selected = this.configuration.SelectedRelayIds.Contains(relay.RelayId);
-            var canSelect = selected || RelaySelection.CanSelect(
-                this.configuration.SelectedRelayIds,
-                relay.RelayId);
-            if (!canSelect)
-                ImGui.BeginDisabled();
-            if (ImGui.Checkbox("Use as a Custom audience", ref selected))
-                this.SetRelaySelected(relay.RelayId, selected);
-            if (!canSelect)
-                ImGui.EndDisabled();
-            if (!canSelect)
-                ImGui.TextDisabled("You can select up to five Relays.");
-
             if (!duty.AllowsServerRequests || busy)
                 ImGui.BeginDisabled();
             if (relay.IsOwner)
             {
-                if (DrawSecondaryButton(state.ManagedRelayId == relay.RelayId ? "Reload management" : "Manage Relay"))
+                if (state.ManagedRelayId != relay.RelayId && DrawSecondaryButton("Manage Relay"))
                 {
                     this.renameRelayId = relay.RelayId;
                     this.renameRelayName = relay.Name;
@@ -737,11 +747,13 @@ public sealed class SettingsWindow : Window
             this.renameRelayName = relay.Name;
         }
 
-        ImGui.SetNextItemWidth(-1f);
+        const string renameRelayLabel = "Rename";
+        ImGui.SetNextItemWidth(GetInlineInputWidth(renameRelayLabel));
         ImGui.InputText("##RenameRelay", ref this.renameRelayName, 96);
+        ImGui.SameLine();
         if (!duty.AllowsServerRequests || busy)
             ImGui.BeginDisabled();
-        if (DrawSecondaryButton("Rename"))
+        if (DrawSecondaryButton(renameRelayLabel))
             this.RunRelayAction((out string? error) => this.relayCoordinator.TryRename(relay.RelayId, this.renameRelayName, out error));
         if (!duty.AllowsServerRequests || busy)
             ImGui.EndDisabled();
@@ -883,8 +895,9 @@ public sealed class SettingsWindow : Window
         }
 
         this.configuration.SelectedRelayIds = RelaySelection.Normalize(relayIds).ToList();
-        if (this.configuration.Visibility == VisibilityMode.Custom && this.configuration.SelectedRelayIds.Count == 0)
-            this.configuration.Visibility = VisibilityMode.Private;
+        this.configuration.Visibility = this.configuration.SelectedRelayIds.Count == 0
+            ? VisibilityMode.Private
+            : VisibilityMode.Custom;
         this.saveConfiguration();
         this.requestSync();
     }
@@ -1164,6 +1177,11 @@ public sealed class SettingsWindow : Window
 
     private static float GetButtonWidth(string label) =>
         ImGui.CalcTextSize(label).X + (ImGui.GetStyle().FramePadding.X * 2f);
+
+    private static float GetInlineInputWidth(string buttonLabel) =>
+        MathF.Max(
+            1f,
+            ImGui.GetContentRegionAvail().X - GetButtonWidth(buttonLabel) - ImGui.GetStyle().ItemSpacing.X);
 
     private static void AlignNextButtonRight(string label)
     {

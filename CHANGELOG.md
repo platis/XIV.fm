@@ -4,6 +4,13 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.26] - 2026-07-29
+
+### Changed
+
+- Move Custom Relay audience selection into Privacy, where choosing a Relay now activates Custom visibility and controls presence sharing in both directions.
+- Streamline Relay actions with direct Join, same-row Join/Create/Rename controls, and no invitation preview or management reload button.
+
 ## [0.1.25] - 2026-07-29
 
 ### Fixed
