@@ -3,10 +3,10 @@
     "Author": "platis",
     "Name": "XIV.fm",
     "InternalName": "XIV.fm",
-    "AssemblyVersion": "0.1.30.0",
+    "AssemblyVersion": "0.1.31.0",
     "Punchline": "Share what you are listening to in Final Fantasy XIV.",
     "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
-    "Changelog": "- Use the hosted XIV.fm test server by default; no manual Development server URL or toggle is required.\n- Automatically migrate existing hosted-server credentials and legacy endpoint settings.\n- Hide Diagnostics and development-server controls during normal use; enter `/xivfm dev` to reveal them for the current session.",
+    "Changelog": "- Scale other players’ cards smoothly by distance while preserving a readable minimum size.\n- Hold Alt and click a highlighted listening card to open its validated Last.fm track link.\n- Replace title and artist ellipses with a slow, seamless leftward marquee for overflowing text.",
     "Tags": [
       "lastfm",
       "music",
@@ -15,8 +15,8 @@
     ],
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.30/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.30/latest.zip",
+    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.31/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.31/latest.zip",
     "RepoUrl": "https://github.com/platis/XIV.fm"
   }
 ]
