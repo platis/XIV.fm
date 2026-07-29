@@ -3,10 +3,10 @@
     "Author": "platis",
     "Name": "XIV.fm",
     "InternalName": "XIV.fm",
-    "AssemblyVersion": "0.1.27.0",
+    "AssemblyVersion": "0.1.28.0",
     "Punchline": "Share what you are listening to in Final Fantasy XIV.",
     "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
-    "Changelog": "Adds independent 50–150% size controls for your listening card and other players’ cards. The Server Info Bar shortcut is now .FM, using the bar’s default yellow while cards are visible and red while hidden.",
+    "Changelog": "Fix Last.fm account linking by opening authorization through the operating-system default browser with a Dalamud fallback. Pending links now include Open Last.fm authorization and Copy connection link actions and remain available across plugin restarts.",
     "Tags": [
       "lastfm",
       "music",
@@ -15,8 +15,8 @@
     ],
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.27/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.27/latest.zip",
+    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.28/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.28/latest.zip",
     "RepoUrl": "https://github.com/platis/XIV.fm"
   }
 ]
