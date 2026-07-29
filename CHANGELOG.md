@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.22] - 2026-07-29
+
 ### Changed
 
 - Move the Last.fm disconnect action onto the connected-account action row and give it a lower-emphasis outlined danger treatment.
