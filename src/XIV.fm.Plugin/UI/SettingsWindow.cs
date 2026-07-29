@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using XIV.fm.Contracts.V1;
 using XIV.fm.Plugin.Core.Overlay;
@@ -12,6 +14,11 @@ namespace XIV.fm.Plugin.UI;
 public sealed class SettingsWindow : Window
 {
     private static readonly Vector4 Accent = new(0.88f, 0.23f, 0.36f, 1f);
+    private static readonly Vector4 Success = new(0.32f, 0.78f, 0.48f, 1f);
+    private static readonly Vector4 Warning = new(0.95f, 0.71f, 0.25f, 1f);
+    private static readonly Vector4 Danger = new(0.95f, 0.35f, 0.35f, 1f);
+    private static readonly Vector4 Neutral = new(0.62f, 0.65f, 0.7f, 1f);
+
     private readonly PluginConfiguration configuration;
     private readonly Action saveConfiguration;
     private readonly Func<string?> startAccountLink;
@@ -39,7 +46,7 @@ public sealed class SettingsWindow : Window
         Func<SyncRuntimeState> syncState,
         Func<OverlaySnapshot> overlaySnapshot,
         Func<OverlayRenderDiagnostics> renderDiagnostics)
-        : base("XIV.fm Settings###XIV.fm.Settings")
+        : base("XIV.fm###XIV.fm.Settings")
     {
         this.configuration = configuration;
         this.saveConfiguration = saveConfiguration;
@@ -55,7 +62,7 @@ public sealed class SettingsWindow : Window
         this.renderDiagnostics = renderDiagnostics;
         this.SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(560f, 440f),
+            MinimumSize = new Vector2(620f, 500f),
             MaximumSize = new Vector2(960f, 860f),
         };
     }
@@ -64,43 +71,57 @@ public sealed class SettingsWindow : Window
     {
         DrawHeader();
         ImGui.Spacing();
-        if (!ImGui.BeginTabBar("XIV.fm.Settings.Tabs"))
-            return;
 
-        if (ImGui.BeginTabItem("Account"))
+        ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 5f * ImGuiHelpers.GlobalScale);
+        try
         {
-            this.DrawAccountTab();
-            ImGui.EndTabItem();
-        }
-        if (ImGui.BeginTabItem("Overlay"))
-        {
-            this.DrawOverlayTab();
-            ImGui.EndTabItem();
-        }
-        if (ImGui.BeginTabItem("Privacy"))
-        {
-            this.DrawPrivacyTab();
-            ImGui.EndTabItem();
-        }
-        if (ImGui.BeginTabItem("Custom Relays"))
-        {
-            this.DrawRelaysTab();
-            ImGui.EndTabItem();
-        }
-        if (ImGui.BeginTabItem("Diagnostics"))
-        {
-            this.DrawDiagnosticsTab();
-            ImGui.EndTabItem();
-        }
+            if (!ImGui.BeginTabBar("XIV.fm.Settings.Tabs"))
+                return;
 
-        ImGui.EndTabBar();
+            if (ImGui.BeginTabItem("Account"))
+            {
+                this.DrawAccountTab();
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem("Cards"))
+            {
+                this.DrawOverlayTab();
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem("Privacy"))
+            {
+                this.DrawPrivacyTab();
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem("Relays"))
+            {
+                this.DrawRelaysTab();
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem("Diagnostics"))
+            {
+                this.DrawDiagnosticsTab();
+                ImGui.EndTabItem();
+            }
+
+            ImGui.EndTabBar();
+        }
+        finally
+        {
+            ImGui.PopStyleVar();
+        }
     }
 
     private static void DrawHeader()
     {
         ImGui.TextColored(Accent, "XIV.fm");
         ImGui.SameLine();
-        ImGui.TextDisabled("Last.fm listening presence for FFXIV");
+        ImGui.TextDisabled("Your soundtrack, above your nameplate.");
+        ImGui.Spacing();
         ImGui.Separator();
     }
 
@@ -110,54 +131,66 @@ public sealed class SettingsWindow : Window
         var state = this.linkState();
         var linked = this.hasInstallationCredential();
 
-        ImGui.TextUnformatted("Last.fm account");
-        ImGui.TextWrapped("Connect in your browser to prove ownership. XIV.fm never stores your Last.fm password, and the temporary Last.fm session is discarded after linking.");
-        ImGui.Spacing();
+        DrawSectionHeader(
+            "Last.fm account",
+            "Connect securely in your browser. XIV.fm never sees or stores your Last.fm password.");
 
         if (linked)
         {
-            DrawStatusBadge("Connected", new Vector4(0.32f, 0.78f, 0.48f, 1f));
-            ImGui.SameLine();
-            ImGui.TextUnformatted(string.IsNullOrWhiteSpace(this.configuration.LinkedLastFmAccountName)
-                ? "Linked account"
-                : this.configuration.LinkedLastFmAccountName);
-            ImGui.Spacing();
-            if (ImGui.Button("Open Last.fm"))
+            var accountName = string.IsNullOrWhiteSpace(this.configuration.LinkedLastFmAccountName)
+                ? "your linked Last.fm account"
+                : this.configuration.LinkedLastFmAccountName;
+            DrawStatusPanel(
+                "Connected",
+                $"Listening as {accountName}. Your temporary authorization session was discarded after linking.",
+                Success);
+
+            if (DrawPrimaryButton("Open Last.fm profile"))
                 this.openLastFm();
             ImGui.SameLine();
-            if (ImGui.Button("Sync now"))
+            if (DrawSecondaryButton("Sync now"))
                 this.requestSync();
+
             ImGui.Spacing();
-            ImGui.TextDisabled("Account disconnection will be added with credential-revocation confirmation before Phase 6 is completed.");
+            ImGui.TextDisabled("Account disconnection with credential revocation is not available yet.");
             return;
         }
 
         switch (state.Status)
         {
             case AccountLinkRuntimeStatus.Starting:
-                DrawStatusBadge("Starting", new Vector4(0.95f, 0.71f, 0.25f, 1f));
-                ImGui.TextWrapped("Creating a secure browser-link session…");
+                DrawStatusPanel(
+                    "Preparing a secure link",
+                    "Creating a short-lived browser authorization session…",
+                    Warning);
                 break;
             case AccountLinkRuntimeStatus.WaitingForBrowser:
-                DrawStatusBadge("Waiting for browser", new Vector4(0.95f, 0.71f, 0.25f, 1f));
-                ImGui.TextWrapped("Approve XIV.fm in the browser. This page updates automatically when authorization completes.");
-                if (ImGui.Button("Cancel and start over"))
+                DrawStatusPanel(
+                    "Waiting for your browser",
+                    "Approve XIV.fm in the browser. This screen updates automatically when authorization completes.",
+                    Warning);
+                if (DrawSecondaryButton("Cancel and start over"))
                 {
                     this.cancelAccountLink();
                     this.interactionMessage = "The pending link was cleared.";
                 }
+
                 break;
             case AccountLinkRuntimeStatus.SuspendedDuty:
-                DrawStatusBadge("Suspended in duty", new Vector4(0.95f, 0.54f, 0.25f, 1f));
-                ImGui.TextWrapped("Leave the duty before linking. XIV.fm makes no server requests while bound by duty.");
+                DrawStatusPanel(
+                    "Paused while in duty",
+                    "Leave the duty before linking. XIV.fm makes no server requests while you are duty-bound.",
+                    Warning);
                 break;
             case AccountLinkRuntimeStatus.Failed:
-                DrawStatusBadge("Link failed", new Vector4(0.95f, 0.35f, 0.35f, 1f));
-                ImGui.TextWrapped(state.Error ?? "Account linking failed. You can try again.");
+                DrawStatusPanel(
+                    "Couldn’t connect",
+                    state.Error ?? "Account linking failed. You can try again.",
+                    Danger);
                 if (this.configuration.PendingLinkSessionId is not null)
                 {
-                    ImGui.TextDisabled("XIV.fm will retry automatically while this session remains valid.");
-                    if (ImGui.Button("Cancel and start over"))
+                    ImGui.TextDisabled("XIV.fm will keep retrying while this link session remains valid.");
+                    if (DrawSecondaryButton("Cancel and start over"))
                     {
                         this.cancelAccountLink();
                         this.interactionMessage = "The pending link was cleared.";
@@ -167,10 +200,13 @@ public sealed class SettingsWindow : Window
                 {
                     this.DrawLinkButton(duty);
                 }
+
                 break;
             default:
-                DrawStatusBadge("Not connected", new Vector4(0.65f, 0.65f, 0.65f, 1f));
-                ImGui.TextWrapped("Connect Last.fm to show your real listening state in game.");
+                DrawStatusPanel(
+                    "Not connected",
+                    "Connect Last.fm to show your real listening state above your character.",
+                    Neutral);
                 this.DrawLinkButton(duty);
                 break;
         }
@@ -178,7 +214,7 @@ public sealed class SettingsWindow : Window
         if (!string.IsNullOrWhiteSpace(this.interactionMessage))
         {
             ImGui.Spacing();
-            ImGui.TextWrapped(this.interactionMessage);
+            DrawStatusPanel("Status", this.interactionMessage, Neutral);
         }
     }
 
@@ -186,17 +222,26 @@ public sealed class SettingsWindow : Window
     {
         if (!duty.AllowsServerRequests)
             ImGui.BeginDisabled();
-        if (ImGui.Button("Connect Last.fm in browser", new Vector2(230f, 0f)))
+
+        if (DrawPrimaryButton("Connect Last.fm in browser", new Vector2(240f * ImGuiHelpers.GlobalScale, 0f)))
         {
             var error = this.startAccountLink();
             this.interactionMessage = error ?? "Opening Last.fm authorization in your browser…";
         }
+
         if (!duty.AllowsServerRequests)
             ImGui.EndDisabled();
+
+        if (!duty.AllowsServerRequests)
+            ImGui.TextDisabled("Unavailable while duty-bound.");
     }
 
     private void DrawOverlayTab()
     {
+        DrawSectionHeader(
+            "Listening cards",
+            "Choose when cards appear and how close another listener must be before their card is shown.");
+
         var changed = false;
         var cards = this.configuration.ShowPlaceholderCards;
         if (ImGui.Checkbox("Show listening cards", ref cards))
@@ -205,13 +250,49 @@ public sealed class SettingsWindow : Window
             changed = true;
         }
 
+        ImGui.SameLine();
+        ImGui.TextDisabled(cards ? "Visible" : "Hidden");
+        ImGui.TextDisabled("Hides both your card and nearby listeners’ cards without changing your privacy setting.");
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        ImGui.TextUnformatted("Nearby listener distance");
+        ImGui.TextDisabled("Only cards belonging to other players are filtered by distance.");
+        ImGui.Spacing();
+
+        if (!cards)
+            ImGui.BeginDisabled();
+
         var range = this.configuration.NormalizedRemoteCardDistanceYalms;
-        if (ImGui.SliderInt("Remote card distance", ref range, OverlayVisibility.MinimumRemoteDistanceYalms, OverlayVisibility.MaximumRemoteDistanceYalms, "%d yalms"))
+        ImGui.SetNextItemWidth(-1f);
+        if (ImGui.SliderInt(
+                "##XIV.fm.RemoteCardDistance",
+                ref range,
+                OverlayVisibility.MinimumRemoteDistanceYalms,
+                OverlayVisibility.MaximumRemoteDistanceYalms,
+                "%d yalms"))
         {
             this.configuration.RemoteCardDistanceYalms = OverlayVisibility.NormalizeRemoteDistance(range);
             changed = true;
         }
-        ImGui.TextDisabled("Remote cards are matched to loaded characters and filtered locally. Default: 8 yalms.");
+
+        if (range != OverlayVisibility.DefaultRemoteDistanceYalms)
+        {
+            if (DrawSecondaryButton("Reset to 8 yalms"))
+            {
+                this.configuration.RemoteCardDistanceYalms = OverlayVisibility.DefaultRemoteDistanceYalms;
+                changed = true;
+            }
+        }
+        else
+        {
+            ImGui.TextDisabled("8 yalms · recommended");
+        }
+
+        if (!cards)
+            ImGui.EndDisabled();
 
         if (changed)
             this.saveConfiguration();
@@ -219,45 +300,52 @@ public sealed class SettingsWindow : Window
 
     private void DrawPrivacyTab()
     {
-        ImGui.TextUnformatted("Who can receive your listening presence?");
-        ImGui.TextWrapped("Private still retrieves your music for your local card, but publishes no social presence.");
-        ImGui.Spacing();
+        DrawSectionHeader(
+            "Who can receive your listening presence?",
+            "Private still retrieves your music for your own card, but publishes no social presence.");
 
         var visibility = this.configuration.Visibility;
-        if (ImGui.RadioButton("Private", visibility == VisibilityMode.Private))
+        if (DrawChoiceCard(
+                "XIV.fm.Visibility.Private",
+                "Private",
+                "Only you can see your listening card.",
+                visibility == VisibilityMode.Private,
+                true))
         {
-            this.configuration.Visibility = VisibilityMode.Private;
-            this.saveConfiguration();
-            this.requestSync();
+            this.SetVisibility(VisibilityMode.Private);
         }
-        ImGui.TextDisabled("Only you see your card.");
 
-        if (ImGui.RadioButton("Public", visibility == VisibilityMode.Public))
+        if (DrawChoiceCard(
+                "XIV.fm.Visibility.Public",
+                "Public",
+                "Nearby XIV.fm listeners in your current game location can receive your presence.",
+                visibility == VisibilityMode.Public,
+                true))
         {
-            this.configuration.Visibility = VisibilityMode.Public;
-            this.saveConfiguration();
-            this.requestSync();
+            this.SetVisibility(VisibilityMode.Public);
         }
-        ImGui.TextDisabled("Nearby XIV.fm users in the same game location may receive your presence.");
 
-        ImGui.BeginDisabled();
-        ImGui.RadioButton("Custom Relays", visibility == VisibilityMode.Custom);
-        ImGui.EndDisabled();
-        ImGui.TextDisabled("Relay selection is the next Phase 6 settings slice.");
+        DrawChoiceCard(
+            "XIV.fm.Visibility.Custom",
+            "Custom Relays · Coming soon",
+            "Share only with invitation-based groups you choose.",
+            visibility == VisibilityMode.Custom,
+            false);
+
+        ImGui.Spacing();
+        ImGui.TextDisabled("Changing this setting requests an immediate sync.");
     }
 
     private void DrawRelaysTab()
     {
-        ImGui.TextUnformatted("Custom Relays");
-        if (!this.hasInstallationCredential())
-        {
-            ImGui.TextWrapped("Connect Last.fm first. Relays are invitation-based audiences tied to your linked XIV.fm account.");
-            return;
-        }
+        DrawSectionHeader(
+            "Custom Relays",
+            "Private, invitation-based audiences for the people you choose.");
 
-        ImGui.TextWrapped("The Relay server behavior is complete. Creation, invitations, membership, and audience selection are being connected to this settings page during Phase 6.");
-        ImGui.Spacing();
-        ImGui.TextDisabled("Until this page is enabled, keep visibility Private or Public.");
+        var body = this.hasInstallationCredential()
+            ? "Relay creation, invitations, membership, and audience selection are coming to this screen. Until then, choose Private or Public."
+            : "Connect Last.fm first. Relays will be tied securely to your linked XIV.fm account.";
+        DrawStatusPanel("Coming soon", body, Neutral);
     }
 
     private void DrawDiagnosticsTab()
@@ -268,49 +356,256 @@ public sealed class SettingsWindow : Window
         var snapshot = this.overlaySnapshot();
         var render = this.renderDiagnostics();
 
-        ImGui.TextUnformatted("Runtime");
-        ImGui.BulletText($"Duty: {(duty.IsInDuty ? "bound — participation suspended" : "not bound")}");
-        ImGui.BulletText($"Link: {link.Status}");
-        ImGui.BulletText($"Sync: {sync.Status}");
-        ImGui.BulletText($"Visibility: {this.configuration.Visibility}");
-        ImGui.BulletText($"Snapshot cards: {snapshot.Cards.Length}");
-        ImGui.BulletText($"Location: {snapshot.Location?.ToString() ?? "unavailable"}");
-        ImGui.BulletText($"Render requested/matched/in-range/projected/drawn: {render.RequestedCards}/{render.MatchedPlayers}/{render.InRangePlayers}/{render.ProjectedAnchors}/{render.RenderedCards}");
-        ImGui.BulletText($"Local pose-aware nameplate height: {(render.LocalNameplateHeightYalms is float height ? $"{height:F2} yalms" : "unavailable")}");
-        if (!string.IsNullOrWhiteSpace(sync.Error))
-            ImGui.TextWrapped($"Sync error: {sync.Error}");
-        if (!string.IsNullOrWhiteSpace(link.Error))
-            ImGui.TextWrapped($"Link error: {link.Error}");
+        DrawSectionHeader(
+            "Runtime diagnostics",
+            "Live state for troubleshooting account, sync, matching, and card rendering issues.");
 
+        DrawKeyValue("Duty", duty.IsInDuty ? "Bound · participation paused" : "Not bound");
+        DrawKeyValue("Account link", link.Status.ToString());
+        DrawKeyValue("Sync", sync.Status.ToString());
+        DrawKeyValue("Visibility", this.configuration.Visibility.ToString());
+        DrawKeyValue("Location", snapshot.Location?.ToString() ?? "Unavailable");
+        DrawKeyValue("Snapshot cards", snapshot.Cards.Length.ToString(CultureInfo.InvariantCulture));
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Render pipeline");
+        ImGui.TextDisabled("Requested → matched → in range → projected → drawn");
+        DrawKeyValue(
+            "Cards",
+            $"{render.RequestedCards} → {render.MatchedPlayers} → {render.InRangePlayers} → {render.ProjectedAnchors} → {render.RenderedCards}");
+        DrawKeyValue(
+            "Local anchor height",
+            render.LocalNameplateHeightYalms is float height ? $"{height:F2} yalms" : "Unavailable");
+
+        if (!string.IsNullOrWhiteSpace(sync.Error))
+        {
+            ImGui.Spacing();
+            DrawStatusPanel("Sync error", sync.Error, Danger);
+        }
+
+        if (!string.IsNullOrWhiteSpace(link.Error))
+        {
+            ImGui.Spacing();
+            DrawStatusPanel("Link error", link.Error, Danger);
+        }
+
+        ImGui.Spacing();
         ImGui.Separator();
         if (ImGui.CollapsingHeader("Development server"))
+            this.DrawDevelopmentServerSettings();
+    }
+
+    private void DrawDevelopmentServerSettings()
+    {
+        ImGui.TextWrapped("Private testing only. Production servers require HTTPS; HTTP is accepted only for loopback addresses.");
+        ImGui.Spacing();
+
+        var enabled = this.configuration.DeveloperServerEnabled;
+        if (ImGui.Checkbox("Use development server", ref enabled))
         {
-            ImGui.TextWrapped("For private testing only. HTTP is accepted only for loopback addresses; production servers require HTTPS.");
-            var enabled = this.configuration.DeveloperServerEnabled;
-            if (ImGui.Checkbox("Use development server", ref enabled))
-            {
-                this.cancelAccountLink();
-                this.configuration.DeveloperServerEnabled = enabled;
-                this.saveConfiguration();
-                this.requestSync();
-            }
+            this.cancelAccountLink();
+            this.configuration.DeveloperServerEnabled = enabled;
+            this.saveConfiguration();
+            this.requestSync();
+        }
 
-            var baseUrl = this.configuration.DeveloperServerBaseUrl;
-            if (ImGui.InputText("Server URL", ref baseUrl, 512))
-            {
-                this.cancelAccountLink();
-                this.configuration.DeveloperServerBaseUrl = baseUrl.Trim();
-                this.saveConfiguration();
-            }
+        if (enabled)
+        {
+            ImGui.Spacing();
+            DrawStatusPanel(
+                "Development mode is active",
+                "Account linking and sync use the development server below.",
+                Warning);
+        }
 
-            var mocks = this.configuration.DeveloperMockRemoteCards;
-            if (ImGui.Checkbox("Show remote mock cards", ref mocks))
-            {
-                this.configuration.DeveloperMockRemoteCards = mocks;
-                this.saveConfiguration();
-            }
+        if (!enabled)
+            ImGui.BeginDisabled();
+
+        var baseUrl = this.configuration.DeveloperServerBaseUrl;
+        ImGui.SetNextItemWidth(-1f);
+        if (ImGui.InputText("##XIV.fm.DevelopmentServerUrl", ref baseUrl, 512))
+        {
+            this.cancelAccountLink();
+            this.configuration.DeveloperServerBaseUrl = baseUrl.Trim();
+            this.saveConfiguration();
+        }
+
+        ImGui.TextDisabled("Development server URL");
+
+        var mocks = this.configuration.DeveloperMockRemoteCards;
+        if (ImGui.Checkbox("Show remote mock cards", ref mocks))
+        {
+            this.configuration.DeveloperMockRemoteCards = mocks;
+            this.saveConfiguration();
+        }
+
+        if (!enabled)
+            ImGui.EndDisabled();
+    }
+
+    private void SetVisibility(VisibilityMode visibility)
+    {
+        this.configuration.Visibility = visibility;
+        this.saveConfiguration();
+        this.requestSync();
+    }
+
+    private static void DrawSectionHeader(string title, string description)
+    {
+        ImGui.Spacing();
+        ImGui.TextColored(Accent, title);
+        ImGui.TextWrapped(description);
+        ImGui.Spacing();
+    }
+
+    private static void DrawStatusPanel(string title, string body, Vector4 tone)
+    {
+        var scale = ImGuiHelpers.GlobalScale;
+        var width = MathF.Max(1f, ImGui.GetContentRegionAvail().X);
+        var padding = 12f * scale;
+        var textWidth = MathF.Max(1f, width - (padding * 2f));
+        var titleHeight = ImGui.GetTextLineHeight();
+        var bodySize = ImGui.CalcTextSize(body, false, textWidth);
+        var gap = 5f * scale;
+        var height = MathF.Max(72f * scale, (padding * 2f) + titleHeight + gap + bodySize.Y);
+        var origin = ImGui.GetCursorScreenPos();
+        var maximum = origin + new Vector2(width, height);
+        var drawList = ImGui.GetWindowDrawList();
+        var style = ImGui.GetStyle();
+        var panelColor = WithAlpha(style.Colors[(int)ImGuiCol.FrameBg], 0.72f);
+        var borderColor = WithAlpha(style.Colors[(int)ImGuiCol.Border], 0.8f);
+
+        drawList.AddRectFilled(origin, maximum, ImGui.GetColorU32(panelColor), 6f * scale);
+        drawList.AddRect(origin, maximum, ImGui.GetColorU32(borderColor), 6f * scale);
+        drawList.AddRectFilled(
+            origin,
+            new Vector2(origin.X + (3f * scale), maximum.Y),
+            ImGui.GetColorU32(tone),
+            6f * scale);
+
+        ImGui.SetCursorScreenPos(origin + new Vector2(padding, padding));
+        ImGui.TextColored(tone, title);
+        ImGui.SetCursorScreenPos(origin + new Vector2(padding, padding + titleHeight + gap));
+        ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + textWidth);
+        ImGui.TextUnformatted(body);
+        ImGui.PopTextWrapPos();
+        ImGui.SetCursorScreenPos(new Vector2(origin.X, maximum.Y + (8f * scale)));
+    }
+
+    private static bool DrawChoiceCard(
+        string id,
+        string title,
+        string description,
+        bool selected,
+        bool enabled)
+    {
+        var scale = ImGuiHelpers.GlobalScale;
+        var width = MathF.Max(1f, ImGui.GetContentRegionAvail().X);
+        var height = 66f * scale;
+        var origin = ImGui.GetCursorScreenPos();
+
+        if (!enabled)
+            ImGui.BeginDisabled();
+        var clicked = ImGui.InvisibleButton(id, new Vector2(width, height));
+        var hovered = enabled && ImGui.IsItemHovered();
+        if (!enabled)
+            ImGui.EndDisabled();
+
+        var style = ImGui.GetStyle();
+        var drawList = ImGui.GetWindowDrawList();
+        var background = selected
+            ? WithAlpha(Accent, 0.16f)
+            : WithAlpha(style.Colors[(int)ImGuiCol.FrameBg], hovered ? 0.86f : 0.58f);
+        var border = selected
+            ? WithAlpha(Accent, 0.82f)
+            : WithAlpha(style.Colors[(int)ImGuiCol.Border], 0.72f);
+        var titleColor = enabled
+            ? style.Colors[(int)ImGuiCol.Text]
+            : style.Colors[(int)ImGuiCol.TextDisabled];
+        var descriptionColor = style.Colors[(int)ImGuiCol.TextDisabled];
+        var maximum = origin + new Vector2(width, height);
+
+        drawList.AddRectFilled(origin, maximum, ImGui.GetColorU32(background), 6f * scale);
+        drawList.AddRect(origin, maximum, ImGui.GetColorU32(border), 6f * scale);
+        if (selected)
+        {
+            drawList.AddRectFilled(
+                origin,
+                new Vector2(origin.X + (3f * scale), maximum.Y),
+                ImGui.GetColorU32(Accent),
+                6f * scale);
+        }
+
+        var textOrigin = origin + new Vector2(13f * scale, 10f * scale);
+        drawList.AddText(textOrigin, ImGui.GetColorU32(titleColor), title);
+        drawList.AddText(
+            textOrigin + new Vector2(0f, 25f * scale),
+            ImGui.GetColorU32(descriptionColor),
+            description);
+
+        var indicatorCenter = new Vector2(maximum.X - (18f * scale), origin.Y + (height / 2f));
+        drawList.AddCircle(
+            indicatorCenter,
+            6f * scale,
+            ImGui.GetColorU32(selected ? Accent : border),
+            0,
+            1.5f * scale);
+        if (selected)
+            drawList.AddCircleFilled(indicatorCenter, 3f * scale, ImGui.GetColorU32(Accent));
+
+        ImGui.Spacing();
+        return enabled && clicked;
+    }
+
+    private static void DrawKeyValue(string label, string value)
+    {
+        var startX = ImGui.GetCursorPosX();
+        ImGui.TextDisabled(label);
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(startX + (170f * ImGuiHelpers.GlobalScale));
+        ImGui.TextWrapped(value);
+    }
+
+    private static bool DrawPrimaryButton(string label, Vector2 size = default)
+    {
+        var scale = ImGuiHelpers.GlobalScale;
+        var hovered = new Vector4(
+            MathF.Min(1f, Accent.X + 0.08f),
+            MathF.Min(1f, Accent.Y + 0.08f),
+            MathF.Min(1f, Accent.Z + 0.08f),
+            Accent.W);
+        var active = new Vector4(Accent.X * 0.86f, Accent.Y * 0.86f, Accent.Z * 0.86f, Accent.W);
+
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 5f * scale);
+        ImGui.PushStyleColor(ImGuiCol.Button, Accent);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, hovered);
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, active);
+        try
+        {
+            return ImGui.Button(label, size);
+        }
+        finally
+        {
+            ImGui.PopStyleColor(3);
+            ImGui.PopStyleVar();
         }
     }
 
-    private static void DrawStatusBadge(string text, Vector4 color) => ImGui.TextColored(color, $"● {text}");
+    private static bool DrawSecondaryButton(string label)
+    {
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 5f * ImGuiHelpers.GlobalScale);
+        try
+        {
+            return ImGui.Button(label);
+        }
+        finally
+        {
+            ImGui.PopStyleVar();
+        }
+    }
+
+    private static Vector4 WithAlpha(Vector4 color, float alpha) =>
+        new(color.X, color.Y, color.Z, alpha);
 }

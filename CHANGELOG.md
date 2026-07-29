@@ -4,6 +4,11 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Changed
+
+- Refine the settings window with clearer hierarchy, polished status surfaces, direct privacy choices, and focused account, card, Relay, and diagnostics copy.
+- Make disabled and development-only controls reflect their active state, add a one-click card-distance reset, and simplify render diagnostics for in-game troubleshooting.
+
 ## [0.1.14] - 2026-07-29
 
 ### Fixed
