@@ -55,20 +55,40 @@ public sealed class Plugin : IDalamudPlugin
         this.chatGui = chatGui;
         this.condition = condition;
         this.configuration = pluginInterface.GetPluginConfig() as PluginConfiguration ?? new PluginConfiguration();
-        this.configuration.Version = 9;
-        this.configuration.ServerBaseUrl ??= "https://xiv.fm";
+        var serverConfigurationChanged = this.configuration.Version != 10;
+        this.configuration.Version = 10;
+        if (string.IsNullOrWhiteSpace(this.configuration.ServerBaseUrl) ||
+            string.Equals(
+                this.configuration.ServerBaseUrl,
+                PluginConfiguration.LegacyPublicServerBaseUrl,
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(
+                this.configuration.ServerBaseUrl.Trim().TrimEnd('/'),
+                PluginConfiguration.LegacyPublicFunnelBaseUrl,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            this.configuration.ServerBaseUrl = PluginConfiguration.DefaultPublicServerBaseUrl;
+            serverConfigurationChanged = true;
+        }
         this.configuration.InstallationCredential ??= string.Empty;
         this.configuration.PendingLinkCredential ??= string.Empty;
         this.configuration.PendingLinkAuthorizationUrl ??= string.Empty;
-        if (string.IsNullOrWhiteSpace(this.configuration.DeveloperServerBaseUrl) ||
-            string.Equals(
-                this.configuration.DeveloperServerBaseUrl,
-                PluginConfiguration.LegacyDeveloperServerBaseUrl,
-                StringComparison.OrdinalIgnoreCase))
+        this.configuration.DeveloperInstallationCredential ??= string.Empty;
+        if (PluginConfiguration.IsHostedPublicServer(this.configuration.DeveloperServerBaseUrl))
+        {
+            if (this.configuration.DeveloperInstallationCredential.Length >= 32)
+                this.configuration.InstallationCredential = this.configuration.DeveloperInstallationCredential;
+
+            this.configuration.DeveloperServerEnabled = false;
+            this.configuration.DeveloperServerBaseUrl = PluginConfiguration.DefaultDeveloperServerBaseUrl;
+            this.configuration.DeveloperInstallationCredential = string.Empty;
+            serverConfigurationChanged = true;
+        }
+        else if (string.IsNullOrWhiteSpace(this.configuration.DeveloperServerBaseUrl))
         {
             this.configuration.DeveloperServerBaseUrl = PluginConfiguration.DefaultDeveloperServerBaseUrl;
+            serverConfigurationChanged = true;
         }
-        this.configuration.DeveloperInstallationCredential ??= string.Empty;
         this.configuration.SelectedRelayIds ??= [];
         this.configuration.SelectedRelayIds = RelaySelection.Normalize(this.configuration.SelectedRelayIds).ToList();
         if (this.configuration.Visibility == VisibilityMode.Custom && this.configuration.SelectedRelayIds.Count == 0)
@@ -77,6 +97,8 @@ public sealed class Plugin : IDalamudPlugin
         this.configuration.CardOpacityPercent = this.configuration.NormalizedCardOpacityPercent;
         this.configuration.OwnCardSizePercent = this.configuration.NormalizedOwnCardSizePercent;
         this.configuration.OtherCardSizePercent = this.configuration.NormalizedOtherCardSizePercent;
+        if (serverConfigurationChanged)
+            this.pluginInterface.SavePluginConfig(this.configuration);
 
         this.overlayDtrBarController = new OverlayDtrBarController(
             dtrBar,
@@ -179,7 +201,7 @@ public sealed class Plugin : IDalamudPlugin
 
         this.commandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
-            HelpMessage = "Open XIV.fm settings. Controls: /xivfm link, /xivfm toggle, /xivfm lastfm, /xivfm visibility <private|public>, /xivfm mock, /xivfm range <1-20>, /xivfm status.",
+            HelpMessage = "Open XIV.fm settings. Controls: /xivfm link, /xivfm toggle, /xivfm lastfm, /xivfm visibility <private|public>, /xivfm range <1-20>, /xivfm status, /xivfm dev.",
         });
         this.pluginInterface.UiBuilder.Draw += this.windowSystem.Draw;
         this.pluginInterface.UiBuilder.Draw += this.cardRenderer.Draw;
@@ -245,7 +267,7 @@ public sealed class Plugin : IDalamudPlugin
                 this.PrintStatus();
                 break;
 
-            case "mock":
+            case "mock" when this.settingsWindow.DiagnosticsVisible:
                 this.configuration.DeveloperMockRemoteCards = !this.configuration.DeveloperMockRemoteCards;
                 this.SaveConfiguration();
                 this.PrintStatus();
@@ -261,9 +283,15 @@ public sealed class Plugin : IDalamudPlugin
                 this.PrintStatus();
                 break;
 
+            case "dev":
+                this.settingsWindow.DiagnosticsVisible = true;
+                this.OpenSettings();
+                this.chatGui.Print("Developer diagnostics are visible for this session.", "XIV.fm");
+                break;
+
             default:
                 this.chatGui.PrintError(
-                    "Usage: /xivfm, /xivfm link, /xivfm toggle, /xivfm lastfm, /xivfm visibility <private|public>, /xivfm mock, /xivfm range <1-20>, or /xivfm status.",
+                    "Usage: /xivfm, /xivfm link, /xivfm toggle, /xivfm lastfm, /xivfm visibility <private|public>, /xivfm mock, /xivfm range <1-20>, /xivfm status, or /xivfm dev.",
                     "XIV.fm");
                 break;
         }
@@ -442,7 +470,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private Uri GetServerBaseUri() => this.TryGetServerBaseUri(out var serverBaseUri)
         ? serverBaseUri!
-        : new Uri("https://xiv.fm");
+        : new Uri(PluginConfiguration.DefaultPublicServerBaseUrl);
 
     private PendingAccountLink? GetPendingLink()
     {

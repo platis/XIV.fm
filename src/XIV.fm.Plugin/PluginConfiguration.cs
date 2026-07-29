@@ -6,11 +6,15 @@ namespace XIV.fm.Plugin;
 
 public sealed class PluginConfiguration : IPluginConfiguration
 {
-    public const string DefaultDeveloperServerBaseUrl = "https://xivfm.168.138.129.70.sslip.io";
+    public const string DefaultPublicServerBaseUrl = "https://xivfm.168.138.129.70.sslip.io";
 
-    public const string LegacyDeveloperServerBaseUrl = "http://127.0.0.1:5080";
+    public const string LegacyPublicServerBaseUrl = "https://xiv.fm";
 
-    public int Version { get; set; } = 9;
+    public const string LegacyPublicFunnelBaseUrl = "https://oracle-dev.tail9c4140.ts.net";
+
+    public const string DefaultDeveloperServerBaseUrl = "http://127.0.0.1:5080";
+
+    public int Version { get; set; } = 10;
 
     public bool HasSeenAccountOnboarding { get; set; }
 
@@ -21,7 +25,7 @@ public sealed class PluginConfiguration : IPluginConfiguration
 
     public bool DeveloperMockRemoteCards { get; set; }
 
-    public string ServerBaseUrl { get; set; } = "https://xiv.fm";
+    public string ServerBaseUrl { get; set; } = DefaultPublicServerBaseUrl;
 
     public string InstallationCredential { get; set; } = string.Empty;
 
@@ -64,4 +68,11 @@ public sealed class PluginConfiguration : IPluginConfiguration
 
     public int NormalizedOtherCardSizePercent =>
         CardAppearance.NormalizeSizePercent(this.OtherCardSizePercent);
+
+    public static bool IsHostedPublicServer(string? baseUrl)
+    {
+        var normalized = baseUrl?.Trim().TrimEnd('/');
+        return string.Equals(normalized, DefaultPublicServerBaseUrl, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalized, LegacyPublicFunnelBaseUrl, StringComparison.OrdinalIgnoreCase);
+    }
 }

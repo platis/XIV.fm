@@ -93,6 +93,8 @@ public sealed class SettingsWindow : Window
         };
     }
 
+    public bool DiagnosticsVisible { get; set; }
+
     public override void Draw()
     {
         var scale = ImGuiHelpers.GlobalScale;
@@ -132,7 +134,7 @@ public sealed class SettingsWindow : Window
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("Diagnostics"))
+            if (this.DiagnosticsVisible && ImGui.BeginTabItem("Diagnostics"))
             {
                 this.DrawDiagnosticsTab();
                 ImGui.EndTabItem();

@@ -4,6 +4,13 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.30] - 2026-07-29
+
+### Changed
+
+- Use the invited public test endpoint as XIV.fm’s normal default server, automatically replace the unused `https://xiv.fm` placeholder, and move existing credentials from that endpoint’s former development-server configuration so users no longer need to enter its URL or enable development mode.
+- Hide runtime diagnostics and development-server controls during normal use; `/xivfm dev` reveals the Diagnostics tab for the current plugin session.
+
 ## [0.1.29] - 2026-07-29
 
 ### Changed

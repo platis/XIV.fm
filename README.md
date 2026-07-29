@@ -31,7 +31,7 @@ Implemented:
 - Private/Public selection, shared 20-second location snapshots with opaque versions and metrics, strict loaded-character matching, and server-authoritative remote listening cards.
 - Custom Relay ownership, bounded membership, soft deletion, replay-safe creation, hashed single-use invitations, join/leave/kick restrictions, and durable quota enforcement.
 - Membership-authorized Custom sync and shared Relay/location snapshots with revision-based immediate kick invalidation.
-- A brief first-run welcome with plain-language product guidance, direct Last.fm linking, and a GitHub link, followed by a cohesive FFXIV-style charcoal settings window with live link/sync states, safe Last.fm disconnection, Overlay controls, direct privacy choices, table-based Custom Relay details and owner controls, diagnostics, and private-test server configuration.
+- A brief first-run welcome with plain-language product guidance, direct Last.fm linking, and a GitHub link, followed by a cohesive FFXIV-style charcoal settings window with live link/sync states, safe Last.fm disconnection, Overlay controls, direct privacy choices, and table-based Custom Relay details and owner controls. Runtime diagnostics and private-test server configuration stay hidden unless `/xivfm dev` is entered.
 - A native `.FM` server-info-bar shortcut that uses the bar’s default yellow while cards are visible and red while hidden; left-click toggles cards and right-click opens settings.
 - Independent global and own-card visibility controls, plus client-side remote distance filtering defaulting to 8 yalms and clamped to 1–20.
 - `/xivfm status` diagnostics for matching, range, projection, rendering, and location.
@@ -53,13 +53,13 @@ Save the settings, open the plugin installer, search for **XIV.fm**, and install
 
 ## Join the invited external test
 
-Open **XIV.fm Settings → Diagnostics → Development server** and enable **Use development server**. New installs default to the invited public test endpoint:
+Install XIV.fm and connect Last.fm from the Account screen. The plugin uses the invited public test endpoint by default with no URL entry or development-server toggle required:
 
 ```text
 https://xivfm.168.138.129.70.sslip.io
 ```
 
-Existing untouched loopback defaults are migrated to this address; explicit custom development URLs remain unchanged. The endpoint is temporary and intended only for invited testing. At the product owner's direction, Last.fm artwork is enabled for this controlled test; linking, listening-state sync, Public presence, and Custom Relays are available.
+Existing installations configured with the former placeholder, Funnel address, or public endpoint under Development server are migrated automatically. The endpoint is temporary and intended only for invited testing. At the product owner's direction, Last.fm artwork is enabled for this controlled test; linking, listening-state sync, Public presence, and Custom Relays are available.
 
 ## Documentation
 
@@ -101,11 +101,12 @@ An ARM64 controlled-test backend stack is running with PostgreSQL persistence, e
 /xivfm mock         Toggle mock cards on loaded remote players
 /xivfm range <1-20> Set the remote render distance in yalms
 /xivfm status       Print account, sync, and rendering diagnostics
+/xivfm dev          Reveal the Diagnostics tab for the current plugin session
 ```
 
-Remote mock state is disabled by default and exists only to validate matching, distance, and nameplate placement before server development. The color-coded `.FM` shortcut in the native server info bar mirrors the Overlay setting; its tooltip reports whether cards are visible.
+Remote mock state is disabled by default and exists only to validate matching, distance, and nameplate placement. The Diagnostics tab—including private development-server configuration—is hidden until `/xivfm dev` is entered and is hidden again after the plugin reloads. The color-coded `.FM` shortcut in the native server info bar mirrors the Overlay setting; its tooltip reports whether cards are visible.
 
-The production client accepts HTTPS; explicit development mode additionally accepts loopback HTTP/HTTPS. `/xivfm link` creates a short-lived connection link, attempts to open it in the operating-system default browser, and keeps **Open Last.fm authorization** and **Copy connection link** available in Account settings until linking completes. Successful proof stores the opaque installation credential in Dalamud's local plugin configuration and sync begins automatically. Linking, polling, sync, and rendering all suspend while bound by duty.
+The normal client uses the invited public HTTPS endpoint automatically; explicit development mode additionally accepts loopback HTTP/HTTPS. `/xivfm link` creates a short-lived connection link, attempts to open it in the operating-system default browser, and keeps **Open Last.fm authorization** and **Copy connection link** available in Account settings until linking completes. Successful proof stores the opaque installation credential in Dalamud's local plugin configuration and sync begins automatically. Linking, polling, sync, and rendering all suspend while bound by duty.
 
 ## Toolchain
 
