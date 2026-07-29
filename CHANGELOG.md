@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.15] - 2026-07-29
+
 ### Changed
 
 - Refine the settings window with clearer hierarchy, polished status surfaces, direct privacy choices, and focused account, card, Relay, and diagnostics copy.
