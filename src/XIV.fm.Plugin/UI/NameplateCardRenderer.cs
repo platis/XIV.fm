@@ -31,7 +31,8 @@ public sealed class NameplateCardRenderer
         ImGuiWindowFlags.NoResize |
         ImGuiWindowFlags.NoFocusOnAppearing |
         ImGuiWindowFlags.NoNav |
-        ImGuiWindowFlags.NoMouseInputs;
+        ImGuiWindowFlags.NoMouseInputs |
+        ImGuiWindowFlags.NoBackground;
 
     private readonly IObjectTable objectTable;
     private readonly IGameGui gameGui;
@@ -167,9 +168,9 @@ public sealed class NameplateCardRenderer
         // The projected point already includes the world-space nameplate safety height.
         ImGui.SetNextWindowPos(screenAnchor, ImGuiCond.Always, new Vector2(0.5f, 1f));
         ImGui.SetNextWindowSize(cardSize, ImGuiCond.Always);
-        ImGui.SetNextWindowBgAlpha(0.82f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 5f * scale);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(CardPadding * scale));
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
 
         var windowId = $"XIV.fm card###XIV.fm.Card.{card.Character.Name}.{card.Character.HomeWorldId}";
         try
@@ -181,11 +182,29 @@ public sealed class NameplateCardRenderer
                     return;
 
                 var origin = ImGui.GetCursorScreenPos();
-                var cardMaximum = ImGui.GetWindowPos() + cardSize;
+                var cardMinimum = ImGui.GetWindowPos();
+                var cardMaximum = cardMinimum + cardSize;
                 var artworkMaximum = origin + new Vector2(ArtworkSize * scale);
                 var drawList = ImGui.GetWindowDrawList();
+                DrawCardSurface(drawList, cardMinimum, cardMaximum, scale);
                 if (hasArtwork)
-                    drawList.AddImage(artwork!.Handle, origin, artworkMaximum);
+                {
+                    var artworkRounding = 3f * scale;
+                    drawList.AddImageRounded(
+                        artwork!.Handle,
+                        origin,
+                        artworkMaximum,
+                        Vector2.Zero,
+                        Vector2.One,
+                        uint.MaxValue,
+                        artworkRounding,
+                        ImDrawFlags.RoundCornersAll);
+                    drawList.AddRect(
+                        origin,
+                        artworkMaximum,
+                        ImGui.GetColorU32(GetAdaptiveBorderColor()),
+                        artworkRounding);
+                }
 
                 var textMinimum = origin + new Vector2(
                     leadingContentWidth * scale,
@@ -193,8 +212,12 @@ public sealed class NameplateCardRenderer
                 var textMaximum = new Vector2(
                     cardMaximum.X - (CardPadding * scale),
                     cardMaximum.Y - (CardPadding * scale));
-                var titleColor = ImGui.GetColorU32(Vector4.One);
-                var artistColor = ImGui.GetColorU32(ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled]);
+                var style = ImGui.GetStyle();
+                var surfaceColor = GetSurfaceColor();
+                var titleColor = ImGui.GetColorU32(style.Colors[(int)ImGuiCol.Text]);
+                var artistColorValue = Vector4.Lerp(surfaceColor, style.Colors[(int)ImGuiCol.Text], 0.68f);
+                artistColorValue.W = style.Colors[(int)ImGuiCol.Text].W;
+                var artistColor = ImGui.GetColorU32(artistColorValue);
 
                 drawList.PushClipRect(textMinimum, textMaximum, true);
                 drawList.AddText(
@@ -224,9 +247,64 @@ public sealed class NameplateCardRenderer
         }
         finally
         {
-            ImGui.PopStyleVar(2);
+            ImGui.PopStyleVar(3);
         }
     }
+
+    private static void DrawCardSurface(ImDrawListPtr drawList, Vector2 minimum, Vector2 maximum, float scale)
+    {
+        var rounding = 5f * scale;
+        var shadowColor = ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.2f));
+        var softShadowColor = ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.09f));
+        var borderColor = ImGui.GetColorU32(GetAdaptiveBorderColor());
+        var highlightColor = ImGui.GetColorU32(GetAdaptiveHighlightColor());
+
+        drawList.PushClipRectFullScreen();
+        drawList.AddRectFilled(
+            minimum + new Vector2(-1f * scale, 1f * scale),
+            maximum + new Vector2(1f * scale, 4f * scale),
+            softShadowColor,
+            rounding + (2f * scale));
+        drawList.AddRectFilled(
+            minimum + new Vector2(0f, 1f * scale),
+            maximum + new Vector2(0f, 3f * scale),
+            shadowColor,
+            rounding + scale);
+        drawList.AddRectFilled(minimum, maximum, ImGui.GetColorU32(GetSurfaceColor()), rounding);
+        drawList.AddRect(minimum, maximum, borderColor, rounding);
+        drawList.AddLine(
+            minimum + new Vector2(rounding, scale),
+            new Vector2(maximum.X - rounding, minimum.Y + scale),
+            highlightColor,
+            scale);
+        drawList.PopClipRect();
+    }
+
+    private static Vector4 GetSurfaceColor()
+    {
+        var color = ImGui.GetStyle().Colors[(int)ImGuiCol.WindowBg];
+        color.W = 0.86f;
+        return color;
+    }
+
+    private static Vector4 GetAdaptiveBorderColor()
+    {
+        var surface = GetSurfaceColor();
+        return GetRelativeLuminance(surface) < 0.5f
+            ? new Vector4(1f, 1f, 1f, 0.14f)
+            : new Vector4(0f, 0f, 0f, 0.18f);
+    }
+
+    private static Vector4 GetAdaptiveHighlightColor()
+    {
+        var surface = GetSurfaceColor();
+        return GetRelativeLuminance(surface) < 0.5f
+            ? new Vector4(1f, 1f, 1f, 0.12f)
+            : new Vector4(1f, 1f, 1f, 0.28f);
+    }
+
+    private static float GetRelativeLuminance(Vector4 color) =>
+        (0.2126f * color.X) + (0.7152f * color.Y) + (0.0722f * color.Z);
 
     private string FitTextWithEllipsis(string text, float fontSize, float maximumWidth)
     {

@@ -4,6 +4,10 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Changed
+
+- Refine listening cards with a layered compact shadow, adaptive border and top highlight, rounded artwork, and theme-aware title and artist contrast while preserving the approved dimensions and content layout.
+
 ## [0.1.15] - 2026-07-29
 
 ### Changed
