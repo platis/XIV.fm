@@ -4,6 +4,16 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Added
+
+- Implement the approved 323×127 listening card with an 87×87 texture-backed artwork area, clipped title/artist attribution, UI scaling, and the uploaded SVG retained as the design source.
+- Add duty-aware, bounded background artwork preparation with HTTPS/local-network validation, raster content checks, a 2 MiB response limit, bounded concurrency/cache cardinality, and an embedded development cover for in-game testing.
+- Add a default-off server setting that maps the largest safe HTTPS Last.fm image for the controlled private card test.
+
+### Security
+
+- Keep Last.fm artwork ingestion disabled by default and block its public rollout under the reviewed provider terms unless permission is recorded.
+
 ## [0.1.5] - 2026-07-19
 
 ### Added

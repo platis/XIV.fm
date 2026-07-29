@@ -28,6 +28,31 @@ public sealed class OverlayCardTests
     }
 
     [Fact]
+    public void PlayingStateCarriesOnlySafeHttpsArtwork()
+    {
+        var safeArtwork = new Uri("https://cdn.example.com/cover.png");
+        var safe = OverlayCard.LocalListening(
+            Character,
+            new ListeningState(
+                ListeningStatus.Playing,
+                false,
+                Now,
+                new Track("Track", "Artist", "Album", safeArtwork, null, null)),
+            Now);
+        var unsafeCard = OverlayCard.LocalListening(
+            Character,
+            new ListeningState(
+                ListeningStatus.Playing,
+                false,
+                Now,
+                new Track("Track", "Artist", "Album", new Uri("http://127.0.0.1/cover.png"), null, null)),
+            Now);
+
+        Assert.Equal(safeArtwork, safe.ArtworkUrl);
+        Assert.Null(unsafeCard.ArtworkUrl);
+    }
+
+    [Fact]
     public void PublicSnapshotListeningStateCreatesRemoteCard()
     {
         var listening = new ListeningState(

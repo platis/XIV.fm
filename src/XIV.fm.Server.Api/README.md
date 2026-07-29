@@ -56,6 +56,7 @@ XIVFM_APPLY_MIGRATIONS=false
 XIVFM_PUBLIC_BASE_URL=https://api.example.invalid
 XIVFM_LASTFM_API_KEY=<server-side Last.fm API key>
 XIVFM_LASTFM_SHARED_SECRET=<server-side Last.fm shared secret>
+XIVFM_LASTFM_ARTWORK_ENABLED=false
 XIVFM_RELAYS__MAXIMUMACTIVEOWNEDRELAYS=3
 XIVFM_RELAYS__MAXIMUMCREATIONSPERROLLINGWINDOW=10
 XIVFM_RELAYS__CREATIONROLLINGWINDOWDAYS=30
@@ -89,4 +90,4 @@ Production migration execution should be a controlled deployment step. Automatic
 
 Account-link start, status, and callback are proof-gated, rate-limited public operations. Other non-health endpoints require `Authorization: Bearer <credential>`. Successful Last.fm proof promotes the link credential to an installation credential; there is deliberately no unauthenticated endpoint that provisions one without proof.
 
-The current slice calls Last.fm for explicit account authorization and through the background listening coordinator. Sync handlers only enqueue account activity and return normalized cached listening state with freshness metadata. Durable replicas share Redis poll leases and a global 3.5-request/second token bucket. Label-free metrics cover cache/poll/lease behavior. Provider artwork is intentionally ignored under the reviewed Last.fm terms; see [`docs/lastfm-compliance.md`](../../docs/lastfm-compliance.md). Linked Public installations receive shared, bounded Redis location snapshots with opaque versions; Private removes publication and returns an empty snapshot. Custom visibility requires current membership in every selected Relay and returns a revision-authorized union of shared Relay/location snapshots.
+The current slice calls Last.fm for explicit account authorization and through the background listening coordinator. Sync handlers only enqueue account activity and return normalized cached listening state with freshness metadata. Durable replicas share Redis poll leases and a global 3.5-request/second token bucket. Label-free metrics cover cache/poll/lease behavior. Provider artwork is disabled by default under the reviewed Last.fm terms. `XIVFM_LASTFM_ARTWORK_ENABLED=true` is reserved for the controlled private card test and must not be enabled for public rollout without provider permission; see [`docs/lastfm-compliance.md`](../../docs/lastfm-compliance.md). Linked Public installations receive shared, bounded Redis location snapshots with opaque versions; Private removes publication and returns an empty snapshot. Custom visibility requires current membership in every selected Relay and returns a revision-authorized union of shared Relay/location snapshots.

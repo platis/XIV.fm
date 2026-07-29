@@ -4,7 +4,8 @@ public sealed record LastFmAuthorizationOptions(
     string? ApiKey,
     string? SharedSecret,
     Uri ApiBaseUri,
-    Uri BrowserBaseUri)
+    Uri BrowserBaseUri,
+    bool ArtworkEnabled = false)
 {
     public static readonly Uri DefaultApiBaseUri = new("https://ws.audioscrobbler.com/2.0/");
 

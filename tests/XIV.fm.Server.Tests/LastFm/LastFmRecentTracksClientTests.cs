@@ -46,6 +46,33 @@ public sealed class LastFmRecentTracksClientTests
     }
 
     [Fact]
+    public async Task MapsLargestSafeArtworkWhenPrivateOptInIsEnabled()
+    {
+        const string json = """
+            { "recenttracks": { "track": [{
+              "name": "Test Track",
+              "artist": { "#text": "Test Artist" },
+              "image": [
+                { "#text": "https://images.example.com/small.jpg", "size": "small" },
+                { "#text": "http://images.example.com/insecure.jpg", "size": "large" },
+                { "#text": "https://images.example.com/extra-large.jpg", "size": "extralarge" }
+              ],
+              "@attr": { "nowplaying": "true" }
+            }] } }
+            """;
+        using var httpClient = new HttpClient(new JsonHandler(json));
+        var client = CreateClient(httpClient, TimeProvider.System, artworkEnabled: true);
+
+        var observation = await client.GetCurrentAsync(
+            new LastFmAccountIdentity("CanonicalListener"),
+            CancellationToken.None);
+
+        Assert.Equal(
+            new Uri("https://images.example.com/extra-large.jpg"),
+            observation.Track?.AlbumArtUrl);
+    }
+
+    [Fact]
     public async Task LatestHistoricalTrackMapsToNotPlayingWithoutPublishingTrack()
     {
         const string json = """
@@ -86,14 +113,18 @@ public sealed class LastFmRecentTracksClientTests
                 CancellationToken.None).AsTask());
     }
 
-    private static LastFmRecentTracksClient CreateClient(HttpClient httpClient, TimeProvider timeProvider) =>
+    private static LastFmRecentTracksClient CreateClient(
+        HttpClient httpClient,
+        TimeProvider timeProvider,
+        bool artworkEnabled = false) =>
         new(
             httpClient,
             new LastFmAuthorizationOptions(
                 "api-key",
                 "unused-for-read-only-polling",
                 LastFmAuthorizationOptions.DefaultApiBaseUri,
-                LastFmAuthorizationOptions.DefaultBrowserBaseUri),
+                LastFmAuthorizationOptions.DefaultBrowserBaseUri,
+                artworkEnabled),
             new ImmediateBudget(),
             timeProvider);
 

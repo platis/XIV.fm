@@ -122,11 +122,15 @@ if (!Uri.TryCreate(publicBaseUrl, UriKind.Absolute, out var publicBaseUri) ||
 }
 
 builder.Services.AddSingleton(new AccountLinkOptions(publicBaseUri, AccountLinkOptions.DefaultLifetime));
+var lastFmArtworkEnabled = bool.TryParse(
+    builder.Configuration["XIVFM_LASTFM_ARTWORK_ENABLED"],
+    out var configuredLastFmArtworkEnabled) && configuredLastFmArtworkEnabled;
 builder.Services.AddSingleton(new LastFmAuthorizationOptions(
     builder.Configuration["XIVFM_LASTFM_API_KEY"],
     builder.Configuration["XIVFM_LASTFM_SHARED_SECRET"],
     LastFmAuthorizationOptions.DefaultApiBaseUri,
-    LastFmAuthorizationOptions.DefaultBrowserBaseUri));
+    LastFmAuthorizationOptions.DefaultBrowserBaseUri,
+    lastFmArtworkEnabled));
 builder.Services.AddHttpClient<LastFmAuthorizationClient>(ConfigureLastFmHttpClient);
 builder.Services.AddSingleton<ILastFmAuthorizationClient>(services =>
     services.GetRequiredService<LastFmAuthorizationClient>());

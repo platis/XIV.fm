@@ -45,10 +45,10 @@ No module is deployed as an independent microservice.
 
 - Dalamud lifecycle, commands, configuration, game objects, conditions, and projection.
 - ImGui windows and cards.
-- Duty-gated browser integration and nullable future texture integration.
+- Duty-gated browser integration and bounded album-art texture preparation.
 - Typed account-link and sync clients.
 
-Rendering reads an immutable snapshot. It does not call the server, Last.fm, storage, or asynchronous loaders directly. The Account-first Dalamud settings window starts the plugin account-link coordinator, which creates and polls replay-protected sessions only outside duties, presents live pending/failure/connected states, persists the promoted installation credential through Dalamud configuration, and opens provider/track links through Dalamud's browser utility. Sync responses atomically update the local listening model consumed by the same snapshot producer as placeholder and mock cards.
+Rendering reads an immutable snapshot. It does not call the server, Last.fm, storage, or asynchronous loaders directly. A separate duty-aware artwork coordinator observes snapshots outside the draw path, validates public HTTPS artwork locations, bounds each response to 2 MiB, permits only common raster media types, limits concurrency and cache cardinality, and creates Dalamud textures asynchronously. The renderer only reads completed textures and otherwise uses the embedded development cover. The Account-first Dalamud settings window starts the plugin account-link coordinator, which creates and polls replay-protected sessions only outside duties, presents live pending/failure/connected states, persists the promoted installation credential through Dalamud configuration, and opens provider/track links through Dalamud's browser utility. Sync responses atomically update the local listening model consumed by the same snapshot producer as placeholder and mock cards.
 
 A shared duty-participation policy gates both rendering and networking. While Dalamud reports any bound-by-duty condition, the plugin publishes an empty overlay snapshot, renders no cards, cancels in-flight requests where possible, and starts no server request. It does not send a final leave request from inside the duty; short presence TTLs remove stale publication. The future sync coordinator must evaluate this policy before every request and resume only after duty exit.
 
@@ -125,7 +125,7 @@ PostgreSQL stores normalized Last.fm accounts, replay-protected account-link ses
 
 Redis stores installation heartbeat/presence records with server-controlled TTLs, account-to-installation publication pointers, Public and revision-keyed Relay/location snapshots, normalized listening cache entries, expiring per-account poll leases, and the distributed Last.fm request budget. Durable membership remains PostgreSQL-authoritative and Redis authorization data is never trusted without revision validation. Listening history is not retained.
 
-Provider artwork is not ingested because the currently reviewed Last.fm terms expressly exclude images/artwork. Cards attribute Last.fm and expose the provider track/profile link through `/xivfm lastfm`. See [`lastfm-compliance.md`](lastfm-compliance.md) for the review and public-use approval gate.
+Provider artwork is disabled by default because the currently reviewed Last.fm terms expressly exclude images/artwork. The texture-capable card and bounded plugin loader are implemented and verified by an embedded development cover. A deliberate `XIVFM_LASTFM_ARTWORK_ENABLED=true` private-development opt-in maps the largest safe HTTPS image returned by Last.fm so the full card can be tested; this switch must remain disabled for public rollout unless permission is recorded. Cards attribute Last.fm and expose the provider track/profile link through `/xivfm lastfm`. See [`lastfm-compliance.md`](lastfm-compliance.md) for the review and public-use approval gate.
 
 ## Security and privacy
 

@@ -2,7 +2,7 @@
 
 XIV.fm is a new Dalamud plugin and companion service that displays Last.fm listening presence on cards anchored above player nameplates in Final Fantasy XIV.
 
-This repository is a greenfield implementation. Visual design remains intentionally placeholder-quality while map presence, privacy audiences, and Custom Relays are built and verified.
+This repository is a greenfield implementation. The first approved card design is now implemented while settings design, accessibility, and broader in-game visual validation continue.
 
 ## Current status
 
@@ -16,6 +16,7 @@ Implemented:
 - Atomic immutable overlay-state snapshots.
 - One local/remote player-card rendering path.
 - Pose-aware anchoring from the game's current nameplate world position, including emote and mount offsets.
+- The approved 323×127 card layout with an 87×87 artwork area, bounded background texture loading, and an embedded development cover for in-game acceptance.
 - Strict character name and home-world matching.
 - Typed location snapshots using current world, territory, map, and instance IDs.
 - Immediate snapshot invalidation/wake-up for login, logout, and location changes.
@@ -38,7 +39,8 @@ Implemented:
 Not yet implemented:
 
 - Custom Relay management and audience selection in the settings window.
-- Final card and settings design, accessibility, and multi-resolution validation.
+- Final settings design plus card accessibility, animation, obstruction, and multi-resolution validation.
+- Public use of provider album covers, which remains blocked until an artwork source grants appropriate permission; private development can explicitly opt in for testing.
 
 ## Install the development build
 

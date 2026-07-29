@@ -121,7 +121,9 @@ This phase is intentionally collaborative with the product owner.
 - [x] Replace the fixed standing-height card offset with the game's current pose-aware nameplate world position.
   - The read-only native boundary and safety review are recorded in [`ADR 0001`](adr/0001-pose-aware-nameplate-anchor.md); standing, sitting, ground-sitting, lying, mounted, and transformed states still require in-game acceptance.
 - [ ] Design Account, Overlay, Privacy, Custom Relays, and Diagnostics settings.
-- [ ] Finalize card typography, sizing, animation, accessibility, scale, and obstruction behavior; add album art only if the provider grants permission.
+- [ ] Finalize card typography, sizing, animation, accessibility, scale, and obstruction behavior; add live album art only if the provider grants permission.
+  - The product owner's 323×127 SVG layout and 87×87 artwork region are implemented with UI scaling, text clipping, the embedded development cover, and a bounded background texture pipeline.
+  - Last.fm artwork is disabled by default. The private development backend may explicitly enable image mapping for in-game testing, but public rollout remains blocked until permission is recorded.
 - [ ] Add preview tools without mixing them into production state.
 - [ ] Test common resolutions, UI scales, character races/heights, crowded cities, duties, login screens, and controller use.
 - [ ] Conduct privacy copy and consent review.

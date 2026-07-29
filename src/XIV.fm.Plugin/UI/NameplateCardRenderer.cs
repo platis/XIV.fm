@@ -1,6 +1,8 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Interface.Textures;
+using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
 using XIV.fm.Plugin.Adapters;
 using XIV.fm.Plugin.Core.Overlay;
@@ -12,10 +14,14 @@ namespace XIV.fm.Plugin.UI;
 /// </summary>
 public sealed class NameplateCardRenderer
 {
-    private static readonly Vector4 AccentColor = new(0.88f, 0.23f, 0.36f, 1f);
+    private static readonly Vector2 DesignCardSize = new(323f, 127f);
+    private static readonly Vector2 DesignArtworkOffset = new(18f, 19f);
+    private static readonly Vector2 DesignArtworkSize = new(87f, 87f);
+    private static readonly Vector2 DesignTextOffset = new(121f, 56f);
 
     private const ImGuiWindowFlags CardWindowFlags =
         ImGuiWindowFlags.NoTitleBar |
+        ImGuiWindowFlags.NoBackground |
         ImGuiWindowFlags.NoScrollbar |
         ImGuiWindowFlags.NoSavedSettings |
         ImGuiWindowFlags.AlwaysAutoResize |
@@ -26,6 +32,8 @@ public sealed class NameplateCardRenderer
     private readonly IObjectTable objectTable;
     private readonly IGameGui gameGui;
     private readonly OverlayStateStore stateStore;
+    private readonly AlbumArtworkCache artworkCache;
+    private readonly ISharedImmediateTexture developmentArtwork;
     private readonly Func<bool> isEnabled;
     private readonly Func<int> remoteDistanceYalms;
     private OverlayRenderDiagnostics diagnostics = OverlayRenderDiagnostics.Empty;
@@ -34,13 +42,19 @@ public sealed class NameplateCardRenderer
     public NameplateCardRenderer(
         IObjectTable objectTable,
         IGameGui gameGui,
+        ITextureProvider textureProvider,
         OverlayStateStore stateStore,
+        AlbumArtworkCache artworkCache,
         Func<bool> isEnabled,
         Func<int> remoteDistanceYalms)
     {
         this.objectTable = objectTable;
         this.gameGui = gameGui;
         this.stateStore = stateStore;
+        this.artworkCache = artworkCache;
+        this.developmentArtwork = textureProvider.GetFromManifestResource(
+            typeof(NameplateCardRenderer).Assembly,
+            "XIV.fm.Plugin.Assets.DevelopmentCover.png");
         this.isEnabled = isEnabled;
         this.remoteDistanceYalms = remoteDistanceYalms;
     }
@@ -122,14 +136,17 @@ public sealed class NameplateCardRenderer
         return null;
     }
 
-    private static void DrawCard(OverlayCard card, Vector2 screenAnchor)
+    private void DrawCard(OverlayCard card, Vector2 screenAnchor)
     {
+        var scale = ImGuiHelpers.GlobalScale;
+        var cardSize = DesignCardSize * scale;
+
         // The card's bottom center is kept just above the projected character/nameplate area.
-        screenAnchor.Y -= 10f;
+        screenAnchor.Y -= 10f * scale;
         ImGui.SetNextWindowPos(screenAnchor, ImGuiCond.Always, new Vector2(0.5f, 1f));
-        ImGui.SetNextWindowBgAlpha(0.82f);
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 5f);
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(9f, 7f));
+        ImGui.SetNextWindowSize(cardSize, ImGuiCond.Always);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
 
         var windowId = $"XIV.fm card###XIV.fm.Card.{card.Character.Name}.{card.Character.HomeWorldId}";
         try
@@ -137,14 +154,55 @@ public sealed class NameplateCardRenderer
             var shouldDrawContents = ImGui.Begin(windowId, CardWindowFlags);
             try
             {
-                if (shouldDrawContents)
+                if (!shouldDrawContents)
+                    return;
+
+                var origin = ImGui.GetCursorScreenPos();
+                var drawList = ImGui.GetWindowDrawList();
+                var cardMaximum = origin + cardSize;
+                drawList.AddRectFilled(
+                    origin,
+                    cardMaximum,
+                    ImGui.GetColorU32(new Vector4(0.494f, 0.494f, 0.494f, 0.6f)),
+                    12f * scale);
+
+                var artworkMinimum = origin + (DesignArtworkOffset * scale);
+                var artworkMaximum = artworkMinimum + (DesignArtworkSize * scale);
+                if (this.TryGetArtwork(card, out var artwork) && artwork is not null)
                 {
-                    ImGui.TextColored(AccentColor, "XIV.fm");
-                    ImGui.Separator();
-                    ImGui.TextUnformatted(card.Title);
-                    var attribution = card.IsLastFm ? $"{card.Artist} · Last.fm" : card.Artist;
-                    ImGui.TextDisabled(card.IsStale ? $"{attribution} · cached" : attribution);
+                    drawList.AddImage(artwork.Handle, artworkMinimum, artworkMaximum);
                 }
+                else
+                {
+                    drawList.AddRectFilled(
+                        artworkMinimum,
+                        artworkMaximum,
+                        ImGui.GetColorU32(new Vector4(1f, 0.251f, 0.251f, 1f)));
+                }
+
+                var textMinimum = origin + (DesignTextOffset * scale);
+                var textMaximum = new Vector2(
+                    cardMaximum.X - (18f * scale),
+                    origin.Y + (108f * scale));
+                var textColor = ImGui.GetColorU32(Vector4.One);
+                var attribution = card.IsLastFm ? $"{card.Artist} · Last.fm" : card.Artist;
+                if (card.IsStale)
+                    attribution += " · cached";
+
+                drawList.PushClipRect(textMinimum, textMaximum, true);
+                drawList.AddText(
+                    ImGui.GetFont(),
+                    22f * scale,
+                    textMinimum,
+                    textColor,
+                    card.Title);
+                drawList.AddText(
+                    ImGui.GetFont(),
+                    17f * scale,
+                    textMinimum + new Vector2(0f, 34f * scale),
+                    textColor,
+                    attribution);
+                drawList.PopClipRect();
             }
             finally
             {
@@ -155,6 +213,16 @@ public sealed class NameplateCardRenderer
         {
             ImGui.PopStyleVar(2);
         }
+    }
+
+    private bool TryGetArtwork(
+        OverlayCard card,
+        out Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap? artwork)
+    {
+        if (this.artworkCache.TryGet(card.ArtworkUrl, out artwork))
+            return true;
+
+        return this.developmentArtwork.TryGetWrap(out artwork, out _);
     }
 
     private void PublishDiagnostics(

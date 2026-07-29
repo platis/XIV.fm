@@ -75,7 +75,7 @@ public sealed class LastFmRecentTracksClient : ILastFmRecentTracksClient
         }
     }
 
-    private static ListeningObservation Map(JsonElement root, DateTimeOffset observedAt)
+    private ListeningObservation Map(JsonElement root, DateTimeOffset observedAt)
     {
         if (root.TryGetProperty("error", out _))
             throw CreateProviderError(root);
@@ -103,10 +103,11 @@ public sealed class LastFmRecentTracksClient : ILastFmRecentTracksClient
         var artist = GetBoundedText(track, "artist", required: true);
         var album = GetBoundedText(track, "album", required: false);
         var trackUrl = GetSafeUri(GetBoundedText(track, "url", required: false));
+        var albumArtUrl = this.options.ArtworkEnabled ? GetArtworkUri(track) : null;
         return new ListeningObservation(
             ListeningObservationStatus.Playing,
             observedAt,
-            new NormalizedTrack(title!, artist!, album, null, trackUrl, null));
+            new NormalizedTrack(title!, artist!, album, albumArtUrl, trackUrl, null));
     }
 
     private static bool IsNowPlaying(JsonElement track) =>
@@ -142,6 +143,21 @@ public sealed class LastFmRecentTracksClient : ILastFmRecentTracksClient
         JsonValueKind.Object when element.TryGetProperty("#text", out var text) => text.GetString(),
         _ => null,
     };
+
+    private static Uri? GetArtworkUri(JsonElement track)
+    {
+        if (!track.TryGetProperty("image", out var images) || images.ValueKind != JsonValueKind.Array)
+            return null;
+
+        foreach (var image in images.EnumerateArray().Reverse())
+        {
+            var uri = GetSafeUri(GetTextValue(image)?.Trim());
+            if (uri is not null)
+                return uri;
+        }
+
+        return null;
+    }
 
     private static Uri? GetSafeUri(string? value)
     {

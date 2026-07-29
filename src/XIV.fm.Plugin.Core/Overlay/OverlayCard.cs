@@ -11,7 +11,8 @@ public sealed record OverlayCard(
     string Artist,
     bool IsLocal,
     bool IsStale = false,
-    bool IsLastFm = false)
+    bool IsLastFm = false,
+    Uri? ArtworkUrl = null)
 {
     public static OverlayCard LocalPlaceholder(CharacterIdentity character) => new(
         character,
@@ -30,7 +31,10 @@ public sealed record OverlayCard(
                 listening.Track.Artist,
                 IsLocal: true,
                 IsStale: IsEffectivelyStale(listening, now),
-                IsLastFm: true),
+                IsLastFm: true,
+                ArtworkUrl: ArtworkUriPolicy.IsAllowed(listening.Track.AlbumArtUrl)
+                    ? listening.Track.AlbumArtUrl
+                    : null),
             ListeningStatus.NotPlaying => new OverlayCard(
                 character,
                 "Nothing playing",

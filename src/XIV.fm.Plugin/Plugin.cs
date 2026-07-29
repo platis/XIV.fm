@@ -24,6 +24,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ICondition condition;
     private readonly PluginConfiguration configuration;
     private readonly OverlayStateStore stateStore;
+    private readonly AlbumArtworkCache artworkCache;
+    private readonly AlbumArtworkCoordinator artworkCoordinator;
     private readonly NameplateCardRenderer cardRenderer;
     private readonly DevelopmentOverlayCoordinator developmentCoordinator;
     private readonly ServerSyncCoordinator serverSyncCoordinator;
@@ -37,6 +39,7 @@ public sealed class Plugin : IDalamudPlugin
         IClientState clientState,
         IObjectTable objectTable,
         IGameGui gameGui,
+        ITextureProvider textureProvider,
         IFramework framework,
         ICondition condition)
     {
@@ -54,10 +57,18 @@ public sealed class Plugin : IDalamudPlugin
         this.configuration.RemoteCardDistanceYalms = this.configuration.NormalizedRemoteCardDistanceYalms;
 
         this.stateStore = new OverlayStateStore();
+        this.artworkCache = new AlbumArtworkCache(textureProvider);
+        this.artworkCoordinator = new AlbumArtworkCoordinator(
+            framework,
+            this.stateStore,
+            this.artworkCache,
+            () => this.CurrentDutyPolicy);
         this.cardRenderer = new NameplateCardRenderer(
             objectTable,
             gameGui,
+            textureProvider,
             this.stateStore,
+            this.artworkCache,
             () => this.configuration.ShowPlaceholderCards && this.CurrentDutyPolicy.AllowsOverlay,
             () => this.configuration.NormalizedRemoteCardDistanceYalms);
         this.serverSyncCoordinator = new ServerSyncCoordinator(
@@ -127,6 +138,8 @@ public sealed class Plugin : IDalamudPlugin
         this.pluginInterface.UiBuilder.Draw -= this.windowSystem.Draw;
         this.windowSystem.RemoveAllWindows();
         this.commandManager.RemoveHandler(CommandName);
+        this.artworkCoordinator.Dispose();
+        this.artworkCache.Dispose();
         this.accountLinkCoordinator.Dispose();
         this.serverSyncCoordinator.Dispose();
         this.developmentCoordinator.Dispose();

@@ -147,7 +147,7 @@ Listening status is one of:
 - `notPlaying` — no current track; `track` is null.
 - `unavailable` — no usable provider/cache result; `track` is null.
 
-The `albumArtUrl` field remains nullable for compatibility, but the current Last.fm adapter always returns null because the reviewed provider terms exclude artwork. It must not be populated without an updated compliance review and provider permission.
+The `albumArtUrl` field remains nullable. Last.fm artwork mapping is disabled by default because the reviewed provider terms exclude artwork. The private development backend can explicitly opt in to map a safe HTTPS provider image for card testing; public deployments must keep it disabled unless the compliance review and provider permission are updated.
 
 `isStale` explicitly describes cached freshness. Playing observations become stale after 60 seconds and not-playing observations after 180 seconds. During provider errors the last cache remains available and its age continues increasing; a missing or expired cache returns `unavailable`. `observedAt` is null only when no upstream observation exists.
 
