@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.14] - 2026-07-29
+
 ### Fixed
 
 - Make the listening card's horizontal and vertical border padding uniformly 6 px.
