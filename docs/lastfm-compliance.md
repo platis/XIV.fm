@@ -18,7 +18,7 @@ This is an engineering review, not legal advice.
 - The plugin attributes listening data to Last.fm. `/xivfm lastfm` opens the current Last.fm track page, or the linked user profile when no track URL is cached.
 - Last.fm's reviewed terms expressly exclude images/artwork, so artwork ingestion is disabled by default and remains blocked for public rollout unless Last.fm grants permission. At the product owner's direction, the private development backend may explicitly set `XIVFM_LASTFM_ARTWORK_ENABLED=true` to map the largest safe HTTPS image for in-game card testing. The generic plugin texture pipeline remains bounded regardless of source.
 - Listening observations have a 15-minute TTL, no history is retained, and the cache is far below the terms' current 100 MB reasonable-usage cap.
-- Polling is cached and account-normalized: installations share one logical stream. Playing targets 30 seconds, not-playing targets 90 seconds, and offline accounts stop after heartbeat expiry.
+- Polling is cached and account-normalized: installations share one logical stream. To meet the product's overlay-latency target, playing targets 15 seconds, not-playing targets 20 seconds, and offline accounts stop after heartbeat expiry. The shared 3.5 requests/second budget remains authoritative, so provider contention or failure may extend freshness rather than exceed the safety ceiling.
 - Every Last.fm request uses the shared 3.5 requests/second token bucket. Durable replicas coordinate the bucket and per-account poll leases through Redis. Backoff and circuit breaking reduce traffic during provider failures.
 - XIV.fm does not scrobble, write to Last.fm, sublicense provider data, expose arbitrary-username proxying, or retain a listening history.
 

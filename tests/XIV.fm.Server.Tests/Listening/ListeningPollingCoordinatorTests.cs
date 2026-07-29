@@ -156,8 +156,10 @@ public sealed class ListeningPollingCoordinatorTests
         var lastFm = new FailingRecentTracksClient();
         var store = new InMemoryListeningStateStore();
         var options = new ListeningPollingOptions(
-            TimeSpan.FromSeconds(30),
-            TimeSpan.FromSeconds(90),
+            TimeSpan.FromSeconds(15),
+            TimeSpan.FromSeconds(20),
+            TimeSpan.FromSeconds(60),
+            TimeSpan.FromSeconds(180),
             TimeSpan.FromMilliseconds(100),
             2,
             TimeSpan.FromSeconds(2));

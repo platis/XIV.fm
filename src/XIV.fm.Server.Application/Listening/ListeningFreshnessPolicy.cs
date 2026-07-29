@@ -19,5 +19,12 @@ public sealed class ListeningFreshnessPolicy
     };
 
     public bool IsStale(ListeningObservation observation, DateTimeOffset now) =>
-        now >= observation.ObservedAt.Add(this.GetPollInterval(observation.Status) * 2);
+        now >= observation.ObservedAt.Add(GetStaleAfter(observation.Status));
+
+    private TimeSpan GetStaleAfter(ListeningObservationStatus status) => status switch
+    {
+        ListeningObservationStatus.Playing => this.options.PlayingStaleAfter,
+        ListeningObservationStatus.NotPlaying => this.options.NotPlayingStaleAfter,
+        _ => throw new ArgumentOutOfRangeException(nameof(status)),
+    };
 }

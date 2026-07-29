@@ -77,7 +77,7 @@ public sealed class AccountLinkEndpointTests : IClassFixture<ServerApiFactory>
         Assert.Equal(ListeningStatus.Playing, sync.OwnListening.Status);
         Assert.False(sync.OwnListening.IsStale);
         Assert.Equal("Test Track", sync.OwnListening.Track?.Title);
-        Assert.Equal(10, sync.NextSyncAfterSeconds);
+        Assert.Equal(5, sync.NextSyncAfterSeconds);
 
         await listeningStore.SetAsync(
             linkedAccount.AccountId,
@@ -92,7 +92,7 @@ public sealed class AccountLinkEndpointTests : IClassFixture<ServerApiFactory>
         Assert.Equal(ListeningStatus.Playing, stale.OwnListening.Status);
         Assert.True(stale.OwnListening.IsStale);
         Assert.Equal("Stale Track", stale.OwnListening.Track?.Title);
-        Assert.Equal(30, stale.NextSyncAfterSeconds);
+        Assert.Equal(5, stale.NextSyncAfterSeconds);
 
         var publicRequest = CreateSyncRequest() with
         {

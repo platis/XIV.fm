@@ -16,8 +16,7 @@ namespace XIV.fm.Server.Application.Sync;
 public sealed class SyncApplicationService
 {
     private static readonly TimeSpan PresenceLifetime = TimeSpan.FromSeconds(60);
-    private const int ResponsiveSyncAfterSeconds = 10;
-    private const int DefaultSyncAfterSeconds = 30;
+    private const int ListeningRefreshSyncAfterSeconds = 5;
 
     private readonly IPresenceStore presenceStore;
     private readonly ILinkedAccountResolver linkedAccountResolver;
@@ -213,14 +212,10 @@ public sealed class SyncApplicationService
                     : authorized.Snapshot);
         }
 
-        var nextSyncAfterSeconds =
-            ownListening.Status == ListeningStatus.Playing && !ownListening.IsStale
-                ? ResponsiveSyncAfterSeconds
-                : DefaultSyncAfterSeconds;
         var response = new SyncResponse(
             now,
             presenceExpiresAt,
-            nextSyncAfterSeconds,
+            ListeningRefreshSyncAfterSeconds,
             ownListening,
             locationPresence);
         return SyncResult.Success(response);

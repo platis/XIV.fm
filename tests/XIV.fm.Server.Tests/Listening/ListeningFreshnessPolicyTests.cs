@@ -30,10 +30,10 @@ public sealed class ListeningFreshnessPolicyTests
     public void UsesAdaptivePlayingAndNotPlayingIntervals()
     {
         Assert.Equal(
-            TimeSpan.FromSeconds(30),
+            TimeSpan.FromSeconds(15),
             this.policy.GetPollInterval(ListeningObservationStatus.Playing));
         Assert.Equal(
-            TimeSpan.FromSeconds(90),
+            TimeSpan.FromSeconds(20),
             this.policy.GetPollInterval(ListeningObservationStatus.NotPlaying));
     }
 }

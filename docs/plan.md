@@ -67,7 +67,7 @@ _Status: complete; live provider linking, polling, sync, and in-game local-card 
 - [x] Implement short-lived browser/device link sessions with replay protection.
 - [x] Complete Last.fm authorization server-side and record the canonical account.
 - [x] Discard the Last.fm session key after identity proof while the product is read-only.
-- [x] Implement normalized track mapping, one polling stream per active account, cache, single-flight, adaptive 30/90-second scheduling, jitter, backoff, circuit breaking, and a global request budget.
+- [x] Implement normalized track mapping, one polling stream per active account, cache, single-flight, latency-oriented adaptive 15/20-second scheduling, jitter, backoff, circuit breaking, and a global request budget.
 - [x] Return own cached track with freshness/stale metadata through sync.
 - [x] Drive the local placeholder card from real linked state.
 - [x] Load-test the scheduler and review Last.fm terms/limits before public use.

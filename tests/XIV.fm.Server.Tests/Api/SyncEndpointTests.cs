@@ -75,7 +75,7 @@ public sealed class SyncEndpointTests : IClassFixture<ServerApiFactory>
         Assert.NotNull(sync);
         Assert.Equal(ListeningStatus.Unavailable, sync.OwnListening.Status);
         Assert.Null(sync.OwnListening.Track);
-        Assert.Equal(30, sync.NextSyncAfterSeconds);
+        Assert.Equal(5, sync.NextSyncAfterSeconds);
         Assert.NotNull(sync.LocationPresence.Snapshot);
         Assert.Empty(sync.LocationPresence.Snapshot.Entries);
         Assert.True(sync.PresenceExpiresAt >= before.AddSeconds(55));

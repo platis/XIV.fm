@@ -37,4 +37,4 @@ export DALAMUD_HOME=/srv/cache/dalamud/api15
 ./scripts/check.sh
 ```
 
-The check script verifies formatting, lockfiles, unit tests, and a Release plugin build. Run it before finishing a change.
+The check script verifies formatting, lockfiles, unit tests, and a Release plugin build. During UI iteration, run only the relevant targeted build or check plus visual verification. Run the full check before declaring the work release-ready, merging, tagging, or releasing.

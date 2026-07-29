@@ -4,6 +4,11 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Fixed
+
+- Reduce healthy Last.fm-to-local-overlay propagation from a worst case of roughly two minutes to a sub-30-second target by polling active accounts every 15–20 seconds and syncing cached state every 5 seconds.
+- Match the album-art-to-text gap to the card's 6 px horizontal padding for even spacing.
+
 ## [0.1.17] - 2026-07-29
 
 ### Changed

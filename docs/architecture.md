@@ -80,8 +80,9 @@ Only the server polls Last.fm. One normalized linked account has one logical pol
 
 The implemented initial policy, still requiring live-provider and load-test validation, is:
 
-- Active and playing: target every 30 seconds with schedule jitter.
-- Active with no current track: target every 90 seconds with schedule jitter.
+- Active and playing: target every 15 seconds with schedule jitter.
+- Active with no current track: target every 20 seconds with schedule jitter.
+- Healthy plugin sync: every 5 seconds, keeping the poll-to-local-overlay path below 30 seconds under an uncongested request budget.
 - Offline: no polling after heartbeat expiry.
 - Errors: bounded exponential backoff with full jitter and circuit breaking after repeated failures.
 - Global planning budget: 3.5 requests/second until the actual allowance is confirmed.

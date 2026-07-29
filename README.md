@@ -26,7 +26,7 @@ Implemented:
 - PostgreSQL credential persistence/migrations, Redis heartbeat TTLs, credential lifecycle endpoints, and a disposable loopback-only container integration stack.
 - A typed plugin network client and cancellable duty-aware development sync coordinator.
 - Ten-minute replay-protected Last.fm browser-link sessions, server-side ownership proof, canonical account persistence, and proof-gated installation credentials.
-- Normalized cached Last.fm listening state with Redis single-flight leases, a distributed 3.5-request/second budget, adaptive 30/90-second polling, jitter, backoff, circuit breaking, and explicit stale metadata through sync.
+- Normalized cached Last.fm listening state with Redis single-flight leases, a distributed 3.5-request/second budget, latency-oriented adaptive 15/20-second polling, jitter, backoff, circuit breaking, and explicit stale metadata through five-second sync.
 - Duty-gated plugin browser linking, persisted installation credentials, real local playing/not-playing/unavailable cards, explicit stale metadata in sync/diagnostics, and Last.fm track/profile links.
 - Private/Public selection, shared 20-second location snapshots with opaque versions and metrics, strict loaded-character matching, and server-authoritative remote listening cards.
 - Custom Relay ownership, bounded membership, soft deletion, replay-safe creation, hashed single-use invitations, join/leave/kick restrictions, and durable quota enforcement.

@@ -8,7 +8,7 @@ Measurements at 1× Dalamud UI scale:
 - Corner radius: 5 px
 - Padding: 6 px horizontal and 8 px vertical
 - Conditional artwork: 55.2×55.2 px (20% larger), with a 3 px corner radius and subtle adaptive border
-- Artwork-to-text gap: 11 px
+- Artwork-to-text gap: 6 px, matching the horizontal card padding
 - Title: 21.6 px (20% larger), visually bold
 - Artist: 19.2 px (20% larger), subdued
 - Artist vertical offset from title origin: 23 px
@@ -17,7 +17,7 @@ Measurements at 1× Dalamud UI scale:
 
 The card contracts to the wider of the rendered title and artist lines, including the cover and its gap only when a completed artwork texture is available. Without a cover, text starts at the left padding and no blank artwork area remains. The title and artist fit within the 293 px maximum width, and overlong text is shortened at complete Unicode text-element boundaries with a trailing `...`.
 
-The text block remains bottom-aligned with the artwork. The 8 px vertical padding gives the cover and text more breathing room above and below, while 6 px horizontal padding preserves the compact width. Enlarging the title while retaining the 23 px line offset reduces its visual gap to the artist. Title color follows the active ImGui theme; artist color is blended toward the same text color at 68% so hierarchy remains visible without sacrificing contrast.
+The text block remains bottom-aligned with the artwork. The 8 px vertical padding gives the cover and text more breathing room above and below, while the 6 px horizontal padding is reused between the artwork and text for even spacing. Enlarging the title while retaining the 23 px line offset reduces its visual gap to the artist. Title color follows the active ImGui theme; artist color is blended toward the same text color at 68% so hierarchy remains visible without sacrificing contrast.
 
 The surface treatment separates the card from both bright and dark game scenes without adding ornamental content. Its border adapts to the current theme, the top highlight suggests material thickness, and the shadow stays close to the card so it does not read as a large floating panel. Card motion remains coupled directly to the projected nameplate anchor; no smoothing or entrance animation delays that spatial relationship.
 
