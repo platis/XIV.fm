@@ -23,7 +23,7 @@ public static class RelaySelection
                 break;
         }
 
-        return builder.MoveToImmutable();
+        return builder.ToImmutable();
     }
 
     public static bool CanSelect(IEnumerable<Guid>? relayIds, Guid relayId)

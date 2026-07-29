@@ -4,6 +4,12 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.25] - 2026-07-29
+
+### Fixed
+
+- Fix plugin startup when fewer than five Custom Relay audiences are saved, including the default empty selection.
+
 ## [0.1.24] - 2026-07-29
 
 ### Added

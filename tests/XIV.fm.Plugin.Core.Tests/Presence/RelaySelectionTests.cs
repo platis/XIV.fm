@@ -5,6 +5,16 @@ namespace XIV.fm.Plugin.Core.Tests.Presence;
 public sealed class RelaySelectionTests
 {
     [Fact]
+    public void NormalizeHandlesASelectionSmallerThanTheMaximumCapacity()
+    {
+        var relayId = Guid.NewGuid();
+
+        Assert.Empty(RelaySelection.Normalize(null));
+        Assert.Empty(RelaySelection.Normalize([]));
+        Assert.Equal(relayId, Assert.Single(RelaySelection.Normalize([relayId])));
+    }
+
+    [Fact]
     public void NormalizeDropsEmptyAndDuplicateIdsAndBoundsTheSelection()
     {
         var relayIds = Enumerable.Range(0, 7).Select(_ => Guid.NewGuid()).ToArray();
