@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.21] - 2026-07-29
+
 ### Added
 
 - Add a confirmed Last.fm disconnect action that revokes the current XIV.fm installation, removes its active presence, and leaves the user's Last.fm account and history unchanged.
