@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.23] - 2026-07-29
+
 ### Changed
 
 - Replace the server-bar Bard icon with a compact `[FM]` shortcut that is green while cards are visible and gold while hidden.
