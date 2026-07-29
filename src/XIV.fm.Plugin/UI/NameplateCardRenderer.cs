@@ -15,10 +15,10 @@ public sealed class NameplateCardRenderer
 {
     private const float MaximumCardWidth = 293f;
     private const float ArtworkSize = 55.2f;
-    private const float HorizontalCardPadding = 10f;
+    private const float HorizontalCardPadding = 8f;
     private const float VerticalCardPadding = 8f;
     private const float CardHeight = ArtworkSize + (2f * VerticalCardPadding);
-    private const float CardOpacity = 0.688f;
+    private const float CardOpacity = 0.6192f;
     private const float TextGap = 10f;
     private const float TitleFontSize = 21.6f;
     private const float ArtistFontSize = 19.2f;
@@ -185,10 +185,12 @@ public sealed class NameplateCardRenderer
                 if (!shouldDrawContents)
                     return;
 
-                var origin = ImGui.GetCursorScreenPos();
                 var cardMinimum = ImGui.GetWindowPos();
                 var cardMaximum = cardMinimum + cardSize;
-                var artworkMaximum = origin + new Vector2(ArtworkSize * scale);
+                var contentMinimum = cardMinimum + new Vector2(
+                    HorizontalCardPadding * scale,
+                    ((CardHeight - ArtworkSize) / 2f) * scale);
+                var artworkMaximum = contentMinimum + new Vector2(ArtworkSize * scale);
                 var drawList = ImGui.GetWindowDrawList();
                 DrawCardSurface(drawList, cardMinimum, cardMaximum, scale);
                 if (hasArtwork)
@@ -196,7 +198,7 @@ public sealed class NameplateCardRenderer
                     var artworkRounding = 3f * scale;
                     drawList.AddImageRounded(
                         artwork!.Handle,
-                        origin,
+                        contentMinimum,
                         artworkMaximum,
                         Vector2.Zero,
                         Vector2.One,
@@ -204,18 +206,18 @@ public sealed class NameplateCardRenderer
                         artworkRounding,
                         ImDrawFlags.RoundCornersAll);
                     drawList.AddRect(
-                        origin,
+                        contentMinimum,
                         artworkMaximum,
                         ImGui.GetColorU32(GetAdaptiveBorderColor()),
                         artworkRounding);
                 }
 
-                var textMinimum = origin + new Vector2(
+                var textMinimum = contentMinimum + new Vector2(
                     leadingContentWidth * scale,
                     (ArtworkSize - ArtistOffsetY - ArtistFontSize) * scale);
                 var textMaximum = new Vector2(
                     cardMaximum.X - (HorizontalCardPadding * scale),
-                    cardMaximum.Y - (VerticalCardPadding * scale));
+                    artworkMaximum.Y);
                 var style = ImGui.GetStyle();
                 var surfaceColor = GetSurfaceColor();
                 var titleColor = ImGui.GetColorU32(style.Colors[(int)ImGuiCol.Text]);
@@ -284,12 +286,7 @@ public sealed class NameplateCardRenderer
         drawList.PopClipRect();
     }
 
-    private static Vector4 GetSurfaceColor()
-    {
-        var color = ImGui.GetStyle().Colors[(int)ImGuiCol.WindowBg];
-        color.W = CardOpacity;
-        return color;
-    }
+    private static Vector4 GetSurfaceColor() => new(0.169f, 0.169f, 0.169f, CardOpacity);
 
     private static Vector4 GetAdaptiveBorderColor()
     {
