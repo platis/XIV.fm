@@ -60,7 +60,14 @@ public sealed class Plugin : IDalamudPlugin
         this.configuration.InstallationCredential ??= string.Empty;
         this.configuration.PendingLinkCredential ??= string.Empty;
         this.configuration.PendingLinkAuthorizationUrl ??= string.Empty;
-        this.configuration.DeveloperServerBaseUrl ??= "http://127.0.0.1:5080";
+        if (string.IsNullOrWhiteSpace(this.configuration.DeveloperServerBaseUrl) ||
+            string.Equals(
+                this.configuration.DeveloperServerBaseUrl,
+                PluginConfiguration.LegacyDeveloperServerBaseUrl,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            this.configuration.DeveloperServerBaseUrl = PluginConfiguration.DefaultDeveloperServerBaseUrl;
+        }
         this.configuration.DeveloperInstallationCredential ??= string.Empty;
         this.configuration.SelectedRelayIds ??= [];
         this.configuration.SelectedRelayIds = RelaySelection.Normalize(this.configuration.SelectedRelayIds).ToList();
@@ -112,7 +119,7 @@ public sealed class Plugin : IDalamudPlugin
             this.stateStore,
             (character, now) => this.HasInstallationCredential
                 ? OverlayCard.LocalListening(character, this.serverSyncCoordinator.OwnListening, now)
-                : OverlayCard.LocalPlaceholder(character),
+                : null,
             now => this.serverSyncCoordinator.GetRemoteCards(now),
             () => this.configuration.DeveloperMockRemoteCards,
             () => this.CurrentDutyPolicy.IsInDuty);
@@ -394,20 +401,31 @@ public sealed class Plugin : IDalamudPlugin
             : new VisibilitySelection(VisibilityMode.Custom, relayIds);
     }
 
-    private void ReconcileRelaySelections(IReadOnlyCollection<Guid> joinedRelayIds)
+    private void ReconcileRelaySelections(
+        IReadOnlyCollection<Guid> joinedRelayIds,
+        Guid? autoSelectedRelayId)
     {
         var joined = joinedRelayIds.ToHashSet();
-        var previous = this.configuration.SelectedRelayIds;
-        var relayIds = RelaySelection.Normalize(previous)
+        var previousRelayIds = this.configuration.SelectedRelayIds;
+        var previousVisibility = this.configuration.Visibility;
+        var relayIds = RelaySelection.Normalize(previousRelayIds)
             .Where(joined.Contains)
             .ToList();
-        var visibilityChanged = relayIds.Count == 0 && this.configuration.Visibility == VisibilityMode.Custom;
-        if (previous.SequenceEqual(relayIds) && !visibilityChanged)
+
+        if (autoSelectedRelayId is Guid selectedRelayId && joined.Contains(selectedRelayId))
+        {
+            relayIds = RelaySelection.Select(relayIds, selectedRelayId).ToList();
+            this.configuration.Visibility = VisibilityMode.Custom;
+        }
+        else if (relayIds.Count == 0 && this.configuration.Visibility == VisibilityMode.Custom)
+        {
+            this.configuration.Visibility = VisibilityMode.Private;
+        }
+
+        if (previousRelayIds.SequenceEqual(relayIds) && previousVisibility == this.configuration.Visibility)
             return;
 
         this.configuration.SelectedRelayIds = relayIds;
-        if (visibilityChanged)
-            this.configuration.Visibility = VisibilityMode.Private;
         this.SaveConfiguration();
         this.serverSyncCoordinator.RequestImmediateSync();
     }

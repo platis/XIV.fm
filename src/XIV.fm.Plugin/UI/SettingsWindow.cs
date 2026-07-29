@@ -47,6 +47,8 @@ public sealed class SettingsWindow : Window
     private Guid? confirmingLeaveRelayId;
     private Guid? confirmingDeleteRelayId;
     private Guid? confirmingKickMembershipId;
+    private Guid? expandedRelayId;
+    private Guid? pendingManagementRelayId;
     private bool confirmingDisconnect;
 
     public SettingsWindow(
@@ -747,8 +749,7 @@ public sealed class SettingsWindow : Window
         }
         else
         {
-            foreach (var relay in state.Relays)
-                this.DrawRelay(relay, state, duty, busy);
+            this.DrawRelayTable(state, duty, busy);
         }
 
         if (!string.IsNullOrWhiteSpace(this.interactionMessage))
@@ -758,69 +759,188 @@ public sealed class SettingsWindow : Window
         }
     }
 
-    private void DrawRelay(
+    private void DrawRelayTable(
+        RelayRuntimeState state,
+        DutyParticipationPolicy duty,
+        bool busy)
+    {
+        var tableFlags = ImGuiTableFlags.BordersOuter |
+            ImGuiTableFlags.BordersInnerH |
+            ImGuiTableFlags.RowBg |
+            ImGuiTableFlags.SizingStretchProp;
+        if (ImGui.BeginTable("XIV.fm.Relays", 3, tableFlags))
+        {
+            ImGui.TableSetupColumn("Group", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn("Access", ImGuiTableColumnFlags.WidthFixed, 72f * ImGuiHelpers.GlobalScale);
+            ImGui.TableSetupColumn("Members", ImGuiTableColumnFlags.WidthFixed, 72f * ImGuiHelpers.GlobalScale);
+            ImGui.TableHeadersRow();
+
+            foreach (var relay in state.Relays)
+            {
+                ImGui.PushID(relay.RelayId.ToString("D"));
+                ImGui.TableNextRow();
+                ImGui.TableSetColumnIndex(0);
+                var expanded = this.expandedRelayId == relay.RelayId;
+                if (ImGui.ArrowButton("##Details", expanded ? ImGuiDir.Down : ImGuiDir.Right))
+                {
+                    if (expanded)
+                    {
+                        this.expandedRelayId = null;
+                        this.pendingManagementRelayId = null;
+                    }
+                    else
+                    {
+                        this.expandedRelayId = relay.RelayId;
+                        this.confirmingLeaveRelayId = null;
+                        this.confirmingDeleteRelayId = null;
+                        this.confirmingKickMembershipId = null;
+                        if (relay.IsOwner && state.ManagedRelayId != relay.RelayId)
+                        {
+                            this.renameRelayId = relay.RelayId;
+                            this.renameRelayName = relay.Name;
+                            this.pendingManagementRelayId = relay.RelayId;
+                        }
+                    }
+                }
+
+                ImGui.SameLine();
+                ImGui.TextUnformatted(relay.Name);
+                ImGui.TableSetColumnIndex(1);
+                if (relay.IsOwner)
+                    ImGui.TextColored(Accent, "Owner");
+                else
+                    ImGui.TextUnformatted("Member");
+                ImGui.TableSetColumnIndex(2);
+                ImGui.TextUnformatted(relay.MemberCount.ToString(CultureInfo.InvariantCulture));
+                ImGui.PopID();
+            }
+
+            ImGui.EndTable();
+        }
+
+        if (this.expandedRelayId is not Guid expandedRelayId)
+            return;
+
+        var expandedRelay = state.Relays.FirstOrDefault(relay => relay.RelayId == expandedRelayId);
+        if (expandedRelay is null)
+        {
+            this.expandedRelayId = null;
+            this.pendingManagementRelayId = null;
+            return;
+        }
+
+        if (expandedRelay.IsOwner &&
+            state.ManagedRelayId != expandedRelay.RelayId &&
+            this.pendingManagementRelayId == expandedRelay.RelayId &&
+            duty.AllowsServerRequests &&
+            !busy)
+        {
+            this.pendingManagementRelayId = null;
+            this.RunRelayAction((out string? error) =>
+                this.relayCoordinator.TryLoadManagement(expandedRelay.RelayId, out error));
+        }
+        else if (state.ManagedRelayId == expandedRelay.RelayId)
+        {
+            this.pendingManagementRelayId = null;
+        }
+
+        this.DrawRelayDetails(expandedRelay, state, duty, busy);
+    }
+
+    private void DrawRelayDetails(
         RelayResponse relay,
         RelayRuntimeState state,
         DutyParticipationPolicy duty,
         bool busy)
     {
-        ImGui.PushID(relay.RelayId.ToString("D"));
+        ImGui.PushID($"Details.{relay.RelayId:D}");
         try
         {
-            var role = relay.IsOwner ? "Owner" : "Member";
-            if (!ImGui.CollapsingHeader($"{relay.Name}  ·  {role}  ·  {relay.MemberCount} member{(relay.MemberCount == 1 ? string.Empty : "s")}"))
-                return;
+            ImGui.Spacing();
+            DrawStatusPanel(
+                relay.Name,
+                relay.IsOwner
+                    ? "You own this Relay and can manage its name, invitations, members, and deletion."
+                    : "You are a member of this Relay and can receive its selected listening presence.",
+                relay.IsOwner ? Accent : Neutral);
+            DrawKeyValue("Access", relay.IsOwner ? "Owner" : "Member");
+            DrawKeyValue("Members", relay.MemberCount.ToString(CultureInfo.InvariantCulture));
+            DrawKeyValue("Created", FormatTimestamp(relay.CreatedAt));
+            DrawKeyValue("Last updated", FormatTimestamp(relay.UpdatedAt));
 
-            if (!duty.AllowsServerRequests || busy)
-                ImGui.BeginDisabled();
             if (relay.IsOwner)
             {
-                if (state.ManagedRelayId != relay.RelayId && DrawSecondaryButton("Manage Relay"))
+                if (state.ManagedRelayId == relay.RelayId)
                 {
-                    this.renameRelayId = relay.RelayId;
-                    this.renameRelayName = relay.Name;
-                    this.RunRelayAction((out string? error) => this.relayCoordinator.TryLoadManagement(relay.RelayId, out error));
+                    this.DrawRelayManagement(relay, state, duty, busy);
+                }
+                else if (busy)
+                {
+                    ImGui.TextDisabled("Loading owner controls…");
+                }
+                else if (!duty.AllowsServerRequests)
+                {
+                    ImGui.TextDisabled("Owner controls will load automatically after you leave the duty.");
+                }
+                else if (!string.IsNullOrWhiteSpace(state.Error))
+                {
+                    ImGui.TextDisabled("Owner controls could not be loaded. Close and reopen this group to retry.");
                 }
             }
-            else if (this.confirmingLeaveRelayId != relay.RelayId)
+            else
             {
-                if (DrawOutlinedDangerButton("Leave Relay"))
-                    this.confirmingLeaveRelayId = relay.RelayId;
+                this.DrawRelayMemberActions(relay, duty, busy);
             }
-
-            if (!duty.AllowsServerRequests || busy)
-                ImGui.EndDisabled();
-
-            if (this.confirmingLeaveRelayId == relay.RelayId)
-            {
-                DrawStatusPanel(
-                    "Leave this Relay?",
-                    "You’ll stop receiving its presence immediately and will need a new invitation to return.",
-                    Warning);
-                if (!duty.AllowsServerRequests || busy)
-                    ImGui.BeginDisabled();
-                if (DrawDangerButton("Leave"))
-                {
-                    if (this.relayCoordinator.TryLeave(relay.RelayId, out var error))
-                        this.confirmingLeaveRelayId = null;
-                    else
-                        this.interactionMessage = error;
-                }
-
-                if (!duty.AllowsServerRequests || busy)
-                    ImGui.EndDisabled();
-                ImGui.SameLine();
-                if (DrawSecondaryButton("Cancel"))
-                    this.confirmingLeaveRelayId = null;
-            }
-
-            if (relay.IsOwner && state.ManagedRelayId == relay.RelayId)
-                this.DrawRelayManagement(relay, state, duty, busy);
         }
         finally
         {
             ImGui.PopID();
         }
+    }
+
+    private void DrawRelayMemberActions(
+        RelayResponse relay,
+        DutyParticipationPolicy duty,
+        bool busy)
+    {
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.TextUnformatted("Membership options");
+        if (this.confirmingLeaveRelayId != relay.RelayId)
+        {
+            if (!duty.AllowsServerRequests || busy)
+                ImGui.BeginDisabled();
+            if (DrawOutlinedDangerButton("Leave Relay"))
+                this.confirmingLeaveRelayId = relay.RelayId;
+            if (!duty.AllowsServerRequests || busy)
+                ImGui.EndDisabled();
+            return;
+        }
+
+        DrawStatusPanel(
+            "Leave this Relay?",
+            "You’ll stop receiving its presence immediately and will need a new invitation to return.",
+            Warning);
+        if (!duty.AllowsServerRequests || busy)
+            ImGui.BeginDisabled();
+        if (DrawDangerButton("Leave"))
+        {
+            if (this.relayCoordinator.TryLeave(relay.RelayId, out var error))
+            {
+                this.confirmingLeaveRelayId = null;
+                this.expandedRelayId = null;
+            }
+            else
+            {
+                this.interactionMessage = error;
+            }
+        }
+
+        if (!duty.AllowsServerRequests || busy)
+            ImGui.EndDisabled();
+        ImGui.SameLine();
+        if (DrawSecondaryButton("Cancel"))
+            this.confirmingLeaveRelayId = null;
     }
 
     private void DrawRelayManagement(
@@ -881,64 +1001,112 @@ public sealed class SettingsWindow : Window
             return;
         }
 
-        foreach (var invitation in state.Invitations)
+        if (state.Invitations.IsEmpty)
         {
-            var invitationState = invitation.AcceptedAt is not null ? "Used" : "Active";
-            ImGui.TextWrapped($"{invitationState} · expires {FormatTimestamp(invitation.ExpiresAt)}");
-            if (invitation.AcceptedAt is null)
+            ImGui.TextDisabled("No invitations have been created yet.");
+        }
+        else if (ImGui.BeginTable(
+                     "RelayInvitations",
+                     3,
+                     ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.RowBg))
+        {
+            ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 64f * ImGuiHelpers.GlobalScale);
+            ImGui.TableSetupColumn("Expires", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn("Option", ImGuiTableColumnFlags.WidthFixed, 78f * ImGuiHelpers.GlobalScale);
+            ImGui.TableHeadersRow();
+            foreach (var invitation in state.Invitations)
             {
-                ImGui.SameLine();
-                if (!duty.AllowsServerRequests || busy)
-                    ImGui.BeginDisabled();
-                if (DrawOutlinedDangerButton($"Revoke##{invitation.InvitationId:D}"))
+                ImGui.TableNextRow();
+                ImGui.TableSetColumnIndex(0);
+                ImGui.TextUnformatted(invitation.AcceptedAt is not null ? "Used" : "Active");
+                ImGui.TableSetColumnIndex(1);
+                ImGui.TextUnformatted(FormatTimestamp(invitation.ExpiresAt));
+                ImGui.TableSetColumnIndex(2);
+                if (invitation.AcceptedAt is null)
                 {
-                    this.RunRelayAction((out string? error) => this.relayCoordinator.TryRevokeInvitation(
-                        relay.RelayId,
-                        invitation.InvitationId,
-                        out error));
-                }
+                    if (!duty.AllowsServerRequests || busy)
+                        ImGui.BeginDisabled();
+                    if (DrawOutlinedDangerButton($"Revoke##{invitation.InvitationId:D}"))
+                    {
+                        this.RunRelayAction((out string? error) => this.relayCoordinator.TryRevokeInvitation(
+                            relay.RelayId,
+                            invitation.InvitationId,
+                            out error));
+                    }
 
-                if (!duty.AllowsServerRequests || busy)
-                    ImGui.EndDisabled();
+                    if (!duty.AllowsServerRequests || busy)
+                        ImGui.EndDisabled();
+                }
+                else
+                {
+                    ImGui.TextDisabled("—");
+                }
             }
+
+            ImGui.EndTable();
         }
 
         ImGui.Spacing();
         ImGui.TextUnformatted("Members");
-        foreach (var member in state.Members)
+        if (ImGui.BeginTable(
+                "RelayMembers",
+                3,
+                ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.RowBg))
         {
-            ImGui.TextWrapped($"{member.LastFmAccountName}{(member.IsOwner ? " · Owner" : string.Empty)}");
-            if (member.IsOwner)
-                continue;
-
-            ImGui.SameLine();
-            if (this.confirmingKickMembershipId == member.MembershipId)
+            ImGui.TableSetupColumn("Account", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn("Joined", ImGuiTableColumnFlags.WidthFixed, 112f * ImGuiHelpers.GlobalScale);
+            ImGui.TableSetupColumn("Option", ImGuiTableColumnFlags.WidthFixed, 152f * ImGuiHelpers.GlobalScale);
+            ImGui.TableHeadersRow();
+            foreach (var member in state.Members)
             {
-                if (!duty.AllowsServerRequests || busy)
-                    ImGui.BeginDisabled();
-                if (DrawDangerButton($"Confirm remove##{member.MembershipId:D}"))
+                ImGui.TableNextRow();
+                ImGui.TableSetColumnIndex(0);
+                ImGui.TextUnformatted(member.LastFmAccountName);
+                if (member.IsOwner)
                 {
-                    if (this.relayCoordinator.TryKickMember(relay.RelayId, member.MembershipId, out var error))
-                        this.confirmingKickMembershipId = null;
-                    else
-                        this.interactionMessage = error;
+                    ImGui.SameLine();
+                    ImGui.TextColored(Accent, "Owner");
                 }
 
-                if (!duty.AllowsServerRequests || busy)
-                    ImGui.EndDisabled();
-                ImGui.SameLine();
-                if (DrawSecondaryButton($"Cancel##{member.MembershipId:D}"))
-                    this.confirmingKickMembershipId = null;
+                ImGui.TableSetColumnIndex(1);
+                ImGui.TextUnformatted(FormatTimestamp(member.JoinedAt));
+                ImGui.TableSetColumnIndex(2);
+                if (member.IsOwner)
+                {
+                    ImGui.TextDisabled("—");
+                    continue;
+                }
+
+                if (this.confirmingKickMembershipId == member.MembershipId)
+                {
+                    if (!duty.AllowsServerRequests || busy)
+                        ImGui.BeginDisabled();
+                    if (DrawDangerButton($"Confirm##{member.MembershipId:D}"))
+                    {
+                        if (this.relayCoordinator.TryKickMember(relay.RelayId, member.MembershipId, out var error))
+                            this.confirmingKickMembershipId = null;
+                        else
+                            this.interactionMessage = error;
+                    }
+
+                    if (!duty.AllowsServerRequests || busy)
+                        ImGui.EndDisabled();
+                    ImGui.SameLine();
+                    if (DrawSecondaryButton($"Cancel##{member.MembershipId:D}"))
+                        this.confirmingKickMembershipId = null;
+                }
+                else
+                {
+                    if (!duty.AllowsServerRequests || busy)
+                        ImGui.BeginDisabled();
+                    if (DrawOutlinedDangerButton($"Remove##{member.MembershipId:D}"))
+                        this.confirmingKickMembershipId = member.MembershipId;
+                    if (!duty.AllowsServerRequests || busy)
+                        ImGui.EndDisabled();
+                }
             }
-            else
-            {
-                if (!duty.AllowsServerRequests || busy)
-                    ImGui.BeginDisabled();
-                if (DrawOutlinedDangerButton($"Remove##{member.MembershipId:D}"))
-                    this.confirmingKickMembershipId = member.MembershipId;
-                if (!duty.AllowsServerRequests || busy)
-                    ImGui.EndDisabled();
-            }
+
+            ImGui.EndTable();
         }
 
         ImGui.Spacing();

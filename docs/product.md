@@ -8,7 +8,7 @@ XIV.fm lets Final Fantasy XIV players express what they are listening to through
 
 1. Install XIV.fm through Dalamud.
 2. Connect a Last.fm account through a browser authorization flow.
-3. See the current track locally above the player's character.
+3. While music is playing, see the current track locally above the player's character; no card is shown when playback stops or listening state is unavailable.
 4. Select one visibility policy.
 5. Optionally see matching XIV.fm users in the same game location when they are within the configured yalm range.
 
@@ -41,7 +41,7 @@ The server never needs character coordinates. It returns relevant location snaps
 ## Account activity terminology
 
 - **Active and playing:** the plugin heartbeat is fresh and Last.fm reports a current track.
-- **Active with no current track:** the plugin heartbeat is fresh but Last.fm reports no current track.
+- **Active with no current track:** the plugin heartbeat is fresh but Last.fm reports no current track; no listening card is rendered.
 - **Offline:** the heartbeat expired, the character logged out, or the plugin/game stopped.
 
 Offline linked accounts are not polled. FFXIV AFK state alone does not stop polling because an AFK player may still be listening.

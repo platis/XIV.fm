@@ -50,10 +50,4 @@ public sealed class OverlayAnchorTests
         { Vector3.Zero, new Vector3(0f, float.PositiveInfinity, 0f) },
     };
 
-    [Fact]
-    public void PlaceholderContentIsClearlyNonProduction()
-    {
-        Assert.Contains("Placeholder", PlaceholderCard.Default.Title, StringComparison.Ordinal);
-        Assert.Contains("development", PlaceholderCard.Default.Artist, StringComparison.OrdinalIgnoreCase);
-    }
 }

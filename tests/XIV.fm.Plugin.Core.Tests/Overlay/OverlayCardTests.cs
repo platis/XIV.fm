@@ -21,6 +21,7 @@ public sealed class OverlayCardTests
 
         var card = OverlayCard.LocalListening(Character, listening, Now);
 
+        Assert.NotNull(card);
         Assert.Equal("Track", card.Title);
         Assert.Equal("Artist", card.Artist);
         Assert.True(card.IsLocal);
@@ -48,6 +49,8 @@ public sealed class OverlayCardTests
                 new Track("Track", "Artist", "Album", new Uri("http://127.0.0.1/cover.png"), null, null)),
             Now);
 
+        Assert.NotNull(safe);
+        Assert.NotNull(unsafeCard);
         Assert.Equal(safeArtwork, safe.ArtworkUrl);
         Assert.Null(unsafeCard.ArtworkUrl);
     }
@@ -74,6 +77,8 @@ public sealed class OverlayCardTests
                 new Track("Second", "Artist", "Album", secondArtwork, null, null)),
             Now.AddSeconds(30));
 
+        Assert.NotNull(first);
+        Assert.NotNull(second);
         Assert.Equal("First", first.Title);
         Assert.Equal(firstArtwork, first.ArtworkUrl);
         Assert.Equal("Second", second.Title);
@@ -91,6 +96,7 @@ public sealed class OverlayCardTests
 
         var card = OverlayCard.RemoteListening(Character, listening, Now);
 
+        Assert.NotNull(card);
         Assert.False(card.IsLocal);
         Assert.True(card.IsLastFm);
         Assert.Equal("Remote Track", card.Title);
@@ -107,11 +113,12 @@ public sealed class OverlayCardTests
 
         var card = OverlayCard.LocalListening(Character, listening, Now);
 
+        Assert.NotNull(card);
         Assert.True(card.IsStale);
     }
 
     [Fact]
-    public void NotPlayingAndUnavailableHaveExplicitLocalStates()
+    public void NotPlayingAndUnavailableDoNotCreateCards()
     {
         var notPlaying = OverlayCard.LocalListening(
             Character,
@@ -122,8 +129,7 @@ public sealed class OverlayCardTests
             new ListeningState(ListeningStatus.Unavailable, false, null, null),
             Now);
 
-        Assert.Equal("Nothing playing", notPlaying.Title);
-        Assert.Equal("Listening unavailable", unavailable.Title);
-        Assert.True(unavailable.IsStale);
+        Assert.Null(notPlaying);
+        Assert.Null(unavailable);
     }
 }

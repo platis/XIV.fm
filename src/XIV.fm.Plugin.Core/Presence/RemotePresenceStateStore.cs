@@ -35,6 +35,7 @@ public sealed class RemotePresenceStateStore
                         entry.Character.HomeWorldId),
                     entry.Listening,
                     now))
+                .OfType<OverlayCard>()
                 .ToImmutableArray();
         lock (this.gate)
         {

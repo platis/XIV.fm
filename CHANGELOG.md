@@ -4,6 +4,15 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.29] - 2026-07-29
+
+### Changed
+
+- Automatically select a newly created or joined Custom Relay and activate Custom visibility; when five audiences are already selected, the new Relay replaces the oldest selection.
+- Replace the Custom Relay management button with an expandable group table that loads group information and owner controls directly from each row’s disclosure arrow.
+- Hide local and remote listening cards when Last.fm reports nothing playing or no usable synchronized state instead of rendering status placeholders.
+- Default the plugin’s development-server field to the invited public test endpoint and migrate the previous untouched loopback default without replacing custom URLs.
+
 ## [0.1.28] - 2026-07-29
 
 ### Added

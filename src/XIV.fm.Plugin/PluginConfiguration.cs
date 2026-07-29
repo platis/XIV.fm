@@ -6,10 +6,15 @@ namespace XIV.fm.Plugin;
 
 public sealed class PluginConfiguration : IPluginConfiguration
 {
+    public const string DefaultDeveloperServerBaseUrl = "https://xivfm.168.138.129.70.sslip.io";
+
+    public const string LegacyDeveloperServerBaseUrl = "http://127.0.0.1:5080";
+
     public int Version { get; set; } = 9;
 
     public bool HasSeenAccountOnboarding { get; set; }
 
+    // Serialized name retained for configuration compatibility; this controls real listening cards.
     public bool ShowPlaceholderCards { get; set; } = true;
 
     public bool ShowOwnListeningCard { get; set; } = true;
@@ -36,7 +41,7 @@ public sealed class PluginConfiguration : IPluginConfiguration
 
     public bool DeveloperServerEnabled { get; set; }
 
-    public string DeveloperServerBaseUrl { get; set; } = "http://127.0.0.1:5080";
+    public string DeveloperServerBaseUrl { get; set; } = DefaultDeveloperServerBaseUrl;
 
     public string DeveloperInstallationCredential { get; set; } = string.Empty;
 

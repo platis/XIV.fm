@@ -41,7 +41,7 @@ public sealed class RelayCoordinator : IDisposable
     private readonly IRelayApiClient apiClient;
     private readonly Func<DutyParticipationPolicy> dutyPolicy;
     private readonly Func<ServerSyncSettings> settings;
-    private readonly Action<IReadOnlyCollection<Guid>> membershipsRefreshed;
+    private readonly Action<IReadOnlyCollection<Guid>, Guid?> membershipsRefreshed;
     private readonly string pluginVersion;
     private readonly ConcurrentQueue<Action> frameworkActions = new();
     private readonly CancellationTokenSource disposalCancellation = new();
@@ -55,7 +55,7 @@ public sealed class RelayCoordinator : IDisposable
         IRelayApiClient apiClient,
         Func<DutyParticipationPolicy> dutyPolicy,
         Func<ServerSyncSettings> settings,
-        Action<IReadOnlyCollection<Guid>> membershipsRefreshed,
+        Action<IReadOnlyCollection<Guid>, Guid?> membershipsRefreshed,
         string pluginVersion)
     {
         this.framework = framework;
@@ -114,8 +114,9 @@ public sealed class RelayCoordinator : IDisposable
                 var relays = await this.ListAsync(context, cancellationToken).ConfigureAwait(false);
                 return new RelayOperationCompletion(
                     relays,
+                    AutoSelectedRelayId: created.RelayId,
                     MembershipListIsAuthoritative: true,
-                    Message: $"Created {created.Name}.");
+                    Message: $"Created {created.Name} and selected it in Privacy.");
             },
             RelayRuntimeStatus.Working,
             out error);
@@ -171,8 +172,9 @@ public sealed class RelayCoordinator : IDisposable
                 var relays = await this.ListAsync(context, cancellationToken).ConfigureAwait(false);
                 return new RelayOperationCompletion(
                     relays,
+                    AutoSelectedRelayId: accepted.Relay.RelayId,
                     MembershipListIsAuthoritative: true,
-                    Message: $"Joined {accepted.Relay.Name}.");
+                    Message: $"Joined {accepted.Relay.Name} and selected it in Privacy.");
             },
             RelayRuntimeStatus.Working,
             out error);
@@ -502,7 +504,11 @@ public sealed class RelayCoordinator : IDisposable
                 completion.CreatedInvitationToken,
                 completion.Message));
         if (completion.MembershipListIsAuthoritative)
-            this.membershipsRefreshed(completion.Relays.Select(relay => relay.RelayId).ToArray());
+        {
+            this.membershipsRefreshed(
+                completion.Relays.Select(relay => relay.RelayId).ToArray(),
+                completion.AutoSelectedRelayId);
+        }
     }
 
     private void FailOperation(
@@ -613,6 +619,7 @@ public sealed class RelayCoordinator : IDisposable
         ImmutableArray<RelayInvitationResponse> Invitations = default,
         RelayInvitationPreviewResponse? InvitationPreview = null,
         string? CreatedInvitationToken = null,
+        Guid? AutoSelectedRelayId = null,
         bool MembershipListIsAuthoritative = false,
         string? Message = null);
 }

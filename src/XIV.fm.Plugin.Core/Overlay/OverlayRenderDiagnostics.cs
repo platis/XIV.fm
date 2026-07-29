@@ -1,7 +1,7 @@
 namespace XIV.fm.Plugin.Core.Overlay;
 
 /// <summary>
-/// Immutable counters for validating the placeholder player/nameplate rendering pipeline.
+/// Immutable counters for validating the listening-card player/nameplate rendering pipeline.
 /// </summary>
 public sealed record OverlayRenderDiagnostics(
     int RequestedCards,

@@ -17,10 +17,10 @@ public sealed class OverlayStateStoreTests
     {
         var store = new OverlayStateStore();
         var first = OverlaySnapshot.Create(
-            [OverlayCard.LocalPlaceholder(new CharacterIdentity("Alice Cat", 54))],
+            [CreateCard("Alice Cat", 54)],
             new DateTimeOffset(2026, 7, 18, 20, 0, 0, TimeSpan.Zero));
         var second = OverlaySnapshot.Create(
-            [OverlayCard.LocalPlaceholder(new CharacterIdentity("Bob Cat", 63))],
+            [CreateCard("Bob Cat", 63)],
             new DateTimeOffset(2026, 7, 18, 20, 0, 1, TimeSpan.Zero));
 
         store.Publish(first);
@@ -35,7 +35,7 @@ public sealed class OverlayStateStoreTests
     {
         var source = new List<OverlayCard>
         {
-            OverlayCard.LocalPlaceholder(new CharacterIdentity("Alice Cat", 54)),
+            CreateCard("Alice Cat", 54),
         };
 
         var snapshot = OverlaySnapshot.Create(source, DateTimeOffset.UtcNow);
@@ -49,4 +49,10 @@ public sealed class OverlayStateStoreTests
     {
         Assert.True(OverlaySnapshot.Empty.Cards.IsEmpty);
     }
+
+    private static OverlayCard CreateCard(string name, uint homeWorldId) => new(
+        new CharacterIdentity(name, homeWorldId),
+        "Track",
+        "Artist",
+        IsLocal: true);
 }

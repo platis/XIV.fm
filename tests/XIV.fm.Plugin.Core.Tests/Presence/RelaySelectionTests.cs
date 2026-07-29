@@ -37,4 +37,30 @@ public sealed class RelaySelectionTests
         Assert.False(RelaySelection.CanSelect(relayIds, Guid.NewGuid()));
         Assert.False(RelaySelection.CanSelect(relayIds, Guid.Empty));
     }
+
+    [Fact]
+    public void SelectAddsTheNewRelayAndKeepsItSelectedAtCapacity()
+    {
+        var relayIds = Enumerable.Range(0, RelaySelection.MaximumSelectedRelays)
+            .Select(_ => Guid.NewGuid())
+            .ToArray();
+        var newRelayId = Guid.NewGuid();
+
+        var selected = RelaySelection.Select(relayIds, newRelayId);
+
+        Assert.Equal(RelaySelection.MaximumSelectedRelays, selected.Length);
+        Assert.DoesNotContain(relayIds[0], selected);
+        Assert.Equal(newRelayId, selected[^1]);
+    }
+
+    [Fact]
+    public void SelectDoesNotDuplicateAnExistingRelay()
+    {
+        var relayIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
+
+        var selected = RelaySelection.Select(relayIds, relayIds[0]);
+
+        Assert.Equal(2, selected.Length);
+        Assert.Equal(relayIds[0], selected[^1]);
+    }
 }

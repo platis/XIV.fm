@@ -34,4 +34,19 @@ public static class RelaySelection
         var selected = Normalize(relayIds);
         return selected.Contains(relayId) || selected.Length < MaximumSelectedRelays;
     }
+
+    public static ImmutableArray<Guid> Select(IEnumerable<Guid>? relayIds, Guid relayId)
+    {
+        if (relayId == Guid.Empty)
+            return Normalize(relayIds);
+
+        var selected = Normalize(relayIds)
+            .Where(existingRelayId => existingRelayId != relayId)
+            .ToList();
+        if (selected.Count == MaximumSelectedRelays)
+            selected.RemoveAt(0);
+
+        selected.Add(relayId);
+        return Normalize(selected);
+    }
 }

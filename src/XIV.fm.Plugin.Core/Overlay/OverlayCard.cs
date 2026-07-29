@@ -14,50 +14,33 @@ public sealed record OverlayCard(
     bool IsLastFm = false,
     Uri? ArtworkUrl = null)
 {
-    public static OverlayCard LocalPlaceholder(CharacterIdentity character) => new(
-        character,
-        PlaceholderCard.Default.Title,
-        PlaceholderCard.Default.Artist,
-        IsLocal: true);
-
-    public static OverlayCard LocalListening(
+    public static OverlayCard? LocalListening(
         CharacterIdentity character,
         ListeningState listening,
-        DateTimeOffset now) => listening.Status switch
-        {
-            ListeningStatus.Playing when listening.Track is not null => new OverlayCard(
-                character,
-                listening.Track.Title,
-                listening.Track.Artist,
-                IsLocal: true,
-                IsStale: IsEffectivelyStale(listening, now),
-                IsLastFm: true,
-                ArtworkUrl: ArtworkUriPolicy.IsAllowed(listening.Track.AlbumArtUrl)
-                    ? listening.Track.AlbumArtUrl
-                    : null),
-            ListeningStatus.NotPlaying => new OverlayCard(
-                character,
-                "Nothing playing",
-                "No current track",
-                IsLocal: true,
-                IsStale: IsEffectivelyStale(listening, now),
-                IsLastFm: true),
-            _ => new OverlayCard(
-                character,
-                "Listening unavailable",
-                "Waiting for Last.fm",
-                IsLocal: true,
-                IsStale: true,
-                IsLastFm: true),
-        };
+        DateTimeOffset now)
+    {
+        if (listening.Status != ListeningStatus.Playing || listening.Track is null)
+            return null;
 
-    public static OverlayCard RemoteListening(
+        return new OverlayCard(
+            character,
+            listening.Track.Title,
+            listening.Track.Artist,
+            IsLocal: true,
+            IsStale: IsEffectivelyStale(listening, now),
+            IsLastFm: true,
+            ArtworkUrl: ArtworkUriPolicy.IsAllowed(listening.Track.AlbumArtUrl)
+                ? listening.Track.AlbumArtUrl
+                : null);
+    }
+
+    public static OverlayCard? RemoteListening(
         CharacterIdentity character,
         ListeningState listening,
         DateTimeOffset now)
     {
         var localShape = LocalListening(character, listening, now);
-        return localShape with { IsLocal = false };
+        return localShape is null ? null : localShape with { IsLocal = false };
     }
 
     public static OverlayCard RemotePlaceholder(CharacterIdentity character, int index) => new(
@@ -71,9 +54,6 @@ public sealed record OverlayCard(
         if (listening.IsStale || listening.ObservedAt is null)
             return listening.IsStale;
 
-        var maximumAge = listening.Status == ListeningStatus.Playing
-            ? TimeSpan.FromSeconds(60)
-            : TimeSpan.FromSeconds(180);
-        return now >= listening.ObservedAt.Value.Add(maximumAge);
+        return now >= listening.ObservedAt.Value.AddSeconds(60);
     }
 }

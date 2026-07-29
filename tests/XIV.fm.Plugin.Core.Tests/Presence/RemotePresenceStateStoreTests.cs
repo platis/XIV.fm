@@ -44,6 +44,27 @@ public sealed class RemotePresenceStateStoreTests
     }
 
     [Fact]
+    public void SnapshotOmitsCharactersWhoAreNotPlaying()
+    {
+        var store = new RemotePresenceStateStore();
+        var snapshot = CreateSnapshot(Location, Now.AddSeconds(20)) with
+        {
+            Entries =
+            [
+                new PresenceEntry(
+                    new CharacterIdentity("Quiet Cat", 55),
+                    new ListeningState(ListeningStatus.NotPlaying, false, Now, null)),
+                new PresenceEntry(
+                    new CharacterIdentity("Unknown Cat", 56),
+                    new ListeningState(ListeningStatus.Unavailable, false, null, null)),
+            ],
+        };
+
+        Assert.True(store.Apply(new SnapshotResult("v1", snapshot), Location, Now));
+        Assert.Empty(store.Read(Now));
+    }
+
+    [Fact]
     public void LifecycleClearRemovesCardsImmediately()
     {
         var store = new RemotePresenceStateStore();

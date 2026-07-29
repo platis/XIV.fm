@@ -27,11 +27,11 @@ Implemented:
 - A typed plugin network client and cancellable duty-aware development sync coordinator.
 - Ten-minute replay-protected Last.fm browser-link sessions, server-side ownership proof, canonical account persistence, and proof-gated installation credentials.
 - Normalized cached Last.fm listening state with Redis single-flight leases, a distributed 3.5-request/second budget, latency-oriented adaptive 15/20-second polling, jitter, backoff, circuit breaking, and explicit stale metadata through five-second sync.
-- Duty-gated plugin browser linking with automatic default-browser launch, persistent manual reopen/copy fallbacks, persisted installation credentials, real local playing/not-playing/unavailable cards, explicit stale metadata in sync/diagnostics, and Last.fm track/profile links.
+- Duty-gated plugin browser linking with automatic default-browser launch, persistent manual reopen/copy fallbacks, persisted installation credentials, playing-only local cards that disappear when nothing is playing or listening state is unavailable, explicit stale metadata in sync/diagnostics, and Last.fm track/profile links.
 - Private/Public selection, shared 20-second location snapshots with opaque versions and metrics, strict loaded-character matching, and server-authoritative remote listening cards.
 - Custom Relay ownership, bounded membership, soft deletion, replay-safe creation, hashed single-use invitations, join/leave/kick restrictions, and durable quota enforcement.
 - Membership-authorized Custom sync and shared Relay/location snapshots with revision-based immediate kick invalidation.
-- A brief first-run welcome with plain-language product guidance, direct Last.fm linking, and a GitHub link, followed by a cohesive FFXIV-style charcoal settings window with live link/sync states, safe Last.fm disconnection, Overlay controls, direct privacy choices, complete Custom Relay interaction, diagnostics, and private-test server configuration.
+- A brief first-run welcome with plain-language product guidance, direct Last.fm linking, and a GitHub link, followed by a cohesive FFXIV-style charcoal settings window with live link/sync states, safe Last.fm disconnection, Overlay controls, direct privacy choices, table-based Custom Relay details and owner controls, diagnostics, and private-test server configuration.
 - A native `.FM` server-info-bar shortcut that uses the bar’s default yellow while cards are visible and red while hidden; left-click toggles cards and right-click opens settings.
 - Independent global and own-card visibility controls, plus client-side remote distance filtering defaulting to 8 yalms and clamped to 1–20.
 - `/xivfm status` diagnostics for matching, range, projection, rendering, and location.
@@ -53,13 +53,13 @@ Save the settings, open the plugin installer, search for **XIV.fm**, and install
 
 ## Join the invited external test
 
-Open **XIV.fm Settings → Diagnostics → Development server**, enable **Use development server**, and enter:
+Open **XIV.fm Settings → Diagnostics → Development server** and enable **Use development server**. New installs default to the invited public test endpoint:
 
 ```text
 https://xivfm.168.138.129.70.sslip.io
 ```
 
-The endpoint is temporary and intended only for invited testing. At the product owner's direction, Last.fm artwork is enabled for this controlled test; linking, listening-state sync, Public presence, and Custom Relays are available.
+Existing untouched loopback defaults are migrated to this address; explicit custom development URLs remain unchanged. The endpoint is temporary and intended only for invited testing. At the product owner's direction, Last.fm artwork is enabled for this controlled test; linking, listening-state sync, Public presence, and Custom Relays are available.
 
 ## Documentation
 
@@ -77,7 +77,7 @@ The endpoint is temporary and intended only for invited testing. At the product 
 
 ```text
 src/XIV.fm.Contracts/          Versioned plugin/server transport contracts
-src/XIV.fm.Plugin/             Dalamud adapter and placeholder UI
+src/XIV.fm.Plugin/             Dalamud adapter and ImGui presentation
 src/XIV.fm.Plugin.Core/        Dalamud-independent plugin behavior
 src/XIV.fm.Plugin.Network/     Typed bounded HTTP client
 src/XIV.fm.Server.*/           API, Application, Domain, and Infrastructure modules
