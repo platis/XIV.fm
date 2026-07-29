@@ -193,6 +193,15 @@ public sealed class SettingsWindow : Window
             if (DrawSecondaryButton("Sync now"))
                 this.requestSync();
 
+            if (!this.confirmingDisconnect)
+            {
+                const string disconnectLabel = "Disconnect Last.fm";
+                ImGui.SameLine();
+                AlignNextButtonRight(disconnectLabel);
+                if (DrawOutlinedDangerButton(disconnectLabel))
+                    this.confirmingDisconnect = true;
+            }
+
             ImGui.Spacing();
             if (disconnect.Status == AccountDisconnectRuntimeStatus.Failed)
             {
@@ -203,11 +212,7 @@ public sealed class SettingsWindow : Window
             }
 
             if (!this.confirmingDisconnect)
-            {
-                if (DrawSecondaryButton("Disconnect Last.fm"))
-                    this.confirmingDisconnect = true;
                 return;
-            }
 
             DrawStatusPanel(
                 "Disconnect Last.fm?",
@@ -701,6 +706,33 @@ public sealed class SettingsWindow : Window
         finally
         {
             ImGui.PopStyleColor(3);
+            ImGui.PopStyleVar();
+        }
+    }
+
+    private static void AlignNextButtonRight(string label)
+    {
+        var buttonWidth = ImGui.CalcTextSize(label).X + (ImGui.GetStyle().FramePadding.X * 2f);
+        var availableWidth = ImGui.GetContentRegionAvail().X;
+        if (availableWidth > buttonWidth)
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + availableWidth - buttonWidth);
+    }
+
+    private static bool DrawOutlinedDangerButton(string label)
+    {
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, ImGuiHelpers.GlobalScale);
+        ImGui.PushStyleColor(ImGuiCol.Text, Danger);
+        ImGui.PushStyleColor(ImGuiCol.Border, WithAlpha(Danger, 0.78f));
+        ImGui.PushStyleColor(ImGuiCol.Button, Vector4.Zero);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, WithAlpha(Danger, 0.12f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, WithAlpha(Danger, 0.22f));
+        try
+        {
+            return ImGui.Button(label);
+        }
+        finally
+        {
+            ImGui.PopStyleColor(5);
             ImGui.PopStyleVar();
         }
     }

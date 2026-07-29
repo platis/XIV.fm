@@ -10,7 +10,6 @@ namespace XIV.fm.Plugin.UI;
 internal sealed class OverlayDtrBarController : IDisposable
 {
     private const string EntryTitle = "XIV.fm overlay";
-    private const string MusicSymbol = "♫";
     private const ushort EnabledColor = 43;
 
     private readonly IDtrBarEntry entry;
@@ -38,10 +37,12 @@ internal sealed class OverlayDtrBarController : IDisposable
         var enabled = this.isOverlayEnabled();
         this.entry.Text = enabled
             ? new SeStringBuilder()
-                .AddUiForeground(MusicSymbol, EnabledColor)
+                .AddUiForeground(EnabledColor)
+                .AddIcon(BitmapFontIcon.Bard)
+                .AddUiForegroundOff()
                 .Build()
             : new SeStringBuilder()
-                .AddText(MusicSymbol)
+                .AddIcon(BitmapFontIcon.Bard)
                 .Build();
         this.entry.Tooltip = new SeStringBuilder()
             .AddText(enabled

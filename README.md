@@ -32,7 +32,7 @@ Implemented:
 - Custom Relay ownership, bounded membership, soft deletion, replay-safe creation, hashed single-use invitations, join/leave/kick restrictions, and durable quota enforcement.
 - Membership-authorized Custom sync and shared Relay/location snapshots with revision-based immediate kick invalidation.
 - A brief first-run welcome with plain-language product guidance, direct Last.fm linking, and a GitHub link, followed by a cohesive FFXIV-style charcoal settings window with live link/sync states, safe Last.fm disconnection, Overlay controls, direct privacy choices, Relay states, diagnostics, and private-test server configuration.
-- A native server-info-bar music shortcut that left-clicks to show or hide listening cards and right-clicks to open settings.
+- A native server-info-bar Bard-icon shortcut that left-clicks to show or hide listening cards and right-clicks to open settings.
 - Client-side remote distance filtering, defaulting to 8 yalms and clamped to 1–20.
 - `/xivfm status` diagnostics for matching, range, projection, rendering, and location.
 - Unit-tested anchoring, identity, snapshot, and visibility behavior.
@@ -95,7 +95,7 @@ A private ARM64 backend stack is running on the development server with PostgreS
 /xivfm status       Print account, sync, and rendering diagnostics
 ```
 
-Remote mock state is disabled by default and exists only to validate matching, distance, and nameplate placement before server development. The music-note shortcut in the native server info bar mirrors the Overlay setting; its tooltip reports whether cards are visible.
+Remote mock state is disabled by default and exists only to validate matching, distance, and nameplate placement before server development. The Bard-icon shortcut in the native server info bar mirrors the Overlay setting; its tooltip reports whether cards are visible.
 
 The production client accepts HTTPS; explicit development mode additionally accepts loopback HTTP/HTTPS. `/xivfm link` stores the proof-gated opaque installation credential in Dalamud's local plugin configuration and sync begins automatically. Linking, polling, sync, and rendering all suspend while bound by duty.
 

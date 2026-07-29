@@ -4,6 +4,14 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Changed
+
+- Move the Last.fm disconnect action onto the connected-account action row and give it a lower-emphasis outlined danger treatment.
+
+### Fixed
+
+- Replace the unsupported Unicode music note in FFXIV's server info bar with the game's built-in Bard bitmap icon so the shortcut renders reliably.
+
 ## [0.1.21] - 2026-07-29
 
 ### Added
