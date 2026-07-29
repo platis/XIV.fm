@@ -4,6 +4,16 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.27] - 2026-07-29
+
+### Added
+
+- Add independent 50–150% size controls for the local listening card and other players’ cards.
+
+### Changed
+
+- Replace the server-info-bar `[FM]` shortcut with `.FM`, using the bar’s default yellow while cards are visible and red while hidden.
+
 ## [0.1.26] - 2026-07-29
 
 ### Changed

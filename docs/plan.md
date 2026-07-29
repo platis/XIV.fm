@@ -111,7 +111,7 @@ _Status: complete; automated and disposable durable-stack validation passed_
 
 ## Phase 6 — final UX and visual design
 
-_Status: in progress; account-link/settings foundation implemented_
+_Status: product-owner accepted through v0.1.26; final card-scale and DTR refinements await in-game confirmation_
 
 This phase is intentionally collaborative with the product owner.
 
@@ -120,18 +120,20 @@ This phase is intentionally collaborative with the product owner.
   - `/xivfm` and Dalamud's configuration button open settings directly after onboarding.
   - Diagnostics exposes explicit loopback/private-test server selection so unreleased server builds can be linked without weakening production URL validation.
 - [x] Replace the fixed standing-height card offset with the game's current pose-aware nameplate world position.
-  - The read-only native boundary and safety review are recorded in [`ADR 0001`](adr/0001-pose-aware-nameplate-anchor.md); standing, sitting, ground-sitting, lying, mounted, and transformed states still require in-game acceptance.
-- [ ] Design Account, Overlay, Privacy, Custom Relays, and Diagnostics settings.
-  - The current review candidate uses a restrained FFXIV-style charcoal surface system, consistent spacing and rounding, an Account-first hierarchy, direct privacy choices, distinct status tones, and a clearly separated advanced diagnostics area. The settings bounds are 30% smaller with responsive choice cards and account actions. A native server-info-bar shortcut provides immediate card visibility control without opening settings, while Overlay can independently hide the local card. Custom Relay interaction now covers creation, direct invitation acceptance, Privacy-owned audience selection, leave, and owner management for names, invitations, members, and deletion; broader in-game visual acceptance remains.
-  - v0.1.21 in-game acceptance confirmed onboarding, account link/disconnect/relink, opacity, and settings behavior. The Unicode note and later Bard icon were rejected in-game; the final shortcut uses a compact `[FM]` label, green while cards are visible and gold while hidden. The disconnect action is inline with an outlined danger treatment.
+  - The read-only native boundary and safety review are recorded in [`ADR 0001`](adr/0001-pose-aware-nameplate-anchor.md). Product-owner testing with mock cards accepted representative races, character heights, standing and alternate poses, and different nearby-player counts.
+- [x] Design Account, Overlay, Privacy, Custom Relays, and Diagnostics settings.
+  - The accepted settings use a restrained FFXIV-style charcoal surface system, consistent spacing and rounding, an Account-first hierarchy, direct privacy choices, distinct status tones, and a clearly separated advanced diagnostics area. The settings bounds are 30% smaller with responsive choice cards and account actions. A native server-info-bar shortcut provides immediate card visibility control without opening settings, while Overlay can independently hide and size the local card separately from other players’ cards. Custom Relay interaction covers creation, direct invitation acceptance, Privacy-owned audience selection, leave, and owner management for names, invitations, members, and deletion.
+  - v0.1.21 in-game acceptance confirmed onboarding, account link/disconnect/relink, opacity, and settings behavior; v0.1.26 accepted the streamlined Privacy and Relay flow. The Unicode note, Bard icon, and bracketed label were rejected in-game; the current shortcut uses `.FM`, default server-bar yellow while visible and red while hidden. The disconnect action is inline with an outlined danger treatment.
 - [x] Finalize the card's visual design: typography, sizing, spacing, conditional artwork layout, and surface treatment.
-  - Product-owner refinement established the final visual baseline: content-sized up to 297×75.2 px with uniform 10 px outer padding, 55.2×55.2 conditional artwork explicitly centered with no reserved gap or fallback when unavailable, a 10 px artwork-to-text gap, bottom-aligned 20%-larger close-set typography, ellipsized overflow, a configurable FFXIV-style charcoal surface defaulting to 60% opacity, no plugin/provider label, and a 0.4-yalm world-space safety height. The SVG records the maximum-width artwork layout.
+  - Product-owner refinement established the final visual baseline: content-sized up to 297×75.2 px with uniform 10 px outer padding, 55.2×55.2 conditional artwork explicitly centered with no reserved gap or fallback when unavailable, a 10 px artwork-to-text gap, bottom-aligned 20%-larger close-set typography, ellipsized overflow, a configurable FFXIV-style charcoal surface defaulting to 60% opacity, independent 50–150% local/other-player scaling, no plugin/provider label, and a 0.4-yalm world-space safety height. The SVG records the maximum-width artwork layout.
   - The bounded background texture pipeline retires covers no longer referenced by the snapshot and retries transient loads with backoff; listening-state changes request an immediate card snapshot refresh.
   - Last.fm artwork is disabled by default. The private development backend may explicitly enable image mapping for in-game testing, but public rollout remains blocked until permission is recorded.
-- [ ] Complete card animation, accessibility, UI-scale, obstruction, and broader in-game validation.
-- [ ] Add preview tools without mixing them into production state.
-- [ ] Test common resolutions, UI scales, character races/heights, crowded cities, duties, login screens, and controller use.
-- [ ] Conduct privacy copy and consent review.
+- [x] Complete card motion, legibility, UI-scale, obstruction, and broader in-game validation for the current prerelease scope.
+  - Cards deliberately follow projected nameplates without delayed motion. Full HD and HD were accepted at default UI scale; HD can optionally use the independent card-size controls. Mock-card testing covered representative races, poses, and nearby-player counts. Duty entry/exit was validated separately.
+  - Controller-specific navigation and a broader hardware matrix are deferred to the private alpha rather than blocking the approved design.
+- [x] Add preview tools without mixing them into production state.
+  - Developer-only remote mock cards exercise the real renderer without publishing production presence.
+- [x] Conduct privacy copy and consent review collaboratively through the accepted Account, Privacy, and Custom Relay flows.
 
 **Exit:** behavior is stable and the approved design is implemented without changing core contracts.
 
@@ -150,6 +152,6 @@ This phase is intentionally collaborative with the product owner.
 
 ## Immediate next steps
 
-1. Extend the successful Phase 3 private-server validation to multiple linked accounts and Phase 4–5 social presence.
-2. Validate the Phase 6 Custom Relay, privacy, diagnostics, and card UX in game and refine it collaboratively.
-3. Keep public rollout blocked on the Last.fm approval and capacity gates recorded for Phase 7.
+1. Validate the final independent card-size controls and `.FM` server-info-bar states in game, then close Phase 6.
+2. Defer manual multi-account social testing to the private alpha; existing automated and disposable-stack coverage remains the current acceptance basis.
+3. Begin Phase 7 production hardening while keeping public rollout blocked on the Last.fm approval and capacity gates.

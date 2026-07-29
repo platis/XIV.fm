@@ -54,7 +54,7 @@ public sealed class Plugin : IDalamudPlugin
         this.chatGui = chatGui;
         this.condition = condition;
         this.configuration = pluginInterface.GetPluginConfig() as PluginConfiguration ?? new PluginConfiguration();
-        this.configuration.Version = 7;
+        this.configuration.Version = 8;
         this.configuration.ServerBaseUrl ??= "https://xiv.fm";
         this.configuration.InstallationCredential ??= string.Empty;
         this.configuration.PendingLinkCredential ??= string.Empty;
@@ -66,6 +66,8 @@ public sealed class Plugin : IDalamudPlugin
             this.configuration.Visibility = VisibilityMode.Private;
         this.configuration.RemoteCardDistanceYalms = this.configuration.NormalizedRemoteCardDistanceYalms;
         this.configuration.CardOpacityPercent = this.configuration.NormalizedCardOpacityPercent;
+        this.configuration.OwnCardSizePercent = this.configuration.NormalizedOwnCardSizePercent;
+        this.configuration.OtherCardSizePercent = this.configuration.NormalizedOtherCardSizePercent;
 
         this.overlayDtrBarController = new OverlayDtrBarController(
             dtrBar,
@@ -87,7 +89,9 @@ public sealed class Plugin : IDalamudPlugin
             () => this.configuration.ShowPlaceholderCards && this.CurrentDutyPolicy.AllowsOverlay,
             () => this.configuration.ShowOwnListeningCard,
             () => this.configuration.NormalizedRemoteCardDistanceYalms,
-            () => CardAppearance.ToOpacity(this.configuration.NormalizedCardOpacityPercent));
+            () => CardAppearance.ToOpacity(this.configuration.NormalizedCardOpacityPercent),
+            () => CardAppearance.ToScale(this.configuration.NormalizedOwnCardSizePercent),
+            () => CardAppearance.ToScale(this.configuration.NormalizedOtherCardSizePercent));
         DevelopmentOverlayCoordinator? overlayCoordinator = null;
         this.serverSyncCoordinator = new ServerSyncCoordinator(
             framework,
@@ -467,7 +471,7 @@ public sealed class Plugin : IDalamudPlugin
             ? $"{height:F2} yalms"
             : "unavailable";
         this.chatGui.Print(
-            $"Cards: {cards}; own card: {ownCard}; Last.fm: {linkDetail}; visibility: {this.configuration.Visibility.ToString().ToLowerInvariant()}; opacity: {this.configuration.NormalizedCardOpacityPercent}%; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; sync: {syncDetail}; snapshot: {snapshot.Cards.Length}; anchor height: {anchorHeight}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
+            $"Cards: {cards}; own card: {ownCard}; Last.fm: {linkDetail}; visibility: {this.configuration.Visibility.ToString().ToLowerInvariant()}; opacity: {this.configuration.NormalizedCardOpacityPercent}%; card size own/others: {this.configuration.NormalizedOwnCardSizePercent}%/{this.configuration.NormalizedOtherCardSizePercent}%; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; sync: {syncDetail}; snapshot: {snapshot.Cards.Length}; anchor height: {anchorHeight}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
             "XIV.fm");
     }
 }

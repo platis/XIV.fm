@@ -6,7 +6,7 @@ namespace XIV.fm.Plugin;
 
 public sealed class PluginConfiguration : IPluginConfiguration
 {
-    public int Version { get; set; } = 7;
+    public int Version { get; set; } = 8;
 
     public bool HasSeenAccountOnboarding { get; set; }
 
@@ -42,9 +42,19 @@ public sealed class PluginConfiguration : IPluginConfiguration
 
     public int CardOpacityPercent { get; set; } = CardAppearance.DefaultOpacityPercent;
 
+    public int OwnCardSizePercent { get; set; } = CardAppearance.DefaultSizePercent;
+
+    public int OtherCardSizePercent { get; set; } = CardAppearance.DefaultSizePercent;
+
     public int NormalizedRemoteCardDistanceYalms =>
         OverlayVisibility.NormalizeRemoteDistance(this.RemoteCardDistanceYalms);
 
     public int NormalizedCardOpacityPercent =>
         CardAppearance.NormalizeOpacityPercent(this.CardOpacityPercent);
+
+    public int NormalizedOwnCardSizePercent =>
+        CardAppearance.NormalizeSizePercent(this.OwnCardSizePercent);
+
+    public int NormalizedOtherCardSizePercent =>
+        CardAppearance.NormalizeSizePercent(this.OtherCardSizePercent);
 }

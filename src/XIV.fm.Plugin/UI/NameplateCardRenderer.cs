@@ -44,6 +44,8 @@ public sealed class NameplateCardRenderer
     private readonly Func<bool> showOwnCard;
     private readonly Func<int> remoteDistanceYalms;
     private readonly Func<float> cardOpacity;
+    private readonly Func<float> ownCardScale;
+    private readonly Func<float> otherCardScale;
     private OverlayRenderDiagnostics diagnostics = OverlayRenderDiagnostics.Empty;
     private DateTimeOffset nextDiagnosticsPublishAt = DateTimeOffset.MinValue;
 
@@ -55,7 +57,9 @@ public sealed class NameplateCardRenderer
         Func<bool> isEnabled,
         Func<bool> showOwnCard,
         Func<int> remoteDistanceYalms,
-        Func<float> cardOpacity)
+        Func<float> cardOpacity,
+        Func<float> ownCardScale,
+        Func<float> otherCardScale)
     {
         this.objectTable = objectTable;
         this.gameGui = gameGui;
@@ -65,6 +69,8 @@ public sealed class NameplateCardRenderer
         this.showOwnCard = showOwnCard;
         this.remoteDistanceYalms = remoteDistanceYalms;
         this.cardOpacity = cardOpacity;
+        this.ownCardScale = ownCardScale;
+        this.otherCardScale = otherCardScale;
     }
 
     public OverlayRenderDiagnostics Diagnostics => Volatile.Read(ref this.diagnostics);
@@ -150,7 +156,8 @@ public sealed class NameplateCardRenderer
 
     private void DrawCard(OverlayCard card, Vector2 screenAnchor)
     {
-        var scale = ImGuiHelpers.GlobalScale;
+        var configuredScale = card.IsLocal ? this.ownCardScale() : this.otherCardScale();
+        var scale = ImGuiHelpers.GlobalScale * Math.Clamp(configuredScale, 0.5f, 1.5f);
         var opacity = Math.Clamp(this.cardOpacity(), 0f, 1f);
         var hasArtwork = this.artworkCache.TryGet(card.ArtworkUrl, out var artwork) && artwork is not null;
         var leadingContentWidth = hasArtwork ? ArtworkSize + TextGap : 0f;

@@ -19,4 +19,20 @@ public sealed class CardAppearanceTests
     {
         Assert.Equal(expected, CardAppearance.NormalizeOpacityPercent(configured));
     }
+
+    [Fact]
+    public void DefaultCardSizeIsOneHundredPercent()
+    {
+        Assert.Equal(100, CardAppearance.DefaultSizePercent);
+        Assert.Equal(1f, CardAppearance.ToScale(CardAppearance.DefaultSizePercent));
+    }
+
+    [Theory]
+    [InlineData(49, 50)]
+    [InlineData(100, 100)]
+    [InlineData(151, 150)]
+    public void CardSizeIsClamped(int configured, int expected)
+    {
+        Assert.Equal(expected, CardAppearance.NormalizeSizePercent(configured));
+    }
 }

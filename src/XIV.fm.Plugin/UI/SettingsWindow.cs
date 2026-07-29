@@ -418,6 +418,57 @@ public sealed class SettingsWindow : Window
         ImGui.Separator();
         ImGui.Spacing();
 
+        ImGui.TextUnformatted("Card size");
+        ImGui.TextDisabled("Scale your card and other players’ cards independently.");
+        ImGui.Spacing();
+
+        ImGui.TextUnformatted("My card");
+        var ownCardSize = this.configuration.NormalizedOwnCardSizePercent;
+        ImGui.SetNextItemWidth(-1f);
+        if (ImGui.SliderInt(
+                "##XIV.fm.OwnCardSize",
+                ref ownCardSize,
+                CardAppearance.MinimumSizePercent,
+                CardAppearance.MaximumSizePercent,
+                "%d%%"))
+        {
+            this.configuration.OwnCardSizePercent = CardAppearance.NormalizeSizePercent(ownCardSize);
+            changed = true;
+        }
+
+        ImGui.TextUnformatted("Other players’ cards");
+        var otherCardSize = this.configuration.NormalizedOtherCardSizePercent;
+        ImGui.SetNextItemWidth(-1f);
+        if (ImGui.SliderInt(
+                "##XIV.fm.OtherCardSize",
+                ref otherCardSize,
+                CardAppearance.MinimumSizePercent,
+                CardAppearance.MaximumSizePercent,
+                "%d%%"))
+        {
+            this.configuration.OtherCardSizePercent = CardAppearance.NormalizeSizePercent(otherCardSize);
+            changed = true;
+        }
+
+        if (ownCardSize != CardAppearance.DefaultSizePercent ||
+            otherCardSize != CardAppearance.DefaultSizePercent)
+        {
+            if (DrawSecondaryButton("Reset sizes to 100%"))
+            {
+                this.configuration.OwnCardSizePercent = CardAppearance.DefaultSizePercent;
+                this.configuration.OtherCardSizePercent = CardAppearance.DefaultSizePercent;
+                changed = true;
+            }
+        }
+        else
+        {
+            ImGui.TextDisabled("100% · default");
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
         ImGui.TextUnformatted("Nearby listener distance");
         ImGui.TextDisabled("Only cards belonging to other players are filtered by distance.");
         ImGui.Spacing();
@@ -932,6 +983,8 @@ public sealed class SettingsWindow : Window
         DrawKeyValue("Sync", sync.Status.ToString());
         DrawKeyValue("Visibility", this.configuration.Visibility.ToString());
         DrawKeyValue("Card opacity", $"{this.configuration.NormalizedCardOpacityPercent}%");
+        DrawKeyValue("My card size", $"{this.configuration.NormalizedOwnCardSizePercent}%");
+        DrawKeyValue("Other card size", $"{this.configuration.NormalizedOtherCardSizePercent}%");
         DrawKeyValue("Own card", this.configuration.ShowOwnListeningCard ? "Visible" : "Hidden");
         DrawKeyValue("Location", snapshot.Location?.ToString() ?? "Unavailable");
         DrawKeyValue("Snapshot cards", snapshot.Cards.Length.ToString(CultureInfo.InvariantCulture));
