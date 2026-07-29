@@ -31,7 +31,7 @@ Implemented:
 - Private/Public selection, shared 20-second location snapshots with opaque versions and metrics, strict loaded-character matching, and server-authoritative remote listening cards.
 - Custom Relay ownership, bounded membership, soft deletion, replay-safe creation, hashed single-use invitations, join/leave/kick restrictions, and durable quota enforcement.
 - Membership-authorized Custom sync and shared Relay/location snapshots with revision-based immediate kick invalidation.
-- A brief first-run welcome with plain-language product guidance, direct Last.fm linking, and a GitHub link, followed by a cohesive FFXIV-style charcoal settings window with live link/sync states, safe Last.fm disconnection, Overlay controls, direct privacy choices, Relay states, diagnostics, and private-test server configuration.
+- A brief first-run welcome with plain-language product guidance, direct Last.fm linking, and a GitHub link, followed by a cohesive FFXIV-style charcoal settings window with live link/sync states, safe Last.fm disconnection, Overlay controls, direct privacy choices, complete Custom Relay interaction, diagnostics, and private-test server configuration.
 - A native `[FM]` server-info-bar shortcut that is green while cards are visible and gold while hidden; left-click toggles cards and right-click opens settings.
 - Independent global and own-card visibility controls, plus client-side remote distance filtering defaulting to 8 yalms and clamped to 1–20.
 - `/xivfm status` diagnostics for matching, range, projection, rendering, and location.
@@ -39,7 +39,6 @@ Implemented:
 
 Not yet implemented:
 
-- Custom Relay management and audience selection in the settings window.
 - Final settings design plus card accessibility, animation, obstruction, and multi-resolution validation.
 - Public use of provider album covers, which remains blocked until an artwork source grants appropriate permission; private development can explicitly opt in for testing.
 

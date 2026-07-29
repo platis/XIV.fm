@@ -6,6 +6,7 @@ using Dalamud.Interface.Windowing;
 using XIV.fm.Contracts.V1;
 using XIV.fm.Plugin.Core.Overlay;
 using XIV.fm.Plugin.Core.Policy;
+using XIV.fm.Plugin.Core.Presence;
 using XIV.fm.Plugin.Core.Sync;
 using XIV.fm.Plugin.Network;
 
@@ -36,7 +37,16 @@ public sealed class SettingsWindow : Window
     private readonly Func<SyncRuntimeState> syncState;
     private readonly Func<OverlaySnapshot> overlaySnapshot;
     private readonly Func<OverlayRenderDiagnostics> renderDiagnostics;
+    private readonly RelayCoordinator relayCoordinator;
     private string? interactionMessage;
+    private string newRelayName = string.Empty;
+    private string invitationToken = string.Empty;
+    private string previewedInvitationToken = string.Empty;
+    private string renameRelayName = string.Empty;
+    private Guid? renameRelayId;
+    private Guid? confirmingLeaveRelayId;
+    private Guid? confirmingDeleteRelayId;
+    private Guid? confirmingKickMembershipId;
     private bool confirmingDisconnect;
 
     public SettingsWindow(
@@ -53,7 +63,8 @@ public sealed class SettingsWindow : Window
         Func<AccountDisconnectRuntimeState> disconnectState,
         Func<SyncRuntimeState> syncState,
         Func<OverlaySnapshot> overlaySnapshot,
-        Func<OverlayRenderDiagnostics> renderDiagnostics)
+        Func<OverlayRenderDiagnostics> renderDiagnostics,
+        RelayCoordinator relayCoordinator)
         : base("XIV.fm###XIV.fm.Settings")
     {
         this.configuration = configuration;
@@ -70,6 +81,7 @@ public sealed class SettingsWindow : Window
         this.syncState = syncState;
         this.overlaySnapshot = overlaySnapshot;
         this.renderDiagnostics = renderDiagnostics;
+        this.relayCoordinator = relayCoordinator;
         this.SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(434f, 350f),
@@ -471,12 +483,19 @@ public sealed class SettingsWindow : Window
             this.SetVisibility(VisibilityMode.Public);
         }
 
-        DrawChoiceCard(
-            "XIV.fm.Visibility.Custom",
-            "Custom Relays · Coming soon",
-            "Share only with invitation-based groups you choose.",
-            visibility == VisibilityMode.Custom,
-            false);
+        var selectedRelayCount = this.configuration.SelectedRelayIds.Count;
+        var customEnabled = this.hasInstallationCredential() && selectedRelayCount > 0;
+        if (DrawChoiceCard(
+                "XIV.fm.Visibility.Custom",
+                "Custom Relays",
+                customEnabled
+                    ? $"Share with {selectedRelayCount} selected Relay{(selectedRelayCount == 1 ? string.Empty : "s")}."
+                    : "Choose at least one joined Relay on the Relays tab first.",
+                visibility == VisibilityMode.Custom,
+                customEnabled))
+        {
+            this.SetVisibility(VisibilityMode.Custom);
+        }
 
         ImGui.Spacing();
         ImGui.TextDisabled("Changing this setting requests an immediate sync.");
@@ -486,13 +505,402 @@ public sealed class SettingsWindow : Window
     {
         DrawSectionHeader(
             "Custom Relays",
-            "Private, invitation-based audiences for the people you choose.");
+            "Create or join private audiences, then choose up to five for your listening presence.");
 
-        var body = this.hasInstallationCredential()
-            ? "Relay creation, invitations, membership, and audience selection are coming to this screen. Until then, choose Private or Public."
-            : "Connect Last.fm first. Relays will be tied securely to your linked XIV.fm account.";
-        DrawStatusPanel("Coming soon", body, Neutral);
+        if (!this.hasInstallationCredential())
+        {
+            DrawStatusPanel(
+                "Connect Last.fm first",
+                "Relays are tied securely to your linked XIV.fm account.",
+                Neutral);
+            return;
+        }
+
+        var duty = this.dutyPolicy();
+        var state = this.relayCoordinator.State;
+        var requestBusy = state.Status is RelayRuntimeStatus.Loading or RelayRuntimeStatus.Working;
+        var busy = requestBusy || !string.IsNullOrWhiteSpace(state.CreatedInvitationToken);
+        if (state.Status == RelayRuntimeStatus.SuspendedDuty || !duty.AllowsServerRequests)
+        {
+            DrawStatusPanel(
+                "Paused while in duty",
+                "Relay information remains visible, but XIV.fm makes no Relay requests while you are duty-bound.",
+                Warning);
+        }
+        else if (requestBusy)
+        {
+            DrawStatusPanel("Working", state.Message ?? "Updating Custom Relays…", Warning);
+        }
+        else if (!string.IsNullOrWhiteSpace(state.Error))
+        {
+            DrawStatusPanel("Relay action failed", state.Error, Danger);
+        }
+        else if (!string.IsNullOrWhiteSpace(state.Message))
+        {
+            DrawStatusPanel("Custom Relays", state.Message, Success);
+        }
+
+        if (!duty.AllowsServerRequests || busy)
+            ImGui.BeginDisabled();
+        if (DrawSecondaryButton("Refresh"))
+            this.RunRelayAction(this.relayCoordinator.TryRefresh);
+        if (!duty.AllowsServerRequests || busy)
+            ImGui.EndDisabled();
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Join with an invitation");
+        ImGui.TextDisabled("Invitation tokens are secret, expiring, and single-use.");
+        ImGui.SetNextItemWidth(-1f);
+        ImGui.InputText(
+            "##XIV.fm.RelayInvitationToken",
+            ref this.invitationToken,
+            512,
+            ImGuiInputTextFlags.Password);
+
+        if (!duty.AllowsServerRequests || busy)
+            ImGui.BeginDisabled();
+        if (DrawSecondaryButton("Preview invitation"))
+        {
+            if (this.relayCoordinator.TryPreviewInvitation(this.invitationToken, out var error))
+            {
+                this.previewedInvitationToken = this.invitationToken.Trim();
+                this.interactionMessage = null;
+            }
+            else
+            {
+                this.interactionMessage = error;
+            }
+        }
+        if (!duty.AllowsServerRequests || busy)
+            ImGui.EndDisabled();
+
+        if (state.InvitationPreview is { } preview &&
+            string.Equals(this.previewedInvitationToken, this.invitationToken.Trim(), StringComparison.Ordinal))
+        {
+            DrawStatusPanel(
+                preview.RelayName,
+                $"This invitation expires {FormatTimestamp(preview.ExpiresAt)}. Join only if you recognize this Relay.",
+                Accent);
+            if (!duty.AllowsServerRequests || busy)
+                ImGui.BeginDisabled();
+            if (DrawPrimaryButton("Join Relay"))
+            {
+                if (this.relayCoordinator.TryAcceptInvitation(this.invitationToken, out var error))
+                {
+                    this.invitationToken = string.Empty;
+                    this.previewedInvitationToken = string.Empty;
+                }
+                else
+                    this.interactionMessage = error;
+            }
+
+            if (!duty.AllowsServerRequests || busy)
+                ImGui.EndDisabled();
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Create a Relay");
+        ImGui.TextDisabled("Names are 3–48 characters. You can own up to three active Relays.");
+        ImGui.SetNextItemWidth(-1f);
+        ImGui.InputText("##XIV.fm.NewRelayName", ref this.newRelayName, 96);
+        if (!duty.AllowsServerRequests || busy)
+            ImGui.BeginDisabled();
+        if (DrawPrimaryButton("Create Relay"))
+        {
+            if (this.relayCoordinator.TryCreate(this.newRelayName, out var error))
+                this.newRelayName = string.Empty;
+            else
+                this.interactionMessage = error;
+        }
+
+        if (!duty.AllowsServerRequests || busy)
+            ImGui.EndDisabled();
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Your Relays");
+        if (state.Relays.IsEmpty)
+        {
+            ImGui.TextDisabled(state.Status == RelayRuntimeStatus.Idle
+                ? "Refresh to load your joined Relays."
+                : "You haven’t joined any Relays yet.");
+        }
+        else
+        {
+            foreach (var relay in state.Relays)
+                this.DrawRelay(relay, state, duty, busy);
+        }
+
+        if (!string.IsNullOrWhiteSpace(this.interactionMessage))
+        {
+            ImGui.Spacing();
+            DrawStatusPanel("Status", this.interactionMessage, Neutral);
+        }
     }
+
+    private void DrawRelay(
+        RelayResponse relay,
+        RelayRuntimeState state,
+        DutyParticipationPolicy duty,
+        bool busy)
+    {
+        ImGui.PushID(relay.RelayId.ToString("D"));
+        try
+        {
+            var role = relay.IsOwner ? "Owner" : "Member";
+            if (!ImGui.CollapsingHeader($"{relay.Name}  ·  {role}  ·  {relay.MemberCount} member{(relay.MemberCount == 1 ? string.Empty : "s")}"))
+                return;
+
+            var selected = this.configuration.SelectedRelayIds.Contains(relay.RelayId);
+            var canSelect = selected || RelaySelection.CanSelect(
+                this.configuration.SelectedRelayIds,
+                relay.RelayId);
+            if (!canSelect)
+                ImGui.BeginDisabled();
+            if (ImGui.Checkbox("Use as a Custom audience", ref selected))
+                this.SetRelaySelected(relay.RelayId, selected);
+            if (!canSelect)
+                ImGui.EndDisabled();
+            if (!canSelect)
+                ImGui.TextDisabled("You can select up to five Relays.");
+
+            if (!duty.AllowsServerRequests || busy)
+                ImGui.BeginDisabled();
+            if (relay.IsOwner)
+            {
+                if (DrawSecondaryButton(state.ManagedRelayId == relay.RelayId ? "Reload management" : "Manage Relay"))
+                {
+                    this.renameRelayId = relay.RelayId;
+                    this.renameRelayName = relay.Name;
+                    this.RunRelayAction((out string? error) => this.relayCoordinator.TryLoadManagement(relay.RelayId, out error));
+                }
+            }
+            else if (this.confirmingLeaveRelayId != relay.RelayId)
+            {
+                if (DrawOutlinedDangerButton("Leave Relay"))
+                    this.confirmingLeaveRelayId = relay.RelayId;
+            }
+
+            if (!duty.AllowsServerRequests || busy)
+                ImGui.EndDisabled();
+
+            if (this.confirmingLeaveRelayId == relay.RelayId)
+            {
+                DrawStatusPanel(
+                    "Leave this Relay?",
+                    "You’ll stop receiving its presence immediately and will need a new invitation to return.",
+                    Warning);
+                if (!duty.AllowsServerRequests || busy)
+                    ImGui.BeginDisabled();
+                if (DrawDangerButton("Leave"))
+                {
+                    if (this.relayCoordinator.TryLeave(relay.RelayId, out var error))
+                        this.confirmingLeaveRelayId = null;
+                    else
+                        this.interactionMessage = error;
+                }
+
+                if (!duty.AllowsServerRequests || busy)
+                    ImGui.EndDisabled();
+                ImGui.SameLine();
+                if (DrawSecondaryButton("Cancel"))
+                    this.confirmingLeaveRelayId = null;
+            }
+
+            if (relay.IsOwner && state.ManagedRelayId == relay.RelayId)
+                this.DrawRelayManagement(relay, state, duty, busy);
+        }
+        finally
+        {
+            ImGui.PopID();
+        }
+    }
+
+    private void DrawRelayManagement(
+        RelayResponse relay,
+        RelayRuntimeState state,
+        DutyParticipationPolicy duty,
+        bool busy)
+    {
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.TextUnformatted("Owner controls");
+
+        if (this.renameRelayId != relay.RelayId)
+        {
+            this.renameRelayId = relay.RelayId;
+            this.renameRelayName = relay.Name;
+        }
+
+        ImGui.SetNextItemWidth(-1f);
+        ImGui.InputText("##RenameRelay", ref this.renameRelayName, 96);
+        if (!duty.AllowsServerRequests || busy)
+            ImGui.BeginDisabled();
+        if (DrawSecondaryButton("Rename"))
+            this.RunRelayAction((out string? error) => this.relayCoordinator.TryRename(relay.RelayId, this.renameRelayName, out error));
+        if (!duty.AllowsServerRequests || busy)
+            ImGui.EndDisabled();
+
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Invitations");
+        ImGui.TextDisabled("Each invitation expires within seven days and can be used once.");
+        if (!duty.AllowsServerRequests || busy)
+            ImGui.BeginDisabled();
+        if (DrawPrimaryButton("Create invitation"))
+            this.RunRelayAction((out string? error) => this.relayCoordinator.TryCreateInvitation(relay.RelayId, out error));
+        if (!duty.AllowsServerRequests || busy)
+            ImGui.EndDisabled();
+
+        if (!string.IsNullOrWhiteSpace(state.CreatedInvitationToken))
+        {
+            DrawStatusPanel(
+                "Copy this invitation now",
+                "The secret is shown only once. Send it privately to one person.",
+                Warning);
+            var secret = state.CreatedInvitationToken;
+            ImGui.SetNextItemWidth(-1f);
+            ImGui.InputText("##CreatedInvitationToken", ref secret, 512, ImGuiInputTextFlags.ReadOnly);
+            if (DrawPrimaryButton("Copy invitation"))
+            {
+                ImGui.SetClipboardText(secret);
+                this.interactionMessage = "Invitation copied to the clipboard.";
+            }
+
+            ImGui.SameLine();
+            if (DrawSecondaryButton("I’ve saved it"))
+                this.relayCoordinator.ClearInvitationSecret();
+            return;
+        }
+
+        foreach (var invitation in state.Invitations)
+        {
+            var invitationState = invitation.AcceptedAt is not null ? "Used" : "Active";
+            ImGui.TextWrapped($"{invitationState} · expires {FormatTimestamp(invitation.ExpiresAt)}");
+            if (invitation.AcceptedAt is null)
+            {
+                ImGui.SameLine();
+                if (!duty.AllowsServerRequests || busy)
+                    ImGui.BeginDisabled();
+                if (DrawOutlinedDangerButton($"Revoke##{invitation.InvitationId:D}"))
+                {
+                    this.RunRelayAction((out string? error) => this.relayCoordinator.TryRevokeInvitation(
+                        relay.RelayId,
+                        invitation.InvitationId,
+                        out error));
+                }
+
+                if (!duty.AllowsServerRequests || busy)
+                    ImGui.EndDisabled();
+            }
+        }
+
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Members");
+        foreach (var member in state.Members)
+        {
+            ImGui.TextWrapped($"{member.LastFmAccountName}{(member.IsOwner ? " · Owner" : string.Empty)}");
+            if (member.IsOwner)
+                continue;
+
+            ImGui.SameLine();
+            if (this.confirmingKickMembershipId == member.MembershipId)
+            {
+                if (!duty.AllowsServerRequests || busy)
+                    ImGui.BeginDisabled();
+                if (DrawDangerButton($"Confirm remove##{member.MembershipId:D}"))
+                {
+                    if (this.relayCoordinator.TryKickMember(relay.RelayId, member.MembershipId, out var error))
+                        this.confirmingKickMembershipId = null;
+                    else
+                        this.interactionMessage = error;
+                }
+
+                if (!duty.AllowsServerRequests || busy)
+                    ImGui.EndDisabled();
+                ImGui.SameLine();
+                if (DrawSecondaryButton($"Cancel##{member.MembershipId:D}"))
+                    this.confirmingKickMembershipId = null;
+            }
+            else
+            {
+                if (!duty.AllowsServerRequests || busy)
+                    ImGui.BeginDisabled();
+                if (DrawOutlinedDangerButton($"Remove##{member.MembershipId:D}"))
+                    this.confirmingKickMembershipId = member.MembershipId;
+                if (!duty.AllowsServerRequests || busy)
+                    ImGui.EndDisabled();
+            }
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        if (this.confirmingDeleteRelayId != relay.RelayId)
+        {
+            if (DrawOutlinedDangerButton("Delete Relay"))
+                this.confirmingDeleteRelayId = relay.RelayId;
+        }
+        else
+        {
+            DrawStatusPanel(
+                "Delete this Relay?",
+                "This immediately removes every membership, invitation, and active Relay publication. It cannot be undone.",
+                Danger);
+            if (!duty.AllowsServerRequests || busy)
+                ImGui.BeginDisabled();
+            if (DrawDangerButton("Delete permanently"))
+            {
+                if (this.relayCoordinator.TryDelete(relay.RelayId, out var error))
+                    this.confirmingDeleteRelayId = null;
+                else
+                    this.interactionMessage = error;
+            }
+
+            if (!duty.AllowsServerRequests || busy)
+                ImGui.EndDisabled();
+            ImGui.SameLine();
+            if (DrawSecondaryButton("Cancel"))
+                this.confirmingDeleteRelayId = null;
+        }
+    }
+
+    private void SetRelaySelected(Guid relayId, bool selected)
+    {
+        var relayIds = RelaySelection.Normalize(this.configuration.SelectedRelayIds).ToList();
+        if (selected)
+        {
+            if (!RelaySelection.CanSelect(relayIds, relayId) || relayIds.Contains(relayId))
+                return;
+            relayIds.Add(relayId);
+        }
+        else
+        {
+            relayIds.Remove(relayId);
+        }
+
+        this.configuration.SelectedRelayIds = RelaySelection.Normalize(relayIds).ToList();
+        if (this.configuration.Visibility == VisibilityMode.Custom && this.configuration.SelectedRelayIds.Count == 0)
+            this.configuration.Visibility = VisibilityMode.Private;
+        this.saveConfiguration();
+        this.requestSync();
+    }
+
+    private void RunRelayAction(RelayAction action)
+    {
+        if (!action(out var error))
+            this.interactionMessage = error;
+        else
+            this.interactionMessage = null;
+    }
+
+    private static string FormatTimestamp(DateTimeOffset timestamp) =>
+        timestamp.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+
+    private delegate bool RelayAction(out string? error);
 
     private void DrawDiagnosticsTab()
     {
@@ -554,7 +962,10 @@ public sealed class SettingsWindow : Window
         if (ImGui.Checkbox("Use development server", ref enabled))
         {
             this.cancelAccountLink();
+            this.relayCoordinator.Reset();
             this.configuration.DeveloperServerEnabled = enabled;
+            this.configuration.Visibility = VisibilityMode.Private;
+            this.configuration.SelectedRelayIds.Clear();
             this.saveConfiguration();
             this.requestSync();
         }
@@ -576,7 +987,10 @@ public sealed class SettingsWindow : Window
         if (ImGui.InputText("##XIV.fm.DevelopmentServerUrl", ref baseUrl, 512))
         {
             this.cancelAccountLink();
+            this.relayCoordinator.Reset();
             this.configuration.DeveloperServerBaseUrl = baseUrl.Trim();
+            this.configuration.Visibility = VisibilityMode.Private;
+            this.configuration.SelectedRelayIds.Clear();
             this.saveConfiguration();
         }
 

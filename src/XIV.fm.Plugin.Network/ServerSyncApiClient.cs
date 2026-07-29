@@ -5,7 +5,7 @@ using XIV.fm.Contracts.V1;
 
 namespace XIV.fm.Plugin.Network;
 
-public sealed class ServerSyncApiClient : IServerSyncApiClient, IAccountLinkApiClient, IInstallationApiClient, IDisposable
+public sealed class ServerSyncApiClient : IServerSyncApiClient, IAccountLinkApiClient, IInstallationApiClient, IRelayApiClient, IDisposable
 {
     private const int MaximumResponseBytes = 8 * 1024 * 1024;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -131,10 +131,254 @@ public sealed class ServerSyncApiClient : IServerSyncApiClient, IAccountLinkApiC
         }
     }
 
+    public Task<RelayListResponse> ListRelaysAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        CancellationToken cancellationToken) =>
+        this.SendRelayAsync<RelayListResponse>(
+            HttpMethod.Get,
+            serverBaseUri,
+            ApiRoutes.Relays,
+            installationCredential,
+            pluginVersion,
+            null,
+            cancellationToken);
+
+    public Task<RelayResponse> CreateRelayAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        CreateRelayRequest request,
+        CancellationToken cancellationToken) =>
+        this.SendRelayAsync<RelayResponse>(
+            HttpMethod.Post,
+            serverBaseUri,
+            ApiRoutes.Relays,
+            installationCredential,
+            pluginVersion,
+            JsonContent.Create(request, options: JsonOptions),
+            cancellationToken);
+
+    public Task<RelayResponse> RenameRelayAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        Guid relayId,
+        RenameRelayRequest request,
+        CancellationToken cancellationToken) =>
+        this.SendRelayAsync<RelayResponse>(
+            HttpMethod.Patch,
+            serverBaseUri,
+            ApiRoutes.GetRelay(relayId),
+            installationCredential,
+            pluginVersion,
+            JsonContent.Create(request, options: JsonOptions),
+            cancellationToken);
+
+    public Task DeleteRelayAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        Guid relayId,
+        CancellationToken cancellationToken) =>
+        this.SendRelayNoContentAsync(
+            HttpMethod.Delete,
+            serverBaseUri,
+            ApiRoutes.GetRelay(relayId),
+            installationCredential,
+            pluginVersion,
+            cancellationToken);
+
+    public Task<RelayMemberListResponse> ListRelayMembersAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        Guid relayId,
+        CancellationToken cancellationToken) =>
+        this.SendRelayAsync<RelayMemberListResponse>(
+            HttpMethod.Get,
+            serverBaseUri,
+            ApiRoutes.GetRelayMembers(relayId),
+            installationCredential,
+            pluginVersion,
+            null,
+            cancellationToken);
+
+    public Task KickRelayMemberAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        Guid relayId,
+        Guid membershipId,
+        CancellationToken cancellationToken) =>
+        this.SendRelayNoContentAsync(
+            HttpMethod.Delete,
+            serverBaseUri,
+            ApiRoutes.GetRelayMember(relayId, membershipId),
+            installationCredential,
+            pluginVersion,
+            cancellationToken);
+
+    public Task LeaveRelayAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        Guid relayId,
+        CancellationToken cancellationToken) =>
+        this.SendRelayNoContentAsync(
+            HttpMethod.Delete,
+            serverBaseUri,
+            ApiRoutes.GetRelayMembership(relayId),
+            installationCredential,
+            pluginVersion,
+            cancellationToken);
+
+    public Task<CreatedRelayInvitationResponse> CreateRelayInvitationAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        Guid relayId,
+        CreateRelayInvitationRequest request,
+        CancellationToken cancellationToken) =>
+        this.SendRelayAsync<CreatedRelayInvitationResponse>(
+            HttpMethod.Post,
+            serverBaseUri,
+            ApiRoutes.GetRelayInvitations(relayId),
+            installationCredential,
+            pluginVersion,
+            JsonContent.Create(request, options: JsonOptions),
+            cancellationToken);
+
+    public Task<RelayInvitationListResponse> ListRelayInvitationsAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        Guid relayId,
+        CancellationToken cancellationToken) =>
+        this.SendRelayAsync<RelayInvitationListResponse>(
+            HttpMethod.Get,
+            serverBaseUri,
+            ApiRoutes.GetRelayInvitations(relayId),
+            installationCredential,
+            pluginVersion,
+            null,
+            cancellationToken);
+
+    public Task RevokeRelayInvitationAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        Guid relayId,
+        Guid invitationId,
+        CancellationToken cancellationToken) =>
+        this.SendRelayNoContentAsync(
+            HttpMethod.Delete,
+            serverBaseUri,
+            ApiRoutes.GetRelayInvitation(relayId, invitationId),
+            installationCredential,
+            pluginVersion,
+            cancellationToken);
+
+    public Task<RelayInvitationPreviewResponse> PreviewRelayInvitationAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        RelayInvitationTokenRequest request,
+        CancellationToken cancellationToken) =>
+        this.SendRelayAsync<RelayInvitationPreviewResponse>(
+            HttpMethod.Post,
+            serverBaseUri,
+            ApiRoutes.RelayInvitationPreview,
+            installationCredential,
+            pluginVersion,
+            JsonContent.Create(request, options: JsonOptions),
+            cancellationToken);
+
+    public Task<AcceptRelayInvitationResponse> AcceptRelayInvitationAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        RelayInvitationTokenRequest request,
+        CancellationToken cancellationToken) =>
+        this.SendRelayAsync<AcceptRelayInvitationResponse>(
+            HttpMethod.Post,
+            serverBaseUri,
+            ApiRoutes.RelayInvitationAccept,
+            installationCredential,
+            pluginVersion,
+            JsonContent.Create(request, options: JsonOptions),
+            cancellationToken);
+
     public void Dispose()
     {
         if (this.ownsHttpClient)
             this.httpClient.Dispose();
+    }
+
+    private async Task<T> SendRelayAsync<T>(
+        HttpMethod method,
+        Uri serverBaseUri,
+        string route,
+        string installationCredential,
+        string pluginVersion,
+        HttpContent? content,
+        CancellationToken cancellationToken)
+    {
+        using var message = CreateAuthenticatedMessage(
+            method,
+            new Uri(serverBaseUri, route),
+            installationCredential,
+            pluginVersion,
+            content);
+        return await this.SendAsync<T>(message, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task SendRelayNoContentAsync(
+        HttpMethod method,
+        Uri serverBaseUri,
+        string route,
+        string installationCredential,
+        string pluginVersion,
+        CancellationToken cancellationToken)
+    {
+        using var message = CreateAuthenticatedMessage(
+            method,
+            new Uri(serverBaseUri, route),
+            installationCredential,
+            pluginVersion,
+            null);
+        using var response = await this.httpClient.SendAsync(
+            message,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken).ConfigureAwait(false);
+        if (response.Content.Headers.ContentLength > MaximumResponseBytes)
+            throw new ServerSyncException("response_too_large", "The XIV.fm server response was too large.");
+
+        var bytes = await ReadBoundedAsync(response.Content, cancellationToken).ConfigureAwait(false);
+        if (response.IsSuccessStatusCode)
+            return;
+
+        var error = TryDeserialize<ApiError>(bytes);
+        throw new ServerSyncException(
+            error?.Code ?? $"http_{(int)response.StatusCode}",
+            error?.Title ?? "The XIV.fm server rejected the request.");
+    }
+
+    private static HttpRequestMessage CreateAuthenticatedMessage(
+        HttpMethod method,
+        Uri endpoint,
+        string installationCredential,
+        string pluginVersion,
+        HttpContent? content)
+    {
+        var message = new HttpRequestMessage(method, endpoint)
+        {
+            Content = content,
+        };
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", installationCredential);
+        message.Headers.UserAgent.ParseAdd($"XIV.fm/{pluginVersion}");
+        return message;
     }
 
     private async Task<T> SendAsync<T>(

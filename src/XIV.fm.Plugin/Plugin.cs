@@ -7,6 +7,7 @@ using XIV.fm.Contracts.V1;
 using XIV.fm.Plugin.Adapters;
 using XIV.fm.Plugin.Core.Overlay;
 using XIV.fm.Plugin.Core.Policy;
+using XIV.fm.Plugin.Core.Presence;
 using XIV.fm.Plugin.Development;
 using XIV.fm.Plugin.Network;
 using XIV.fm.Plugin.UI;
@@ -32,6 +33,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ServerSyncCoordinator serverSyncCoordinator;
     private readonly AccountLinkCoordinator accountLinkCoordinator;
     private readonly AccountDisconnectCoordinator accountDisconnectCoordinator;
+    private readonly RelayCoordinator relayCoordinator;
     private readonly SettingsWindow settingsWindow;
     private readonly OnboardingWindow onboardingWindow;
 
@@ -52,12 +54,16 @@ public sealed class Plugin : IDalamudPlugin
         this.chatGui = chatGui;
         this.condition = condition;
         this.configuration = pluginInterface.GetPluginConfig() as PluginConfiguration ?? new PluginConfiguration();
-        this.configuration.Version = 6;
+        this.configuration.Version = 7;
         this.configuration.ServerBaseUrl ??= "https://xiv.fm";
         this.configuration.InstallationCredential ??= string.Empty;
         this.configuration.PendingLinkCredential ??= string.Empty;
         this.configuration.DeveloperServerBaseUrl ??= "http://127.0.0.1:5080";
         this.configuration.DeveloperInstallationCredential ??= string.Empty;
+        this.configuration.SelectedRelayIds ??= [];
+        this.configuration.SelectedRelayIds = RelaySelection.Normalize(this.configuration.SelectedRelayIds).ToList();
+        if (this.configuration.Visibility == VisibilityMode.Custom && this.configuration.SelectedRelayIds.Count == 0)
+            this.configuration.Visibility = VisibilityMode.Private;
         this.configuration.RemoteCardDistanceYalms = this.configuration.NormalizedRemoteCardDistanceYalms;
         this.configuration.CardOpacityPercent = this.configuration.NormalizedCardOpacityPercent;
 
@@ -90,7 +96,7 @@ public sealed class Plugin : IDalamudPlugin
             new ServerSyncApiClient(),
             () => this.CurrentDutyPolicy,
             () => this.GetSyncSettings(),
-            () => this.configuration.Visibility,
+            this.GetVisibilitySelection,
             () => overlayCoordinator?.RequestCapture(),
             typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "0.0.0.0");
         this.developmentCoordinator = new DevelopmentOverlayCoordinator(
@@ -122,6 +128,13 @@ public sealed class Plugin : IDalamudPlugin
             () => this.GetSyncSettings(),
             this.CompleteAccountDisconnect,
             typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "0.0.0.0");
+        this.relayCoordinator = new RelayCoordinator(
+            framework,
+            new ServerSyncApiClient(),
+            () => this.CurrentDutyPolicy,
+            () => this.GetSyncSettings(),
+            this.ReconcileRelaySelections,
+            typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "0.0.0.0");
         this.settingsWindow = new SettingsWindow(
             this.configuration,
             this.SaveConfiguration,
@@ -136,7 +149,8 @@ public sealed class Plugin : IDalamudPlugin
             () => this.accountDisconnectCoordinator.State,
             () => this.serverSyncCoordinator.State,
             () => this.stateStore.Current,
-            () => this.cardRenderer.Diagnostics);
+            () => this.cardRenderer.Diagnostics,
+            this.relayCoordinator);
         this.onboardingWindow = new OnboardingWindow(
             this.TryStartAccountLink,
             this.OpenSettings,
@@ -170,6 +184,7 @@ public sealed class Plugin : IDalamudPlugin
         this.artworkCache.Dispose();
         this.accountLinkCoordinator.Dispose();
         this.accountDisconnectCoordinator.Dispose();
+        this.relayCoordinator.Dispose();
         this.serverSyncCoordinator.Dispose();
         this.developmentCoordinator.Dispose();
     }
@@ -246,6 +261,8 @@ public sealed class Plugin : IDalamudPlugin
     {
         this.onboardingWindow.Complete();
         this.settingsWindow.IsOpen = true;
+        if (this.HasInstallationCredential)
+            this.relayCoordinator.EnsureLoaded();
     }
 
     private void OpenGitHub() => Util.OpenLink("https://github.com/platis/XIV.fm");
@@ -328,6 +345,35 @@ public sealed class Plugin : IDalamudPlugin
             this.configuration.InstallationCredential);
     }
 
+    private VisibilitySelection GetVisibilitySelection()
+    {
+        if (this.configuration.Visibility != VisibilityMode.Custom)
+            return new VisibilitySelection(this.configuration.Visibility, []);
+
+        var relayIds = RelaySelection.Normalize(this.configuration.SelectedRelayIds);
+        return relayIds.IsEmpty
+            ? new VisibilitySelection(VisibilityMode.Private, [])
+            : new VisibilitySelection(VisibilityMode.Custom, relayIds);
+    }
+
+    private void ReconcileRelaySelections(IReadOnlyCollection<Guid> joinedRelayIds)
+    {
+        var joined = joinedRelayIds.ToHashSet();
+        var previous = this.configuration.SelectedRelayIds;
+        var relayIds = RelaySelection.Normalize(previous)
+            .Where(joined.Contains)
+            .ToList();
+        var visibilityChanged = relayIds.Count == 0 && this.configuration.Visibility == VisibilityMode.Custom;
+        if (previous.SequenceEqual(relayIds) && !visibilityChanged)
+            return;
+
+        this.configuration.SelectedRelayIds = relayIds;
+        if (visibilityChanged)
+            this.configuration.Visibility = VisibilityMode.Private;
+        this.SaveConfiguration();
+        this.serverSyncCoordinator.RequestImmediateSync();
+    }
+
     private bool TryGetServerBaseUri(out Uri? serverBaseUri)
     {
         var baseUrl = this.configuration.DeveloperServerEnabled
@@ -367,7 +413,9 @@ public sealed class Plugin : IDalamudPlugin
         this.configuration.LinkedLastFmAccountName = accountName;
         this.ClearPendingLink(save: false);
         this.accountDisconnectCoordinator.Reset();
+        this.relayCoordinator.Reset();
         this.SaveConfiguration();
+        this.relayCoordinator.EnsureLoaded();
         this.chatGui.Print($"Linked Last.fm account {accountName}.", "XIV.fm");
     }
 
@@ -379,6 +427,8 @@ public sealed class Plugin : IDalamudPlugin
             this.configuration.InstallationCredential = string.Empty;
         this.configuration.LinkedLastFmAccountName = null;
         this.configuration.Visibility = VisibilityMode.Private;
+        this.configuration.SelectedRelayIds.Clear();
+        this.relayCoordinator.Reset();
         this.ClearPendingLink(save: false);
         this.SaveConfiguration();
         this.serverSyncCoordinator.SuspendForAccountDisconnect();

@@ -37,4 +37,22 @@ public static class ApiRoutes
 
     public static string GetAccountLinkCallback(Guid linkSessionId) =>
         $"/v1/account-links/{linkSessionId:D}/callback";
+
+    public static string GetRelay(Guid relayId) =>
+        $"/v1/relays/{relayId:D}";
+
+    public static string GetRelayMembers(Guid relayId) =>
+        $"/v1/relays/{relayId:D}/members";
+
+    public static string GetRelayMember(Guid relayId, Guid membershipId) =>
+        $"/v1/relays/{relayId:D}/members/{membershipId:D}";
+
+    public static string GetRelayMembership(Guid relayId) =>
+        $"/v1/relays/{relayId:D}/membership";
+
+    public static string GetRelayInvitations(Guid relayId) =>
+        $"/v1/relays/{relayId:D}/invitations";
+
+    public static string GetRelayInvitation(Guid relayId, Guid invitationId) =>
+        $"/v1/relays/{relayId:D}/invitations/{invitationId:D}";
 }

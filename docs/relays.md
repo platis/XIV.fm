@@ -1,6 +1,6 @@
 # XIV.fm Custom Relays
 
-_Status: v1 server behavior implemented_
+_Status: v1 server behavior and plugin interaction implemented_
 
 ## Model
 
@@ -114,6 +114,12 @@ In one logical operation the server:
 6. Emits a non-personal audit event.
 
 A new explicit owner invitation can allow the account to rejoin and clear the prior removal restriction.
+
+## Plugin interaction
+
+The duty-gated plugin client lists joined Relays on demand and supports creation, secret invitation preview/acceptance, leaving, and owner management for names, members, invitations, and deletion. Plaintext invitation tokens are shown only from the creation response and can be copied before the local UI discards them. Rendering reads immutable Relay runtime state; button actions enqueue bounded requests outside the draw path.
+
+The plugin persists up to five distinct non-empty selected Relay IDs. Custom visibility is available only when at least one Relay is selected. Leaving or deleting a selected Relay removes it immediately; removing the final selected Relay falls back to Private before the next sync. Switching server environments and disconnecting the installation also clear selected Relay IDs so audiences cannot cross account or environment boundaries.
 
 ## Presence integration
 

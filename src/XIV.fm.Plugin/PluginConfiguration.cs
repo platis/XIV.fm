@@ -6,7 +6,7 @@ namespace XIV.fm.Plugin;
 
 public sealed class PluginConfiguration : IPluginConfiguration
 {
-    public int Version { get; set; } = 6;
+    public int Version { get; set; } = 7;
 
     public bool HasSeenAccountOnboarding { get; set; }
 
@@ -23,6 +23,8 @@ public sealed class PluginConfiguration : IPluginConfiguration
     public string? LinkedLastFmAccountName { get; set; }
 
     public VisibilityMode Visibility { get; set; } = VisibilityMode.Private;
+
+    public List<Guid> SelectedRelayIds { get; set; } = [];
 
     public Guid? PendingLinkSessionId { get; set; }
 

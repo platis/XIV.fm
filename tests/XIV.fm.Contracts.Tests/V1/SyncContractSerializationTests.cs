@@ -109,8 +109,16 @@ public sealed class SyncContractSerializationTests
         Assert.Equal($"/v1/account-links/{sessionId:D}/callback", ApiRoutes.GetAccountLinkCallback(sessionId));
         Assert.Equal("/v1/installations/current/credential", ApiRoutes.RotateCurrentInstallation);
         Assert.Equal("/v1/installations/current", ApiRoutes.RevokeCurrentInstallation);
+        var relayId = Guid.Parse("5be0d1e2-0a63-4f16-ad4d-d53e95b7c97f");
+        var membershipId = Guid.Parse("f92f47e4-145d-498f-b543-61a2456d031d");
+        var invitationId = Guid.Parse("802dc08f-fac1-4dd8-a853-cdac08aef8ae");
         Assert.Equal("/v1/relays", ApiRoutes.Relays);
-        Assert.Equal("/v1/relays/{relayId:guid}/members/{membershipId:guid}", ApiRoutes.RelayMember);
+        Assert.Equal($"/v1/relays/{relayId:D}", ApiRoutes.GetRelay(relayId));
+        Assert.Equal($"/v1/relays/{relayId:D}/members", ApiRoutes.GetRelayMembers(relayId));
+        Assert.Equal($"/v1/relays/{relayId:D}/members/{membershipId:D}", ApiRoutes.GetRelayMember(relayId, membershipId));
+        Assert.Equal($"/v1/relays/{relayId:D}/membership", ApiRoutes.GetRelayMembership(relayId));
+        Assert.Equal($"/v1/relays/{relayId:D}/invitations", ApiRoutes.GetRelayInvitations(relayId));
+        Assert.Equal($"/v1/relays/{relayId:D}/invitations/{invitationId:D}", ApiRoutes.GetRelayInvitation(relayId, invitationId));
         Assert.Equal("/v1/relay-invitations/preview", ApiRoutes.RelayInvitationPreview);
         Assert.Equal("/v1/relay-invitations/accept", ApiRoutes.RelayInvitationAccept);
     }

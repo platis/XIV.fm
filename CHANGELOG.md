@@ -4,6 +4,13 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.24] - 2026-07-29
+
+### Added
+
+- Add complete Custom Relay interaction to the plugin: create and join Relays, preview invitations, select up to five publication audiences, and manage owned Relay names, invitations, members, and deletion.
+- Add a duty-gated typed Relay API client and persist bounded Custom Relay audience selections for authenticated sync.
+
 ## [0.1.23] - 2026-07-29
 
 ### Changed

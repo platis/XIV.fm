@@ -20,7 +20,7 @@ public sealed class ServerSyncCoordinator : IDisposable
     private readonly IServerSyncApiClient apiClient;
     private readonly Func<DutyParticipationPolicy> dutyPolicy;
     private readonly Func<ServerSyncSettings> settings;
-    private readonly Func<VisibilityMode> visibilityMode;
+    private readonly Func<VisibilitySelection> visibilitySelection;
     private readonly Action ownListeningChanged;
     private readonly string pluginVersion;
     private readonly CancellationTokenSource disposalCancellation = new();
@@ -41,7 +41,7 @@ public sealed class ServerSyncCoordinator : IDisposable
         IServerSyncApiClient apiClient,
         Func<DutyParticipationPolicy> dutyPolicy,
         Func<ServerSyncSettings> settings,
-        Func<VisibilityMode> visibilityMode,
+        Func<VisibilitySelection> visibilitySelection,
         Action ownListeningChanged,
         string pluginVersion)
     {
@@ -51,7 +51,7 @@ public sealed class ServerSyncCoordinator : IDisposable
         this.apiClient = apiClient;
         this.dutyPolicy = dutyPolicy;
         this.settings = settings;
-        this.visibilityMode = visibilityMode;
+        this.visibilitySelection = visibilitySelection;
         this.ownListeningChanged = ownListeningChanged;
         this.pluginVersion = pluginVersion;
         this.framework.Update += this.OnFrameworkUpdate;
@@ -159,7 +159,7 @@ public sealed class ServerSyncCoordinator : IDisposable
                 location.Value.TerritoryId,
                 location.Value.MapId,
                 location.Value.InstanceId),
-            new VisibilitySelection(this.visibilityMode(), []),
+            this.visibilitySelection(),
             snapshotVersion);
         this.StartRequest(serverBaseUri!, currentSettings.InstallationCredential, request, now);
     }
