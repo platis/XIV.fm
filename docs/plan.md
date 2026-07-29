@@ -122,7 +122,7 @@ This phase is intentionally collaborative with the product owner.
   - The read-only native boundary and safety review are recorded in [`ADR 0001`](adr/0001-pose-aware-nameplate-anchor.md); standing, sitting, ground-sitting, lying, mounted, and transformed states still require in-game acceptance.
 - [ ] Design Account, Overlay, Privacy, Custom Relays, and Diagnostics settings.
 - [ ] Finalize card typography, sizing, animation, accessibility, scale, and obstruction behavior; add live album art only if the provider grants permission.
-  - The product owner's 323×127 SVG remains the unchanged layout source; the renderer now applies a uniform 70% in-game presentation scale, clips only the supplied title/artist content, and uses a 0.7-yalm world-space safety height above the nameplate.
+  - The product owner's 323×127 SVG remains the unchanged layout source. The renderer is temporarily using the earlier compact placeholder layout to isolate listening-state delivery from custom artwork drawing, with a 0.2-yalm world-space safety height above the nameplate.
   - The bounded background texture pipeline retires covers no longer referenced by the snapshot and retries transient loads with backoff; listening-state changes request an immediate card snapshot refresh.
   - Last.fm artwork is disabled by default. The private development backend may explicitly enable image mapping for in-game testing, but public rollout remains blocked until permission is recorded.
 - [ ] Add preview tools without mixing them into production state.

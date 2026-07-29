@@ -16,7 +16,7 @@ Implemented:
 - Atomic immutable overlay-state snapshots.
 - One local/remote player-card rendering path.
 - Pose-aware anchoring from the game's current nameplate world position, including emote and mount offsets.
-- The approved 323×127 source card rendered uniformly at a restrained 70% in-game scale, with a proportional artwork area, a 0.7-yalm nameplate safety height, bounded background texture loading, and an embedded development-cover fallback.
+- A temporary compact diagnostic card with a 0.2-yalm nameplate safety height, used to isolate listening-state delivery from the approved artwork renderer; the supplied 323×127 card remains the retained design source.
 - Strict character name and home-world matching.
 - Typed location snapshots using current world, territory, map, and instance IDs.
 - Immediate snapshot invalidation/wake-up for login, logout, and location changes.

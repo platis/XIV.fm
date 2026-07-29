@@ -66,9 +66,7 @@ public sealed class Plugin : IDalamudPlugin
         this.cardRenderer = new NameplateCardRenderer(
             objectTable,
             gameGui,
-            textureProvider,
             this.stateStore,
-            this.artworkCache,
             () => this.configuration.ShowPlaceholderCards && this.CurrentDutyPolicy.AllowsOverlay,
             () => this.configuration.NormalizedRemoteCardDistanceYalms);
         DevelopmentOverlayCoordinator? overlayCoordinator = null;
