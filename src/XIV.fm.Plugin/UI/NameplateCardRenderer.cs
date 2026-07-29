@@ -14,10 +14,10 @@ namespace XIV.fm.Plugin.UI;
 public sealed class NameplateCardRenderer
 {
     private const float MaximumCardWidth = 293f;
-    private const float CardHeight = 57.6f;
     private const float ArtworkSize = 55.2f;
     private const float HorizontalPadding = 9f;
-    private const float VerticalPadding = (CardHeight - ArtworkSize) / 2f;
+    private const float VerticalPadding = 6f;
+    private const float CardHeight = ArtworkSize + (2f * VerticalPadding);
     private const float TextGap = 11f;
     private const float TitleFontSize = 21.6f;
     private const float ArtistFontSize = 19.2f;

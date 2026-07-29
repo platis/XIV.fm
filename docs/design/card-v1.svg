@@ -1,17 +1,17 @@
-<svg width="293" height="57.6" viewBox="0 0 293 57.6" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="293" height="67.2" viewBox="0 0 293 67.2" fill="none" xmlns="http://www.w3.org/2000/svg">
   <title>XIV.fm compact listening card at its maximum width</title>
   <desc>The card contracts to its text. The artwork group and its horizontal space are included only when album artwork is available.</desc>
-  <rect width="293" height="57.6" rx="5" fill="#111318" fill-opacity="0.82"/>
+  <rect width="293" height="67.2" rx="5" fill="#111318" fill-opacity="0.82"/>
   <g id="conditional-album-artwork">
     <clipPath id="artwork-clip">
-      <rect x="9" y="1.2" width="55.2" height="55.2"/>
+      <rect x="9" y="6" width="55.2" height="55.2"/>
     </clipPath>
     <g clip-path="url(#artwork-clip)">
-      <rect x="9" y="1.2" width="55.2" height="55.2" fill="#343944"/>
-      <circle cx="36.6" cy="28.8" r="19.2" fill="#555D6D"/>
-      <circle cx="36.6" cy="28.8" r="4.8" fill="#111318"/>
+      <rect x="9" y="6" width="55.2" height="55.2" fill="#343944"/>
+      <circle cx="36.6" cy="33.6" r="19.2" fill="#555D6D"/>
+      <circle cx="36.6" cy="33.6" r="4.8" fill="#111318"/>
     </g>
   </g>
-  <text x="75.2" y="35.8" fill="white" font-family="sans-serif" font-size="21.6" font-weight="700">Long music title...</text>
-  <text x="75.2" y="56.4" fill="#A6A8AD" font-family="sans-serif" font-size="19.2">Long artist name...</text>
+  <text x="75.2" y="40.6" fill="white" font-family="sans-serif" font-size="21.6" font-weight="700">Long music title...</text>
+  <text x="75.2" y="61.2" fill="#A6A8AD" font-family="sans-serif" font-size="19.2">Long artist name...</text>
 </svg>

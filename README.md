@@ -16,7 +16,7 @@ Implemented:
 - Atomic immutable overlay-state snapshots.
 - One local/remote player-card rendering path.
 - Pose-aware anchoring from the game's current nameplate world position, including emote and mount offsets.
-- A compact content-sized listening card, up to 293×57.6 px, with 20%-larger typography and optional cover artwork, no reserved cover gap when artwork is unavailable, and a 0.4-yalm nameplate safety height.
+- A compact content-sized listening card, up to 293×67.2 px, with protected border padding, 20%-larger typography and optional cover artwork, no reserved cover gap when artwork is unavailable, and a 0.4-yalm nameplate safety height.
 - Strict character name and home-world matching.
 - Typed location snapshots using current world, territory, map, and instance IDs.
 - Immediate snapshot invalidation/wake-up for login, logout, and location changes.
