@@ -13,13 +13,15 @@ namespace XIV.fm.Plugin.UI;
 /// </summary>
 public sealed class NameplateCardRenderer
 {
-    private static readonly Vector2 CardSize = new(222f, 58f);
+    private static readonly Vector2 CardSize = new(244f, 64f);
 
-    private const float ArtworkSize = 42f;
-    private const float CardPadding = 8f;
-    private const float TextGap = 10f;
-    private const float TitleFontSize = 16f;
-    private const float ArtistFontSize = 13f;
+    private const float ArtworkSize = 46f;
+    private const float CardPadding = 9f;
+    private const float TextGap = 11f;
+    private const float TitleFontSize = 18f;
+    private const float ArtistFontSize = 14f;
+    private const float ArtistOffsetY = 23f;
+    private const int MaximumTextFitCacheEntries = 256;
 
     private const ImGuiWindowFlags CardWindowFlags =
         ImGuiWindowFlags.NoTitleBar |
@@ -34,6 +36,7 @@ public sealed class NameplateCardRenderer
     private readonly IGameGui gameGui;
     private readonly OverlayStateStore stateStore;
     private readonly AlbumArtworkCache artworkCache;
+    private readonly Dictionary<(string Text, float FontSize, float MaximumWidth), string> textFitCache = [];
     private readonly Func<bool> isEnabled;
     private readonly Func<int> remoteDistanceYalms;
     private OverlayRenderDiagnostics diagnostics = OverlayRenderDiagnostics.Empty;
@@ -167,9 +170,16 @@ public sealed class NameplateCardRenderer
                     cardMaximum.Y - (CardPadding * scale));
                 var titleColor = ImGui.GetColorU32(Vector4.One);
                 var artistColor = ImGui.GetColorU32(ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled]);
-                var attribution = card.IsLastFm ? $"{card.Artist} · Last.fm" : card.Artist;
-                if (card.IsStale)
-                    attribution += " · cached";
+                var artist = card.IsStale ? $"{card.Artist} · cached" : card.Artist;
+                var availableTextWidth = textMaximum.X - textMinimum.X;
+                var title = this.FitTextWithEllipsis(
+                    card.Title,
+                    TitleFontSize * scale,
+                    availableTextWidth - (0.65f * scale));
+                artist = this.FitTextWithEllipsis(
+                    artist,
+                    ArtistFontSize * scale,
+                    availableTextWidth);
 
                 drawList.PushClipRect(textMinimum, textMaximum, true);
                 drawList.AddText(
@@ -177,19 +187,19 @@ public sealed class NameplateCardRenderer
                     TitleFontSize * scale,
                     textMinimum,
                     titleColor,
-                    card.Title);
+                    title);
                 drawList.AddText(
                     ImGui.GetFont(),
                     TitleFontSize * scale,
                     textMinimum + new Vector2(0.65f * scale, 0f),
                     titleColor,
-                    card.Title);
+                    title);
                 drawList.AddText(
                     ImGui.GetFont(),
                     ArtistFontSize * scale,
-                    textMinimum + new Vector2(0f, 24f * scale),
+                    textMinimum + new Vector2(0f, ArtistOffsetY * scale),
                     artistColor,
-                    attribution);
+                    artist);
                 drawList.PopClipRect();
             }
             finally
@@ -201,6 +211,32 @@ public sealed class NameplateCardRenderer
         {
             ImGui.PopStyleVar(2);
         }
+    }
+
+    private string FitTextWithEllipsis(string text, float fontSize, float maximumWidth)
+    {
+        var key = (text, fontSize, maximumWidth);
+        if (this.textFitCache.TryGetValue(key, out var cached))
+            return cached;
+
+        if (this.textFitCache.Count >= MaximumTextFitCacheEntries)
+            this.textFitCache.Clear();
+
+        var fitted = TextEllipsis.Fit(
+            text,
+            maximumWidth,
+            candidate => MeasureTextWidth(candidate, fontSize));
+        this.textFitCache[key] = fitted;
+        return fitted;
+    }
+
+    private static float MeasureTextWidth(string text, float fontSize)
+    {
+        var currentFontSize = ImGui.GetFontSize();
+        if (currentFontSize <= 0f)
+            return 0f;
+
+        return ImGui.CalcTextSize(text).X * (fontSize / currentFontSize);
     }
 
     private void PublishDiagnostics(
