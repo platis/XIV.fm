@@ -13,13 +13,13 @@ namespace XIV.fm.Plugin.UI;
 /// </summary>
 public sealed class NameplateCardRenderer
 {
-    private static readonly Vector2 CardSize = new(244f, 64f);
+    private static readonly Vector2 CardSize = new(293f, 64f);
 
     private const float ArtworkSize = 46f;
     private const float CardPadding = 9f;
     private const float TextGap = 11f;
     private const float TitleFontSize = 18f;
-    private const float ArtistFontSize = 14f;
+    private const float ArtistFontSize = 16f;
     private const float ArtistOffsetY = 23f;
     private const int MaximumTextFitCacheEntries = 256;
 
@@ -164,7 +164,9 @@ public sealed class NameplateCardRenderer
                 if (this.artworkCache.TryGet(card.ArtworkUrl, out var artwork) && artwork is not null)
                     drawList.AddImage(artwork.Handle, origin, artworkMaximum);
 
-                var textMinimum = origin + new Vector2((ArtworkSize + TextGap) * scale, 1f * scale);
+                var textMinimum = origin + new Vector2(
+                    (ArtworkSize + TextGap) * scale,
+                    (ArtworkSize - ArtistOffsetY - ArtistFontSize) * scale);
                 var textMaximum = new Vector2(
                     cardMaximum.X - (CardPadding * scale),
                     cardMaximum.Y - (CardPadding * scale));
