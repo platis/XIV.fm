@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.12] - 2026-07-29
+
 ### Changed
 
 - Size listening cards dynamically to their text up to 293 px wide, reduce their fixed height by 10%, and remove the reserved artwork gap when no cover is available.
