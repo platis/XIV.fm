@@ -3,10 +3,10 @@
     "Author": "platis",
     "Name": "XIV.fm",
     "InternalName": "XIV.fm",
-    "AssemblyVersion": "0.1.9.0",
+    "AssemblyVersion": "0.1.10.0",
     "Punchline": "Share what you are listening to in Final Fantasy XIV.",
     "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
-    "Changelog": "- Refines the compact card to 222×58 with a 42×42 conditional cover area.\n- Removes the red XIV.fm heading and separator.\n- Adds a visually bold track title and leaves the cover area empty when artwork is unavailable.\n- Sets nameplate safety height to 0.4 yalms.",
+    "Changelog": "- Increases the compact card by about 10% to 244×64.\n- Removes the Last.fm suffix from the card.\n- Adds Unicode-safe ... endings for long track and artist names.\n- Slightly tightens the title-to-artist spacing.",
     "Tags": [
       "lastfm",
       "music",
@@ -15,8 +15,8 @@
     ],
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.9/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.9/latest.zip",
+    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.10/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.10/latest.zip",
     "RepoUrl": "https://github.com/platis/XIV.fm"
   }
 ]
