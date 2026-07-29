@@ -71,6 +71,7 @@ public sealed class Plugin : IDalamudPlugin
             this.artworkCache,
             () => this.configuration.ShowPlaceholderCards && this.CurrentDutyPolicy.AllowsOverlay,
             () => this.configuration.NormalizedRemoteCardDistanceYalms);
+        DevelopmentOverlayCoordinator? overlayCoordinator = null;
         this.serverSyncCoordinator = new ServerSyncCoordinator(
             framework,
             clientState,
@@ -79,6 +80,7 @@ public sealed class Plugin : IDalamudPlugin
             () => this.CurrentDutyPolicy,
             () => this.GetSyncSettings(),
             () => this.configuration.Visibility,
+            () => overlayCoordinator?.RequestCapture(),
             typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "0.0.0.0");
         this.developmentCoordinator = new DevelopmentOverlayCoordinator(
             framework,
@@ -91,6 +93,7 @@ public sealed class Plugin : IDalamudPlugin
             now => this.serverSyncCoordinator.GetRemoteCards(now),
             () => this.configuration.DeveloperMockRemoteCards,
             () => this.CurrentDutyPolicy.IsInDuty);
+        overlayCoordinator = this.developmentCoordinator;
         this.accountLinkCoordinator = new AccountLinkCoordinator(
             framework,
             new ServerSyncApiClient(),

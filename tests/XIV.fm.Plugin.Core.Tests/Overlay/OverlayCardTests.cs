@@ -53,6 +53,34 @@ public sealed class OverlayCardTests
     }
 
     [Fact]
+    public void ChangedListeningStateAdvancesTitleAndArtworkTogether()
+    {
+        var firstArtwork = new Uri("https://cdn.example.com/first.png");
+        var secondArtwork = new Uri("https://cdn.example.com/second.png");
+        var first = OverlayCard.LocalListening(
+            Character,
+            new ListeningState(
+                ListeningStatus.Playing,
+                false,
+                Now,
+                new Track("First", "Artist", "Album", firstArtwork, null, null)),
+            Now);
+        var second = OverlayCard.LocalListening(
+            Character,
+            new ListeningState(
+                ListeningStatus.Playing,
+                false,
+                Now.AddSeconds(30),
+                new Track("Second", "Artist", "Album", secondArtwork, null, null)),
+            Now.AddSeconds(30));
+
+        Assert.Equal("First", first.Title);
+        Assert.Equal(firstArtwork, first.ArtworkUrl);
+        Assert.Equal("Second", second.Title);
+        Assert.Equal(secondArtwork, second.ArtworkUrl);
+    }
+
+    [Fact]
     public void PublicSnapshotListeningStateCreatesRemoteCard()
     {
         var listening = new ListeningState(

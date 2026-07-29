@@ -22,6 +22,7 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
     private readonly Func<bool> showMockRemoteCards;
     private readonly Func<bool> isInDuty;
     private DateTimeOffset nextCaptureAt = DateTimeOffset.MinValue;
+    private int captureRequested = 1;
     private bool wasInDuty;
 
     public DevelopmentOverlayCoordinator(
@@ -74,7 +75,7 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
 
     private void OnLocationChanged(uint value) => this.RequestCapture();
 
-    private void RequestCapture() => this.nextCaptureAt = DateTimeOffset.MinValue;
+    public void RequestCapture() => Interlocked.Exchange(ref this.captureRequested, 1);
 
     private void OnFrameworkUpdate(IFramework framework)
     {
@@ -92,6 +93,9 @@ public sealed class DevelopmentOverlayCoordinator : IDisposable
             this.RequestCapture();
 
         this.wasInDuty = false;
+        if (Interlocked.Exchange(ref this.captureRequested, 0) != 0)
+            this.nextCaptureAt = DateTimeOffset.MinValue;
+
         var now = DateTimeOffset.UtcNow;
         if (now < this.nextCaptureAt)
             return;

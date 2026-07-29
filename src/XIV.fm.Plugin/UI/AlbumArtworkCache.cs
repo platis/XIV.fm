@@ -14,7 +14,7 @@ public sealed class AlbumArtworkCache : IDisposable
 {
     private const int MaximumArtworkBytes = 2 * 1024 * 1024;
     private const int MaximumEntries = 64;
-    private const int MaximumPreparedPerSnapshot = 16;
+    private const int MaximumLoadsStartedPerPrepare = 16;
 
     private static readonly HashSet<string> AllowedMediaTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -57,18 +57,32 @@ public sealed class AlbumArtworkCache : IDisposable
             cancellationToken = this.activeCancellation.Token;
         }
 
-        foreach (var uri in artworkUris
-                     .Where(ArtworkUriPolicy.IsAllowed)
-                     .Distinct()
-                     .Take(MaximumPreparedPerSnapshot))
+        var activeUris = artworkUris
+            .Where(ArtworkUriPolicy.IsAllowed)
+            .Distinct()
+            .Take(MaximumEntries)
+            .ToArray();
+        var activeSet = activeUris.ToHashSet();
+        foreach (var pair in this.entries)
         {
-            if (this.entries.Count >= MaximumEntries && !this.entries.ContainsKey(uri))
-                break;
+            if (!activeSet.Contains(pair.Key) && this.entries.TryRemove(pair.Key, out var removed))
+                removed.Dispose();
+        }
 
+        var now = DateTimeOffset.UtcNow;
+        var startedLoads = 0;
+        foreach (var uri in activeUris)
+        {
             var entry = this.entries.GetOrAdd(uri, static _ => new CacheEntry());
-            entry.EnsureLoaded(
-                token => this.LoadAsync(uri, token),
-                cancellationToken);
+            if (entry.EnsureLoaded(
+                    token => this.LoadAsync(uri, token),
+                    now,
+                    cancellationToken))
+            {
+                startedLoads++;
+                if (startedLoads >= MaximumLoadsStartedPerPrepare)
+                    break;
+            }
         }
     }
 
@@ -167,21 +181,33 @@ public sealed class AlbumArtworkCache : IDisposable
 
     private sealed class CacheEntry : IDisposable
     {
+        private static readonly TimeSpan InitialRetryDelay = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan MaximumRetryDelay = TimeSpan.FromMinutes(2);
+
         private readonly Lock gate = new();
         private IDalamudTextureWrap? texture;
         private Task? loadTask;
+        private DateTimeOffset nextRetryAt = DateTimeOffset.MinValue;
+        private int consecutiveFailures;
         private bool disposed;
 
-        public void EnsureLoaded(
+        public bool EnsureLoaded(
             Func<CancellationToken, Task<IDalamudTextureWrap>> loader,
+            DateTimeOffset now,
             CancellationToken cancellationToken)
         {
             lock (this.gate)
             {
-                if (this.disposed || this.texture is not null || this.loadTask is not null)
-                    return;
+                if (this.disposed ||
+                    this.texture is not null ||
+                    this.loadTask is not null ||
+                    now < this.nextRetryAt)
+                {
+                    return false;
+                }
 
                 this.loadTask = this.LoadAsync(loader, cancellationToken);
+                return true;
             }
         }
 
@@ -215,14 +241,28 @@ public sealed class AlbumArtworkCache : IDisposable
 
                     this.texture = loaded;
                     loaded = null;
+                    this.consecutiveFailures = 0;
+                    this.nextRetryAt = DateTimeOffset.MinValue;
                 }
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
-                // The card retains its local placeholder when artwork is unavailable.
+                lock (this.gate)
+                {
+                    if (!this.disposed && !cancellationToken.IsCancellationRequested)
+                    {
+                        this.consecutiveFailures++;
+                        var exponent = Math.Min(this.consecutiveFailures - 1, 4);
+                        var retryDelay = InitialRetryDelay * (1 << exponent);
+                        this.nextRetryAt = DateTimeOffset.UtcNow.Add(
+                            retryDelay < MaximumRetryDelay ? retryDelay : MaximumRetryDelay);
+                    }
+                }
             }
             finally
             {
+                lock (this.gate)
+                    this.loadTask = null;
                 loaded?.Dispose();
             }
         }

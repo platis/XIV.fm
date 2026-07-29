@@ -9,6 +9,7 @@ namespace XIV.fm.Plugin.Core.Overlay;
 public static class OverlayAnchor
 {
     public const float MaximumNameplateOffsetYalms = 50f;
+    public const float NameplateSafetyHeightYalms = 0.7f;
 
     public static bool IsValidNameplatePosition(Vector3 characterPosition, Vector3 nameplatePosition)
     {
@@ -26,6 +27,14 @@ public static class OverlayAnchor
             throw new ArgumentOutOfRangeException(nameof(nameplatePosition), "Nameplate position is not valid for the character.");
 
         return nameplatePosition.Y - characterPosition.Y;
+    }
+
+    public static Vector3 AddSafetyHeight(Vector3 nameplatePosition)
+    {
+        if (!IsFinite(nameplatePosition))
+            throw new ArgumentOutOfRangeException(nameof(nameplatePosition), "Nameplate position must be finite.");
+
+        return nameplatePosition + new Vector3(0f, NameplateSafetyHeightYalms, 0f);
     }
 
     private static bool IsFinite(Vector3 value) =>

@@ -4,6 +4,15 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Changed
+
+- Preserve the supplied SVG layout while presenting it uniformly at 70% in game, and anchor its bottom 0.7 yalms above the pose-aware nameplate point so it does not cover player names or titles.
+- Keep card copy to the supplied title and artist fields instead of appending status text that changes the approved design.
+
+### Fixed
+
+- Refresh the immutable card snapshot immediately when synced listening state changes, retire covers that are no longer referenced, and retry transient artwork-load failures with bounded backoff so tracks and covers do not remain stuck.
+
 ## [0.1.6] - 2026-07-29
 
 ### Added

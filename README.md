@@ -16,7 +16,7 @@ Implemented:
 - Atomic immutable overlay-state snapshots.
 - One local/remote player-card rendering path.
 - Pose-aware anchoring from the game's current nameplate world position, including emote and mount offsets.
-- The approved 323×127 card layout with an 87×87 artwork area, bounded background texture loading, and an embedded development cover for in-game acceptance.
+- The approved 323×127 source card rendered uniformly at a restrained 70% in-game scale, with a proportional artwork area, a 0.7-yalm nameplate safety height, bounded background texture loading, and an embedded development-cover fallback.
 - Strict character name and home-world matching.
 - Typed location snapshots using current world, territory, map, and instance IDs.
 - Immediate snapshot invalidation/wake-up for login, logout, and location changes.
@@ -27,7 +27,7 @@ Implemented:
 - A typed plugin network client and cancellable duty-aware development sync coordinator.
 - Ten-minute replay-protected Last.fm browser-link sessions, server-side ownership proof, canonical account persistence, and proof-gated installation credentials.
 - Normalized cached Last.fm listening state with Redis single-flight leases, a distributed 3.5-request/second budget, adaptive 30/90-second polling, jitter, backoff, circuit breaking, and explicit stale metadata through sync.
-- Duty-gated plugin browser linking, persisted installation credentials, real local playing/not-playing/unavailable cards, stale-cache attribution, and Last.fm track/profile links.
+- Duty-gated plugin browser linking, persisted installation credentials, real local playing/not-playing/unavailable cards, explicit stale metadata in sync/diagnostics, and Last.fm track/profile links.
 - Private/Public selection, shared 20-second location snapshots with opaque versions and metrics, strict loaded-character matching, and server-authoritative remote listening cards.
 - Custom Relay ownership, bounded membership, soft deletion, replay-safe creation, hashed single-use invitations, join/leave/kick restrictions, and durable quota enforcement.
 - Membership-authorized Custom sync and shared Relay/location snapshots with revision-based immediate kick invalidation.

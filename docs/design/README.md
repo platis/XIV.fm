@@ -2,7 +2,7 @@
 
 `card-v1.svg` is the product-owner-provided source for the first approved in-game listening card.
 
-Implementation measurements at 1× Dalamud UI scale:
+Source measurements:
 
 - Card: 323×127 px
 - Corner radius: 12 px
@@ -10,4 +10,6 @@ Implementation measurements at 1× Dalamud UI scale:
 - Text origin: approximately (121, 56)
 - Background: 60% opacity `#7E7E7E`
 
-The renderer scales these measurements with Dalamud's global UI scale and clips text to the remaining card width. The embedded development cover validates texture rendering without using provider artwork. Live Last.fm covers remain disabled under the current compliance review.
+The renderer preserves the source proportions and content exactly, then presents the whole card at 70% (approximately 226×89 px at 1× Dalamud UI scale) so it remains restrained in game. It applies Dalamud's global UI scale after that presentation scale and clips the title and artist to the remaining width. The card bottom is projected from a point 0.7 yalms above the game's pose-aware nameplate anchor rather than using a fixed screen-pixel gap.
+
+The embedded development cover remains the fallback while a requested texture is unavailable. Private Last.fm artwork testing is explicitly enabled only on the controlled development backend; public artwork remains blocked under the current compliance review.

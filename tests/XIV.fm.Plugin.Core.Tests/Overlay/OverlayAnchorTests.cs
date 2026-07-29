@@ -15,6 +15,23 @@ public sealed class OverlayAnchorTests
         Assert.Equal(1.25f, OverlayAnchor.GetHeightYalms(characterPosition, nameplatePosition));
     }
 
+    [Fact]
+    public void SafetyHeightAddsSevenTenthsOfAYalmAboveTheNameplate()
+    {
+        var nameplatePosition = new Vector3(10f, 21.25f, 30f);
+
+        var cardAnchor = OverlayAnchor.AddSafetyHeight(nameplatePosition);
+
+        Assert.Equal(new Vector3(10f, 21.95f, 30f), cardAnchor);
+    }
+
+    [Fact]
+    public void SafetyHeightRejectsNonFiniteNameplatePositions()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            OverlayAnchor.AddSafetyHeight(new Vector3(0f, float.NaN, 0f)));
+    }
+
     [Theory]
     [MemberData(nameof(InvalidPositions))]
     public void InvalidNameplatePositionsFailClosed(Vector3 characterPosition, Vector3 nameplatePosition)

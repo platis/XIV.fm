@@ -21,6 +21,7 @@ public sealed class ServerSyncCoordinator : IDisposable
     private readonly Func<DutyParticipationPolicy> dutyPolicy;
     private readonly Func<ServerSyncSettings> settings;
     private readonly Func<VisibilityMode> visibilityMode;
+    private readonly Action ownListeningChanged;
     private readonly string pluginVersion;
     private readonly CancellationTokenSource disposalCancellation = new();
     private SyncRuntimeState state = SyncRuntimeState.Disabled;
@@ -41,6 +42,7 @@ public sealed class ServerSyncCoordinator : IDisposable
         Func<DutyParticipationPolicy> dutyPolicy,
         Func<ServerSyncSettings> settings,
         Func<VisibilityMode> visibilityMode,
+        Action ownListeningChanged,
         string pluginVersion)
     {
         this.framework = framework;
@@ -50,6 +52,7 @@ public sealed class ServerSyncCoordinator : IDisposable
         this.dutyPolicy = dutyPolicy;
         this.settings = settings;
         this.visibilityMode = visibilityMode;
+        this.ownListeningChanged = ownListeningChanged;
         this.pluginVersion = pluginVersion;
         this.framework.Update += this.OnFrameworkUpdate;
         this.clientState.Login += this.OnWake;
@@ -194,6 +197,7 @@ public sealed class ServerSyncCoordinator : IDisposable
                 request,
                 requestCancellation.Token).ConfigureAwait(false);
             var now = DateTimeOffset.UtcNow;
+            var listeningChanged = false;
             lock (this.gate)
             {
                 if (requestGeneration != this.generation)
@@ -208,6 +212,7 @@ public sealed class ServerSyncCoordinator : IDisposable
                 this.activeRequest = null;
                 this.consecutiveFailures = 0;
                 this.knownSnapshotVersion = result.Response.LocationPresence.Version;
+                listeningChanged = result.Response.OwnListening != this.OwnListening;
                 Volatile.Write(ref this.ownListening, result.Response.OwnListening);
                 this.nextSyncAt = now.Add(SyncTimingPolicy.FromServerDelay(result.Response.NextSyncAfterSeconds));
                 Volatile.Write(
@@ -218,6 +223,9 @@ public sealed class ServerSyncCoordinator : IDisposable
                         this.nextSyncAt,
                         result.RequestId));
             }
+
+            if (listeningChanged)
+                this.ownListeningChanged();
         }
         catch (OperationCanceledException) when (requestCancellation.IsCancellationRequested)
         {

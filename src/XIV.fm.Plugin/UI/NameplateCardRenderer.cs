@@ -19,6 +19,10 @@ public sealed class NameplateCardRenderer
     private static readonly Vector2 DesignArtworkSize = new(87f, 87f);
     private static readonly Vector2 DesignTextOffset = new(121f, 56f);
 
+    // The supplied SVG is the design source, while the in-game presentation is intentionally
+    // reduced uniformly so its proportions remain unchanged without dominating nameplates.
+    private const float CardDisplayScale = 0.7f;
+
     private const ImGuiWindowFlags CardWindowFlags =
         ImGuiWindowFlags.NoTitleBar |
         ImGuiWindowFlags.NoBackground |
@@ -106,7 +110,8 @@ public sealed class NameplateCardRenderer
                 continue;
             if (card.IsLocal)
                 localNameplateHeightYalms = OverlayAnchor.GetHeightYalms(target.Position, worldAnchor);
-            if (!this.gameGui.WorldToScreen(worldAnchor, out var screenAnchor))
+            var cardAnchor = OverlayAnchor.AddSafetyHeight(worldAnchor);
+            if (!this.gameGui.WorldToScreen(cardAnchor, out var screenAnchor))
                 continue;
 
             projectedAnchors++;
@@ -138,11 +143,10 @@ public sealed class NameplateCardRenderer
 
     private void DrawCard(OverlayCard card, Vector2 screenAnchor)
     {
-        var scale = ImGuiHelpers.GlobalScale;
+        var scale = ImGuiHelpers.GlobalScale * CardDisplayScale;
         var cardSize = DesignCardSize * scale;
 
-        // The card's bottom center is kept just above the projected character/nameplate area.
-        screenAnchor.Y -= 10f * scale;
+        // The projected point already includes the world-space nameplate safety height.
         ImGui.SetNextWindowPos(screenAnchor, ImGuiCond.Always, new Vector2(0.5f, 1f));
         ImGui.SetNextWindowSize(cardSize, ImGuiCond.Always);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
@@ -185,9 +189,6 @@ public sealed class NameplateCardRenderer
                     cardMaximum.X - (18f * scale),
                     origin.Y + (108f * scale));
                 var textColor = ImGui.GetColorU32(Vector4.One);
-                var attribution = card.IsLastFm ? $"{card.Artist} · Last.fm" : card.Artist;
-                if (card.IsStale)
-                    attribution += " · cached";
 
                 drawList.PushClipRect(textMinimum, textMaximum, true);
                 drawList.AddText(
@@ -201,7 +202,7 @@ public sealed class NameplateCardRenderer
                     17f * scale,
                     textMinimum + new Vector2(0f, 34f * scale),
                     textColor,
-                    attribution);
+                    card.Artist);
                 drawList.PopClipRect();
             }
             finally
