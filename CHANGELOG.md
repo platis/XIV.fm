@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.9] - 2026-07-29
+
 ### Changed
 
 - Refine the compact card into a 222×58 layout with a reserved 42×42 artwork area, no fallback image when artwork is unavailable, a visually bold track title, and no red `XIV.fm` heading or separator.
