@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.11] - 2026-07-29
+
 ### Changed
 
 - Widen the compact card by 20% to 293×64 px, bottom-align its text with the cover artwork, and increase the artist text to 16 px.
