@@ -3,10 +3,10 @@
     "Author": "platis",
     "Name": "XIV.fm",
     "InternalName": "XIV.fm",
-    "AssemblyVersion": "0.1.19.0",
+    "AssemblyVersion": "0.1.20.0",
     "Punchline": "Share what you are listening to in Final Fantasy XIV.",
     "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
-    "Changelog": "Completes the listening-card visual refinement with 10 px horizontal padding, 8 px vertical padding, and a matching 10 px gap between album artwork and text.",
+    "Changelog": "Centers album artwork explicitly, bottom-aligns text to it, balances all outer edges at 8 px, and introduces a lighter 61.92%-opaque FFXIV-style charcoal surface.",
     "Tags": [
       "lastfm",
       "music",
@@ -15,8 +15,8 @@
     ],
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.19/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.19/latest.zip",
+    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.20/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.20/latest.zip",
     "RepoUrl": "https://github.com/platis/XIV.fm"
   }
 ]
