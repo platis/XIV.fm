@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.6] - 2026-07-29
+
 ### Added
 
 - Implement the approved 323×127 listening card with an 87×87 texture-backed artwork area, clipped title/artist attribution, UI scaling, and the uploaded SVG retained as the design source.
