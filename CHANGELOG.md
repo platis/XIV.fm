@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.19] - 2026-07-29
+
 ### Changed
 
 - Complete the listening-card design refinement with 10 px horizontal padding, 8 px vertical padding, and a matching 10 px artwork-to-text gap.
