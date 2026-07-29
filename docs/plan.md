@@ -121,10 +121,11 @@ This phase is intentionally collaborative with the product owner.
 - [x] Replace the fixed standing-height card offset with the game's current pose-aware nameplate world position.
   - The read-only native boundary and safety review are recorded in [`ADR 0001`](adr/0001-pose-aware-nameplate-anchor.md); standing, sitting, ground-sitting, lying, mounted, and transformed states still require in-game acceptance.
 - [ ] Design Account, Overlay, Privacy, Custom Relays, and Diagnostics settings.
-- [ ] Finalize card typography, sizing, animation, accessibility, scale, and obstruction behavior; add live album art only if the provider grants permission.
-  - Product-owner feedback promoted the compact placeholder into the final-design baseline: content-sized up to 293×71.2 px with 6 px horizontal and 8 px vertical border padding, 55.2×55.2 conditional artwork with no reserved gap or fallback when unavailable, 20%-larger close-set typography, bottom-aligned text, ellipsized overflow, no plugin/provider label, and a 0.4-yalm world-space safety height. The SVG records the maximum-width artwork layout.
+- [x] Finalize the card's visual design: typography, sizing, spacing, conditional artwork layout, and surface treatment.
+  - Product-owner refinement established the final visual baseline: content-sized up to 293×71.2 px with 10 px horizontal and 8 px vertical border padding, a matching 10 px artwork-to-text gap, 55.2×55.2 conditional artwork with no reserved gap or fallback when unavailable, 20%-larger close-set typography, bottom-aligned text, ellipsized overflow, no plugin/provider label, and a 0.4-yalm world-space safety height. The SVG records the maximum-width artwork layout.
   - The bounded background texture pipeline retires covers no longer referenced by the snapshot and retries transient loads with backoff; listening-state changes request an immediate card snapshot refresh.
   - Last.fm artwork is disabled by default. The private development backend may explicitly enable image mapping for in-game testing, but public rollout remains blocked until permission is recorded.
+- [ ] Complete card animation, accessibility, UI-scale, obstruction, and broader in-game validation.
 - [ ] Add preview tools without mixing them into production state.
 - [ ] Test common resolutions, UI scales, character races/heights, crowded cities, duties, login screens, and controller use.
 - [ ] Conduct privacy copy and consent review.

@@ -15,11 +15,11 @@ public sealed class NameplateCardRenderer
 {
     private const float MaximumCardWidth = 293f;
     private const float ArtworkSize = 55.2f;
-    private const float HorizontalCardPadding = 6f;
+    private const float HorizontalCardPadding = 10f;
     private const float VerticalCardPadding = 8f;
     private const float CardHeight = ArtworkSize + (2f * VerticalCardPadding);
     private const float CardOpacity = 0.688f;
-    private const float TextGap = HorizontalCardPadding;
+    private const float TextGap = 10f;
     private const float TitleFontSize = 21.6f;
     private const float ArtistFontSize = 19.2f;
     private const float ArtistOffsetY = 23f;
