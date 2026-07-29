@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.10] - 2026-07-29
+
 ### Changed
 
 - Increase the compact card by approximately 10% to 244×64 px, remove `Last.fm` from its artist line, and slightly tighten the title-to-artist gap.
