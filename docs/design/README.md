@@ -4,17 +4,19 @@
 
 Measurements at 1× Dalamud UI scale:
 
-- Card: 293×64 px (20% wider)
+- Card: content-sized up to 293 px wide; fixed 57.6 px height (10% shorter)
 - Corner radius: 5 px
-- Padding: 9 px
-- Conditional artwork: 46×46 px at (9, 9)
-- Text origin: (66, 16)
-- Title: 18 px, visually bold
-- Artist: 16 px, subdued
+- Horizontal padding: 9 px
+- Conditional artwork: 55.2×55.2 px (20% larger)
+- Artwork-to-text gap: 11 px
+- Title: 21.6 px (20% larger), visually bold
+- Artist: 19.2 px (20% larger), subdued
 - Artist vertical offset from title origin: 23 px
 - Background: 82% opacity using the current ImGui window color
 
-The text block is bottom-aligned with the artwork. The card reserves the artwork area to keep title placement stable, but draws no development image, colored block, or other placeholder when a cover is unavailable. Overlong title and artist text are shortened at complete Unicode text-element boundaries and end with `...` rather than being cut by the card edge.
+The card contracts to the wider of the rendered title and artist lines, including the cover and its gap only when a completed artwork texture is available. Without a cover, text starts at the left padding and no blank artwork area remains. The title and artist fit within the 293 px maximum width, and overlong text is shortened at complete Unicode text-element boundaries with a trailing `...`.
+
+The text block remains bottom-aligned with the artwork. Enlarging the title while retaining the 23 px line offset reduces its visual gap to the artist.
 
 The card contains no `XIV.fm` heading, separator, or `Last.fm` suffix. The card bottom is projected from a point 0.4 yalms above the game's pose-aware nameplate anchor. Dalamud's global UI scale is applied uniformly.
 

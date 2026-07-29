@@ -13,14 +13,16 @@ namespace XIV.fm.Plugin.UI;
 /// </summary>
 public sealed class NameplateCardRenderer
 {
-    private static readonly Vector2 CardSize = new(293f, 64f);
-
-    private const float ArtworkSize = 46f;
-    private const float CardPadding = 9f;
+    private const float MaximumCardWidth = 293f;
+    private const float CardHeight = 57.6f;
+    private const float ArtworkSize = 55.2f;
+    private const float HorizontalPadding = 9f;
+    private const float VerticalPadding = (CardHeight - ArtworkSize) / 2f;
     private const float TextGap = 11f;
-    private const float TitleFontSize = 18f;
-    private const float ArtistFontSize = 16f;
+    private const float TitleFontSize = 21.6f;
+    private const float ArtistFontSize = 19.2f;
     private const float ArtistOffsetY = 23f;
+    private const float TitleBoldOffsetX = 0.78f;
     private const int MaximumTextFitCacheEntries = 256;
 
     private const ImGuiWindowFlags CardWindowFlags =
@@ -139,14 +141,38 @@ public sealed class NameplateCardRenderer
     private void DrawCard(OverlayCard card, Vector2 screenAnchor)
     {
         var scale = ImGuiHelpers.GlobalScale;
-        var cardSize = CardSize * scale;
+        var hasArtwork = this.artworkCache.TryGet(card.ArtworkUrl, out var artwork) && artwork is not null;
+        var leadingContentWidth = hasArtwork ? ArtworkSize + TextGap : 0f;
+        var maximumTextWidth = (MaximumCardWidth - (2f * HorizontalPadding) - leadingContentWidth) * scale;
+        var artist = card.IsStale ? $"{card.Artist} · cached" : card.Artist;
+        var title = this.FitTextWithEllipsis(
+            card.Title,
+            TitleFontSize * scale,
+            maximumTextWidth - (TitleBoldOffsetX * scale));
+        artist = this.FitTextWithEllipsis(
+            artist,
+            ArtistFontSize * scale,
+            maximumTextWidth);
+
+        var titleWidth = MeasureTextWidth(title, TitleFontSize * scale) + (TitleBoldOffsetX * scale);
+        var artistWidth = MeasureTextWidth(artist, ArtistFontSize * scale);
+        var cardSize = new Vector2(
+            ContentSizedCardWidth.Calculate(
+                MaximumCardWidth * scale,
+                HorizontalPadding * scale,
+                leadingContentWidth * scale,
+                titleWidth,
+                artistWidth),
+            CardHeight * scale);
 
         // The projected point already includes the world-space nameplate safety height.
         ImGui.SetNextWindowPos(screenAnchor, ImGuiCond.Always, new Vector2(0.5f, 1f));
         ImGui.SetNextWindowSize(cardSize, ImGuiCond.Always);
         ImGui.SetNextWindowBgAlpha(0.82f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 5f * scale);
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(CardPadding * scale));
+        ImGui.PushStyleVar(
+            ImGuiStyleVar.WindowPadding,
+            new Vector2(HorizontalPadding * scale, VerticalPadding * scale));
 
         var windowId = $"XIV.fm card###XIV.fm.Card.{card.Character.Name}.{card.Character.HomeWorldId}";
         try
@@ -161,27 +187,17 @@ public sealed class NameplateCardRenderer
                 var cardMaximum = ImGui.GetWindowPos() + cardSize;
                 var artworkMaximum = origin + new Vector2(ArtworkSize * scale);
                 var drawList = ImGui.GetWindowDrawList();
-                if (this.artworkCache.TryGet(card.ArtworkUrl, out var artwork) && artwork is not null)
-                    drawList.AddImage(artwork.Handle, origin, artworkMaximum);
+                if (hasArtwork)
+                    drawList.AddImage(artwork!.Handle, origin, artworkMaximum);
 
                 var textMinimum = origin + new Vector2(
-                    (ArtworkSize + TextGap) * scale,
+                    leadingContentWidth * scale,
                     (ArtworkSize - ArtistOffsetY - ArtistFontSize) * scale);
                 var textMaximum = new Vector2(
-                    cardMaximum.X - (CardPadding * scale),
-                    cardMaximum.Y - (CardPadding * scale));
+                    cardMaximum.X - (HorizontalPadding * scale),
+                    cardMaximum.Y - (VerticalPadding * scale));
                 var titleColor = ImGui.GetColorU32(Vector4.One);
                 var artistColor = ImGui.GetColorU32(ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled]);
-                var artist = card.IsStale ? $"{card.Artist} · cached" : card.Artist;
-                var availableTextWidth = textMaximum.X - textMinimum.X;
-                var title = this.FitTextWithEllipsis(
-                    card.Title,
-                    TitleFontSize * scale,
-                    availableTextWidth - (0.65f * scale));
-                artist = this.FitTextWithEllipsis(
-                    artist,
-                    ArtistFontSize * scale,
-                    availableTextWidth);
 
                 drawList.PushClipRect(textMinimum, textMaximum, true);
                 drawList.AddText(
@@ -193,7 +209,7 @@ public sealed class NameplateCardRenderer
                 drawList.AddText(
                     ImGui.GetFont(),
                     TitleFontSize * scale,
-                    textMinimum + new Vector2(0.65f * scale, 0f),
+                    textMinimum + new Vector2(TitleBoldOffsetX * scale, 0f),
                     titleColor,
                     title);
                 drawList.AddText(
