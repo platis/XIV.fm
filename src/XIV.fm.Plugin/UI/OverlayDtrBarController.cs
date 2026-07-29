@@ -10,7 +10,9 @@ namespace XIV.fm.Plugin.UI;
 internal sealed class OverlayDtrBarController : IDisposable
 {
     private const string EntryTitle = "XIV.fm overlay";
+    private const string ShortcutLabel = "[FM]";
     private const ushort EnabledColor = 43;
+    private const ushort DisabledColor = 17;
 
     private readonly IDtrBarEntry entry;
     private readonly Func<bool> isOverlayEnabled;
@@ -35,15 +37,9 @@ internal sealed class OverlayDtrBarController : IDisposable
     public void Refresh()
     {
         var enabled = this.isOverlayEnabled();
-        this.entry.Text = enabled
-            ? new SeStringBuilder()
-                .AddUiForeground(EnabledColor)
-                .AddIcon(BitmapFontIcon.Bard)
-                .AddUiForegroundOff()
-                .Build()
-            : new SeStringBuilder()
-                .AddIcon(BitmapFontIcon.Bard)
-                .Build();
+        this.entry.Text = new SeStringBuilder()
+            .AddUiForeground(ShortcutLabel, enabled ? EnabledColor : DisabledColor)
+            .Build();
         this.entry.Tooltip = new SeStringBuilder()
             .AddText(enabled
                 ? "XIV.fm listening cards: Visible\nLeft-click to hide cards."

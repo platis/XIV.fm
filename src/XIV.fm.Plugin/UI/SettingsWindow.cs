@@ -72,8 +72,8 @@ public sealed class SettingsWindow : Window
         this.renderDiagnostics = renderDiagnostics;
         this.SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(620f, 500f),
-            MaximumSize = new Vector2(960f, 860f),
+            MinimumSize = new Vector2(434f, 350f),
+            MaximumSize = new Vector2(672f, 602f),
         };
     }
 
@@ -187,16 +187,26 @@ public sealed class SettingsWindow : Window
                 return;
             }
 
-            if (DrawPrimaryButton("Open Last.fm profile"))
+            const string profileLabel = "Open Last.fm profile";
+            const string syncLabel = "Sync now";
+            const string disconnectLabel = "Disconnect Last.fm";
+            var actionSpacing = ImGui.GetStyle().ItemSpacing.X;
+            var inlineActions = this.confirmingDisconnect || ImGui.GetContentRegionAvail().X >=
+                GetButtonWidth(profileLabel) + GetButtonWidth(syncLabel) + GetButtonWidth(disconnectLabel) +
+                (actionSpacing * 2f);
+
+            if (DrawPrimaryButton(profileLabel))
                 this.openLastFm();
             ImGui.SameLine();
-            if (DrawSecondaryButton("Sync now"))
+            if (DrawSecondaryButton(syncLabel))
                 this.requestSync();
 
             if (!this.confirmingDisconnect)
             {
-                const string disconnectLabel = "Disconnect Last.fm";
-                ImGui.SameLine();
+                if (inlineActions)
+                    ImGui.SameLine();
+                else
+                    ImGui.Spacing();
                 AlignNextButtonRight(disconnectLabel);
                 if (DrawOutlinedDangerButton(disconnectLabel))
                     this.confirmingDisconnect = true;
@@ -338,7 +348,23 @@ public sealed class SettingsWindow : Window
 
         ImGui.SameLine();
         ImGui.TextDisabled(cards ? "Visible" : "Hidden");
-        ImGui.TextDisabled("Hides both your card and nearby listeners’ cards without changing your privacy setting.");
+
+        if (!cards)
+            ImGui.BeginDisabled();
+        ImGui.SameLine();
+        var ownCard = this.configuration.ShowOwnListeningCard;
+        if (ImGui.Checkbox("Show my card", ref ownCard))
+        {
+            this.configuration.ShowOwnListeningCard = ownCard;
+            changed = true;
+        }
+
+        if (!cards)
+            ImGui.EndDisabled();
+
+        ImGui.TextDisabled(cards && !ownCard
+            ? "Nearby listening cards remain visible while your own card is hidden."
+            : "Card visibility does not change your privacy setting.");
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -485,6 +511,7 @@ public sealed class SettingsWindow : Window
         DrawKeyValue("Sync", sync.Status.ToString());
         DrawKeyValue("Visibility", this.configuration.Visibility.ToString());
         DrawKeyValue("Card opacity", $"{this.configuration.NormalizedCardOpacityPercent}%");
+        DrawKeyValue("Own card", this.configuration.ShowOwnListeningCard ? "Visible" : "Hidden");
         DrawKeyValue("Location", snapshot.Location?.ToString() ?? "Unavailable");
         DrawKeyValue("Snapshot cards", snapshot.Cards.Length.ToString(CultureInfo.InvariantCulture));
 
@@ -620,7 +647,15 @@ public sealed class SettingsWindow : Window
     {
         var scale = ImGuiHelpers.GlobalScale;
         var width = MathF.Max(1f, ImGui.GetContentRegionAvail().X);
-        var height = 66f * scale;
+        var horizontalPadding = 13f * scale;
+        var indicatorSpace = 42f * scale;
+        var descriptionWidth = MathF.Max(1f, width - horizontalPadding - indicatorSpace);
+        var titleHeight = ImGui.GetTextLineHeight();
+        var descriptionSize = ImGui.CalcTextSize(description, false, descriptionWidth);
+        var textGap = 5f * scale;
+        var height = MathF.Max(
+            66f * scale,
+            (20f * scale) + titleHeight + textGap + descriptionSize.Y);
         var origin = ImGui.GetCursorScreenPos();
 
         if (!enabled)
@@ -655,12 +690,15 @@ public sealed class SettingsWindow : Window
                 6f * scale);
         }
 
-        var textOrigin = origin + new Vector2(13f * scale, 10f * scale);
+        var textOrigin = origin + new Vector2(horizontalPadding, 10f * scale);
         drawList.AddText(textOrigin, ImGui.GetColorU32(titleColor), title);
         drawList.AddText(
-            textOrigin + new Vector2(0f, 25f * scale),
+            ImGui.GetFont(),
+            ImGui.GetFontSize(),
+            textOrigin + new Vector2(0f, titleHeight + textGap),
             ImGui.GetColorU32(descriptionColor),
-            description);
+            description,
+            descriptionWidth);
 
         var indicatorCenter = new Vector2(maximum.X - (18f * scale), origin.Y + (height / 2f));
         drawList.AddCircle(
@@ -710,9 +748,12 @@ public sealed class SettingsWindow : Window
         }
     }
 
+    private static float GetButtonWidth(string label) =>
+        ImGui.CalcTextSize(label).X + (ImGui.GetStyle().FramePadding.X * 2f);
+
     private static void AlignNextButtonRight(string label)
     {
-        var buttonWidth = ImGui.CalcTextSize(label).X + (ImGui.GetStyle().FramePadding.X * 2f);
+        var buttonWidth = GetButtonWidth(label);
         var availableWidth = ImGui.GetContentRegionAvail().X;
         if (availableWidth > buttonWidth)
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + availableWidth - buttonWidth);

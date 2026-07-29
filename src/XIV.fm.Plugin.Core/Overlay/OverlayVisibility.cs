@@ -11,6 +11,9 @@ public static class OverlayVisibility
     public static int NormalizeRemoteDistance(int distanceYalms) =>
         Math.Clamp(distanceYalms, MinimumRemoteDistanceYalms, MaximumRemoteDistanceYalms);
 
+    public static bool ShouldRenderCard(bool isLocal, bool showOwnCard) =>
+        !isLocal || showOwnCard;
+
     public static bool IsRemoteWithinRange(
         Vector3 localPosition,
         Vector3 remotePosition,

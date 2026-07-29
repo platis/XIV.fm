@@ -13,10 +13,10 @@ namespace XIV.fm.Plugin.UI;
 /// </summary>
 public sealed class NameplateCardRenderer
 {
-    private const float MaximumCardWidth = 293f;
+    private const float MaximumCardWidth = 297f;
     private const float ArtworkSize = 55.2f;
-    private const float HorizontalCardPadding = 8f;
-    private const float VerticalCardPadding = 8f;
+    private const float HorizontalCardPadding = 10f;
+    private const float VerticalCardPadding = 10f;
     private const float CardHeight = ArtworkSize + (2f * VerticalCardPadding);
     private const float TextGap = 10f;
     private const float TitleFontSize = 21.6f;
@@ -41,6 +41,7 @@ public sealed class NameplateCardRenderer
     private readonly AlbumArtworkCache artworkCache;
     private readonly Dictionary<(string Text, float FontSize, float MaximumWidth), string> textFitCache = [];
     private readonly Func<bool> isEnabled;
+    private readonly Func<bool> showOwnCard;
     private readonly Func<int> remoteDistanceYalms;
     private readonly Func<float> cardOpacity;
     private OverlayRenderDiagnostics diagnostics = OverlayRenderDiagnostics.Empty;
@@ -52,6 +53,7 @@ public sealed class NameplateCardRenderer
         OverlayStateStore stateStore,
         AlbumArtworkCache artworkCache,
         Func<bool> isEnabled,
+        Func<bool> showOwnCard,
         Func<int> remoteDistanceYalms,
         Func<float> cardOpacity)
     {
@@ -60,6 +62,7 @@ public sealed class NameplateCardRenderer
         this.stateStore = stateStore;
         this.artworkCache = artworkCache;
         this.isEnabled = isEnabled;
+        this.showOwnCard = showOwnCard;
         this.remoteDistanceYalms = remoteDistanceYalms;
         this.cardOpacity = cardOpacity;
     }
@@ -90,6 +93,9 @@ public sealed class NameplateCardRenderer
         var loadedPlayers = this.objectTable.PlayerObjects.OfType<IPlayerCharacter>().ToArray();
         foreach (var card in snapshot.Cards)
         {
+            if (!OverlayVisibility.ShouldRenderCard(card.IsLocal, this.showOwnCard()))
+                continue;
+
             var target = card.IsLocal
                 ? localPlayer
                 : FindLoadedPlayer(card.Character, loadedPlayers);

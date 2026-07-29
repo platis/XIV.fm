@@ -16,7 +16,7 @@ Implemented:
 - Atomic immutable overlay-state snapshots.
 - One local/remote player-card rendering path.
 - Pose-aware anchoring from the game's current nameplate world position, including emote and mount offsets.
-- A refined compact listening card, content-sized up to 293×71.2 px, with uniform 8 px outer padding, a 10 px artwork/text gap, explicitly centered artwork, bottom-aligned text, a configurable FFXIV-style charcoal surface defaulting to 60% opacity, optional cover artwork with no reserved gap when unavailable, and a 0.4-yalm nameplate safety height.
+- A refined compact listening card, content-sized up to 297×75.2 px, with uniform 10 px outer padding, a 10 px artwork/text gap, explicitly centered artwork, bottom-aligned text, a configurable FFXIV-style charcoal surface defaulting to 60% opacity, optional cover artwork with no reserved gap when unavailable, and a 0.4-yalm nameplate safety height.
 - Strict character name and home-world matching.
 - Typed location snapshots using current world, territory, map, and instance IDs.
 - Immediate snapshot invalidation/wake-up for login, logout, and location changes.
@@ -32,8 +32,8 @@ Implemented:
 - Custom Relay ownership, bounded membership, soft deletion, replay-safe creation, hashed single-use invitations, join/leave/kick restrictions, and durable quota enforcement.
 - Membership-authorized Custom sync and shared Relay/location snapshots with revision-based immediate kick invalidation.
 - A brief first-run welcome with plain-language product guidance, direct Last.fm linking, and a GitHub link, followed by a cohesive FFXIV-style charcoal settings window with live link/sync states, safe Last.fm disconnection, Overlay controls, direct privacy choices, Relay states, diagnostics, and private-test server configuration.
-- A native server-info-bar Bard-icon shortcut that left-clicks to show or hide listening cards and right-clicks to open settings.
-- Client-side remote distance filtering, defaulting to 8 yalms and clamped to 1–20.
+- A native `[FM]` server-info-bar shortcut that is green while cards are visible and gold while hidden; left-click toggles cards and right-click opens settings.
+- Independent global and own-card visibility controls, plus client-side remote distance filtering defaulting to 8 yalms and clamped to 1–20.
 - `/xivfm status` diagnostics for matching, range, projection, rendering, and location.
 - Unit-tested anchoring, identity, snapshot, and visibility behavior.
 
@@ -95,7 +95,7 @@ A private ARM64 backend stack is running on the development server with PostgreS
 /xivfm status       Print account, sync, and rendering diagnostics
 ```
 
-Remote mock state is disabled by default and exists only to validate matching, distance, and nameplate placement before server development. The Bard-icon shortcut in the native server info bar mirrors the Overlay setting; its tooltip reports whether cards are visible.
+Remote mock state is disabled by default and exists only to validate matching, distance, and nameplate placement before server development. The color-coded `[FM]` shortcut in the native server info bar mirrors the Overlay setting; its tooltip reports whether cards are visible.
 
 The production client accepts HTTPS; explicit development mode additionally accepts loopback HTTP/HTTPS. `/xivfm link` stores the proof-gated opaque installation credential in Dalamud's local plugin configuration and sync begins automatically. Linking, polling, sync, and rendering all suspend while bound by duty.
 

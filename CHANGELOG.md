@@ -4,6 +4,13 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Changed
+
+- Replace the server-bar Bard icon with a compact `[FM]` shortcut that is green while cards are visible and gold while hidden.
+- Reduce the settings window bounds by 30% and make choice cards and account actions adapt to the narrower layout.
+- Add a same-row Overlay option to hide only the local player's listening card while leaving nearby cards visible.
+- Increase listening-card outer padding from 8 to 10 px and maximum width from 293 to 297 px so the added padding does not reduce content space.
+
 ## [0.1.22] - 2026-07-29
 
 ### Changed

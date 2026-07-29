@@ -20,6 +20,16 @@ public sealed class OverlayVisibilityTests
         Assert.Equal(expected, OverlayVisibility.NormalizeRemoteDistance(configured));
     }
 
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, true)]
+    [InlineData(false, false, true)]
+    public void OwnCardSettingAffectsOnlyLocalCard(bool isLocal, bool showOwnCard, bool expected)
+    {
+        Assert.Equal(expected, OverlayVisibility.ShouldRenderCard(isLocal, showOwnCard));
+    }
+
     [Fact]
     public void RemoteAtExactlyEightYalmsIsVisible()
     {

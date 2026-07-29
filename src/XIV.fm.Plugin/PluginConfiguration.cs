@@ -6,11 +6,13 @@ namespace XIV.fm.Plugin;
 
 public sealed class PluginConfiguration : IPluginConfiguration
 {
-    public int Version { get; set; } = 5;
+    public int Version { get; set; } = 6;
 
     public bool HasSeenAccountOnboarding { get; set; }
 
     public bool ShowPlaceholderCards { get; set; } = true;
+
+    public bool ShowOwnListeningCard { get; set; } = true;
 
     public bool DeveloperMockRemoteCards { get; set; }
 

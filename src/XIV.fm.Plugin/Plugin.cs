@@ -52,7 +52,7 @@ public sealed class Plugin : IDalamudPlugin
         this.chatGui = chatGui;
         this.condition = condition;
         this.configuration = pluginInterface.GetPluginConfig() as PluginConfiguration ?? new PluginConfiguration();
-        this.configuration.Version = 5;
+        this.configuration.Version = 6;
         this.configuration.ServerBaseUrl ??= "https://xiv.fm";
         this.configuration.InstallationCredential ??= string.Empty;
         this.configuration.PendingLinkCredential ??= string.Empty;
@@ -79,6 +79,7 @@ public sealed class Plugin : IDalamudPlugin
             this.stateStore,
             this.artworkCache,
             () => this.configuration.ShowPlaceholderCards && this.CurrentDutyPolicy.AllowsOverlay,
+            () => this.configuration.ShowOwnListeningCard,
             () => this.configuration.NormalizedRemoteCardDistanceYalms,
             () => CardAppearance.ToOpacity(this.configuration.NormalizedCardOpacityPercent));
         DevelopmentOverlayCoordinator? overlayCoordinator = null;
@@ -399,6 +400,7 @@ public sealed class Plugin : IDalamudPlugin
     private void PrintStatus()
     {
         var cards = this.configuration.ShowPlaceholderCards ? "on" : "off";
+        var ownCard = this.configuration.ShowOwnListeningCard ? "on" : "off";
         var mocks = this.configuration.DeveloperMockRemoteCards ? "on" : "off";
         var snapshot = this.stateStore.Current;
         var diagnostics = this.cardRenderer.Diagnostics;
@@ -415,7 +417,7 @@ public sealed class Plugin : IDalamudPlugin
             ? $"{height:F2} yalms"
             : "unavailable";
         this.chatGui.Print(
-            $"Cards: {cards}; Last.fm: {linkDetail}; visibility: {this.configuration.Visibility.ToString().ToLowerInvariant()}; opacity: {this.configuration.NormalizedCardOpacityPercent}%; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; sync: {syncDetail}; snapshot: {snapshot.Cards.Length}; anchor height: {anchorHeight}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
+            $"Cards: {cards}; own card: {ownCard}; Last.fm: {linkDetail}; visibility: {this.configuration.Visibility.ToString().ToLowerInvariant()}; opacity: {this.configuration.NormalizedCardOpacityPercent}%; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; sync: {syncDetail}; snapshot: {snapshot.Cards.Length}; anchor height: {anchorHeight}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
             "XIV.fm");
     }
 }
