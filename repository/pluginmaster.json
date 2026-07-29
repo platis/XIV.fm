@@ -3,10 +3,10 @@
     "Author": "platis",
     "Name": "XIV.fm",
     "InternalName": "XIV.fm",
-    "AssemblyVersion": "0.1.5.0",
+    "AssemblyVersion": "0.1.6.0",
     "Punchline": "Share what you are listening to in Final Fantasy XIV.",
     "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
-    "Changelog": "Pose-aware card anchoring now follows FFXIV's current game-computed nameplate position, including sitting, lying, emote, and mount offsets.\n\nAdds local anchor-height diagnostics for in-game validation and includes the corrected Last.fm browser callback flow.",
+    "Changelog": "- Implements the new 323×127 listening card with an 87×87 album artwork area.\n- Displays album covers in the private development environment with a bounded, duty-aware texture loader.\n- Preserves pose-aware nameplate anchoring, Last.fm attribution, stale-state labeling, and Dalamud UI scaling.",
     "Tags": [
       "lastfm",
       "music",
@@ -15,8 +15,8 @@
     ],
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.5/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.5/latest.zip",
+    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.6/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.6/latest.zip",
     "RepoUrl": "https://github.com/platis/XIV.fm"
   }
 ]
