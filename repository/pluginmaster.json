@@ -3,10 +3,10 @@
     "Author": "platis",
     "Name": "XIV.fm",
     "InternalName": "XIV.fm",
-    "AssemblyVersion": "0.1.22.0",
+    "AssemblyVersion": "0.1.23.0",
     "Punchline": "Share what you are listening to in Final Fantasy XIV.",
     "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
-    "Changelog": "Fixes the native server-bar shortcut by using FFXIV's built-in Bard icon, and moves Last.fm disconnect onto the account action row with a lower-emphasis outlined style.",
+    "Changelog": "Finalizes the color-coded [FM] server-bar shortcut, adds an independent own-card visibility toggle, compacts settings by 30% with responsive content, and increases card padding while preserving content width.",
     "Tags": [
       "lastfm",
       "music",
@@ -15,8 +15,8 @@
     ],
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.22/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.22/latest.zip",
+    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.23/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.23/latest.zip",
     "RepoUrl": "https://github.com/platis/XIV.fm"
   }
 ]
