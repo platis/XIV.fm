@@ -4,6 +4,11 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Fixed
+
+- Keep the local player’s listening card above overlapping cards belonging to nearby players.
+- Keep artist names stationary and shorten overflowing names with three dots; overflowing track titles continue to use the scrolling marquee.
+
 ## [0.1.31] - 2026-07-29
 
 ### Added

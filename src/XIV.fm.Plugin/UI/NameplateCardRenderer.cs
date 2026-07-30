@@ -40,7 +40,7 @@ public sealed class NameplateCardRenderer
     private readonly OverlayStateStore stateStore;
     private readonly AlbumArtworkCache artworkCache;
     private readonly Dictionary<
-        (CharacterIdentity Character, string TrackTitle, string TrackArtist, string Text, bool IsTitle),
+        (CharacterIdentity Character, string TrackTitle, string TrackArtist, string Text),
         double> marqueeStartedAt = [];
     private readonly Func<bool> isEnabled;
     private readonly Func<bool> showOwnCard;
@@ -107,50 +107,55 @@ public sealed class NameplateCardRenderer
         var interactionModifierHeld = this.isInteractionModifierHeld();
         var maximumRemoteDistanceYalms = this.remoteDistanceYalms();
         var loadedPlayers = this.objectTable.PlayerObjects.OfType<IPlayerCharacter>().ToArray();
-        foreach (var card in snapshot.Cards)
+        for (var layer = 0; layer < OverlayCardStacking.LayerCount; layer++)
         {
-            if (!OverlayVisibility.ShouldRenderCard(card.IsLocal, this.showOwnCard()))
-                continue;
-
-            var target = card.IsLocal
-                ? localPlayer
-                : FindLoadedPlayer(card.Character, loadedPlayers);
-
-            if (target is null)
-                continue;
-
-            matchedPlayers++;
-            var distanceYalms = 0f;
-            if (!card.IsLocal)
+            foreach (var card in snapshot.Cards)
             {
-                distanceYalms = Vector3.Distance(localPlayer.Position, target.Position);
-                if (!float.IsFinite(distanceYalms) ||
-                    !OverlayVisibility.IsRemoteWithinRange(
-                        localPlayer.Position,
-                        target.Position,
-                        maximumRemoteDistanceYalms))
-                {
+                if (OverlayCardStacking.GetLayer(card.IsLocal) != layer)
                     continue;
+                if (!OverlayVisibility.ShouldRenderCard(card.IsLocal, this.showOwnCard()))
+                    continue;
+
+                var target = card.IsLocal
+                    ? localPlayer
+                    : FindLoadedPlayer(card.Character, loadedPlayers);
+
+                if (target is null)
+                    continue;
+
+                matchedPlayers++;
+                var distanceYalms = 0f;
+                if (!card.IsLocal)
+                {
+                    distanceYalms = Vector3.Distance(localPlayer.Position, target.Position);
+                    if (!float.IsFinite(distanceYalms) ||
+                        !OverlayVisibility.IsRemoteWithinRange(
+                            localPlayer.Position,
+                            target.Position,
+                            maximumRemoteDistanceYalms))
+                    {
+                        continue;
+                    }
                 }
+
+                inRangePlayers++;
+                if (!DalamudNameplateAnchor.TryGetWorldPosition(target, out var worldAnchor))
+                    continue;
+                if (card.IsLocal)
+                    localNameplateHeightYalms = OverlayAnchor.GetHeightYalms(target.Position, worldAnchor);
+                var cardAnchor = OverlayAnchor.AddSafetyHeight(worldAnchor);
+                if (!this.gameGui.WorldToScreen(cardAnchor, out var screenAnchor))
+                    continue;
+
+                projectedAnchors++;
+                this.DrawCard(
+                    card,
+                    screenAnchor,
+                    distanceYalms,
+                    maximumRemoteDistanceYalms,
+                    interactionModifierHeld);
+                renderedCards++;
             }
-
-            inRangePlayers++;
-            if (!DalamudNameplateAnchor.TryGetWorldPosition(target, out var worldAnchor))
-                continue;
-            if (card.IsLocal)
-                localNameplateHeightYalms = OverlayAnchor.GetHeightYalms(target.Position, worldAnchor);
-            var cardAnchor = OverlayAnchor.AddSafetyHeight(worldAnchor);
-            if (!this.gameGui.WorldToScreen(cardAnchor, out var screenAnchor))
-                continue;
-
-            projectedAnchors++;
-            this.DrawCard(
-                card,
-                screenAnchor,
-                distanceYalms,
-                maximumRemoteDistanceYalms,
-                interactionModifierHeld);
-            renderedCards++;
         }
 
         this.PublishDiagnostics(
@@ -223,6 +228,11 @@ public sealed class NameplateCardRenderer
             var shouldDrawContents = ImGui.Begin(windowId, windowFlags);
             try
             {
+                // Reorder only the display list, not focus, so the local card stays above
+                // overlapping remote cards without stealing input from another window.
+                if (card.IsLocal)
+                    ImGuiP.BringWindowToDisplayFront(ImGuiP.GetCurrentWindow());
+
                 if (!shouldDrawContents)
                     return;
 
@@ -285,24 +295,19 @@ public sealed class NameplateCardRenderer
                     drawList,
                     card,
                     card.Title,
-                    true,
                     TitleFontSize * scale,
                     textMinimum,
                     textMaximum.X,
                     titleColor,
                     TitleBoldOffsetX * scale,
                     scale);
-                this.DrawMarqueeText(
+                DrawEllipsizedText(
                     drawList,
-                    card,
                     artist,
-                    false,
                     ArtistFontSize * scale,
                     textMinimum + new Vector2(0f, ArtistOffsetY * scale),
                     textMaximum.X,
-                    artistColor,
-                    0f,
-                    scale);
+                    artistColor);
                 drawList.PopClipRect();
             }
             finally
@@ -380,7 +385,6 @@ public sealed class NameplateCardRenderer
         ImDrawListPtr drawList,
         OverlayCard card,
         string text,
-        bool isTitle,
         float fontSize,
         Vector2 origin,
         float maximumX,
@@ -396,7 +400,7 @@ public sealed class NameplateCardRenderer
             return;
         }
 
-        var key = (card.Character, card.Title, card.Artist, text, isTitle);
+        var key = (card.Character, card.Title, card.Artist, text);
         if (!this.marqueeStartedAt.TryGetValue(key, out var startedAt))
         {
             if (this.marqueeStartedAt.Count >= MaximumMarqueeStateEntries)
@@ -421,6 +425,22 @@ public sealed class NameplateCardRenderer
             firstOrigin + new Vector2(textWidth + gap, 0f),
             color,
             boldOffsetX);
+    }
+
+    private static void DrawEllipsizedText(
+        ImDrawListPtr drawList,
+        string text,
+        float fontSize,
+        Vector2 origin,
+        float maximumX,
+        uint color)
+    {
+        var availableWidth = MathF.Max(0f, maximumX - origin.X);
+        var fittedText = TextEllipsis.Fit(
+            text,
+            availableWidth,
+            candidate => MeasureTextWidth(candidate, fontSize));
+        DrawTextCopy(drawList, fittedText, fontSize, origin, color, 0f);
     }
 
     private static void DrawTextCopy(
