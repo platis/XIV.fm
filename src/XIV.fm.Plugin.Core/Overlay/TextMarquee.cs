@@ -12,6 +12,21 @@ public static class TextMarquee
         availableWidth > 0f &&
         textWidth > availableWidth;
 
+    public static float CalculateScaledOffset(
+        double elapsedSeconds,
+        float unscaledTextWidth,
+        float displayScale)
+    {
+        if (!float.IsFinite(displayScale) || displayScale <= 0f)
+            return 0f;
+
+        return CalculateOffset(
+            elapsedSeconds,
+            unscaledTextWidth,
+            GapPixels,
+            SpeedPixelsPerSecond) * displayScale;
+    }
+
     public static float CalculateOffset(
         double elapsedSeconds,
         float textWidth,

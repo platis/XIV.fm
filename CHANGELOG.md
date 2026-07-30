@@ -4,6 +4,12 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.33] - 2026-07-30
+
+### Fixed
+
+- Stabilize other players’ scrolling track titles while distance-based card scaling changes during movement.
+
 ## [0.1.32] - 2026-07-30
 
 ### Fixed

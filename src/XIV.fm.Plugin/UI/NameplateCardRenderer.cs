@@ -410,12 +410,14 @@ public sealed class NameplateCardRenderer
             this.marqueeStartedAt[key] = startedAt;
         }
 
+        // Keep the animation phase in scale-independent card coordinates. Remote
+        // distance scaling can then change every frame without changing the cycle.
         var gap = TextMarquee.GapPixels * scale;
-        var offset = TextMarquee.CalculateOffset(
+        var unscaledTextWidth = textWidth / scale;
+        var offset = TextMarquee.CalculateScaledOffset(
             ImGui.GetTime() - startedAt,
-            textWidth,
-            gap,
-            TextMarquee.SpeedPixelsPerSecond * scale);
+            unscaledTextWidth,
+            scale);
         var firstOrigin = origin - new Vector2(offset, 0f);
         DrawTextCopy(drawList, text, fontSize, firstOrigin, color, boldOffsetX);
         DrawTextCopy(

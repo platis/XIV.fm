@@ -22,6 +22,26 @@ public sealed class TextMarqueeTests
     }
 
     [Fact]
+    public void DistanceScalingDoesNotChangeTheAnimationPhase()
+    {
+        const double elapsedSeconds = 2.25d;
+        const float textWidth = 120f;
+
+        var fullSizeOffset = TextMarquee.CalculateScaledOffset(elapsedSeconds, textWidth, 1f);
+        var distantOffset = TextMarquee.CalculateScaledOffset(elapsedSeconds, textWidth, 0.65f);
+
+        Assert.Equal(fullSizeOffset * 0.65f, distantOffset, precision: 3);
+    }
+
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(float.NaN)]
+    public void InvalidDisplayScaleDoesNotMoveText(float displayScale)
+    {
+        Assert.Equal(0f, TextMarquee.CalculateScaledOffset(2d, 120f, displayScale));
+    }
+
+    [Fact]
     public void LoopsSeamlesslyBackToTheReadingPause()
     {
         const float textWidth = 120f;
