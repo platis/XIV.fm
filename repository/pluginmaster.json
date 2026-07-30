@@ -3,10 +3,10 @@
     "Author": "platis",
     "Name": "XIV.fm",
     "InternalName": "XIV.fm",
-    "AssemblyVersion": "0.1.31.0",
+    "AssemblyVersion": "0.1.32.0",
     "Punchline": "Share what you are listening to in Final Fantasy XIV.",
     "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
-    "Changelog": "- Scale other players’ cards smoothly by distance while preserving a readable minimum size.\n- Hold Alt and click a highlighted listening card to open its validated Last.fm track link.\n- Replace title and artist ellipses with a slow, seamless leftward marquee for overflowing text.",
+    "Changelog": "- Keep your listening card above overlapping cards from nearby players.\n- Keep artist names stationary and shorten overflow with three dots while track titles continue to scroll.",
     "Tags": [
       "lastfm",
       "music",
@@ -15,8 +15,8 @@
     ],
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.31/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.31/latest.zip",
+    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.32/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.32/latest.zip",
     "RepoUrl": "https://github.com/platis/XIV.fm"
   }
 ]
