@@ -7,7 +7,8 @@ public static class OverlayCardStacking
 {
     public const int RemoteLayer = 0;
     public const int LocalLayer = 1;
-    public const int LayerCount = 2;
+    public const int InterfaceLayer = 2;
+    public const int CardLayerCount = 2;
 
     public static int GetLayer(bool isLocal) => isLocal ? LocalLayer : RemoteLayer;
 }

@@ -11,6 +11,12 @@ public sealed class OverlayCardStackingTests
         var localLayer = OverlayCardStacking.GetLayer(isLocal: true);
 
         Assert.True(localLayer > remoteLayer);
-        Assert.Equal(OverlayCardStacking.LayerCount - 1, localLayer);
+        Assert.Equal(OverlayCardStacking.CardLayerCount - 1, localLayer);
+    }
+
+    [Fact]
+    public void InterfaceWindowsRenderAboveListeningCards()
+    {
+        Assert.True(OverlayCardStacking.InterfaceLayer > OverlayCardStacking.LocalLayer);
     }
 }

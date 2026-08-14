@@ -6,7 +6,9 @@ namespace XIV.fm.Plugin;
 
 public sealed class PluginConfiguration : IPluginConfiguration
 {
-    public const string DefaultPublicServerBaseUrl = "https://xivfm.168.138.129.70.sslip.io";
+    public const string DefaultPublicServerBaseUrl = "https://api.xivfm.form-a.page";
+
+    public const string LegacyPublicNginxBaseUrl = "https://xivfm.168.138.129.70.sslip.io";
 
     public const string LegacyPublicServerBaseUrl = "https://xiv.fm";
 
@@ -73,6 +75,7 @@ public sealed class PluginConfiguration : IPluginConfiguration
     {
         var normalized = baseUrl?.Trim().TrimEnd('/');
         return string.Equals(normalized, DefaultPublicServerBaseUrl, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalized, LegacyPublicNginxBaseUrl, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(normalized, LegacyPublicFunnelBaseUrl, StringComparison.OrdinalIgnoreCase);
     }
 }

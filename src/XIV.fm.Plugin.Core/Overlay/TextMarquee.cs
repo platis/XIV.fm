@@ -5,12 +5,13 @@ public static class TextMarquee
     public const float HoldSeconds = 1.25f;
     public const float SpeedPixelsPerSecond = 18f;
     public const float GapPixels = 24f;
+    public const float OverflowTolerancePixels = 0.5f;
 
     public static bool ShouldScroll(float textWidth, float availableWidth) =>
         float.IsFinite(textWidth) &&
         float.IsFinite(availableWidth) &&
         availableWidth > 0f &&
-        textWidth > availableWidth;
+        textWidth > availableWidth + OverflowTolerancePixels;
 
     public static float CalculateScaledOffset(
         double elapsedSeconds,

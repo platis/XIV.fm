@@ -42,6 +42,7 @@ public sealed class NameplateCardRenderer
     private readonly Dictionary<
         (CharacterIdentity Character, string TrackTitle, string TrackArtist, string Text),
         double> marqueeStartedAt = [];
+    private readonly List<ImGuiWindowPtr> remoteCardWindows = [];
     private readonly Func<bool> isEnabled;
     private readonly Func<bool> showOwnCard;
     private readonly Func<int> remoteDistanceYalms;
@@ -107,7 +108,9 @@ public sealed class NameplateCardRenderer
         var interactionModifierHeld = this.isInteractionModifierHeld();
         var maximumRemoteDistanceYalms = this.remoteDistanceYalms();
         var loadedPlayers = this.objectTable.PlayerObjects.OfType<IPlayerCharacter>().ToArray();
-        for (var layer = 0; layer < OverlayCardStacking.LayerCount; layer++)
+        this.remoteCardWindows.Clear();
+        ImGuiWindowPtr? localCardWindow = null;
+        for (var layer = 0; layer < OverlayCardStacking.CardLayerCount; layer++)
         {
             foreach (var card in snapshot.Cards)
             {
@@ -148,15 +151,21 @@ public sealed class NameplateCardRenderer
                     continue;
 
                 projectedAnchors++;
-                this.DrawCard(
+                var cardWindow = this.DrawCard(
                     card,
                     screenAnchor,
                     distanceYalms,
                     maximumRemoteDistanceYalms,
                     interactionModifierHeld);
+                if (card.IsLocal)
+                    localCardWindow = cardWindow;
+                else
+                    this.remoteCardWindows.Add(cardWindow);
                 renderedCards++;
             }
         }
+
+        ArrangeCardWindowStack(localCardWindow, this.remoteCardWindows);
 
         this.PublishDiagnostics(
             snapshot.Cards.Length,
@@ -180,7 +189,21 @@ public sealed class NameplateCardRenderer
         return null;
     }
 
-    private void DrawCard(
+    private static void ArrangeCardWindowStack(
+        ImGuiWindowPtr? localCardWindow,
+        List<ImGuiWindowPtr> remoteCardWindows)
+    {
+        // Move the complete card group behind normal interface windows. Moving the
+        // local card first, followed by remotes in reverse render order, leaves the
+        // local card above every remote without covering settings or dialogs.
+        if (localCardWindow is { } localWindow)
+            ImGuiP.BringWindowToDisplayBack(localWindow);
+
+        for (var index = remoteCardWindows.Count - 1; index >= 0; index--)
+            ImGuiP.BringWindowToDisplayBack(remoteCardWindows[index]);
+    }
+
+    private ImGuiWindowPtr DrawCard(
         OverlayCard card,
         Vector2 screenAnchor,
         float distanceYalms,
@@ -223,18 +246,15 @@ public sealed class NameplateCardRenderer
         var windowFlags = isInteractive
             ? CardWindowFlags
             : CardWindowFlags | ImGuiWindowFlags.NoMouseInputs;
+        ImGuiWindowPtr cardWindow;
         try
         {
             var shouldDrawContents = ImGui.Begin(windowId, windowFlags);
+            cardWindow = ImGuiP.GetCurrentWindow();
             try
             {
-                // Reorder only the display list, not focus, so the local card stays above
-                // overlapping remote cards without stealing input from another window.
-                if (card.IsLocal)
-                    ImGuiP.BringWindowToDisplayFront(ImGuiP.GetCurrentWindow());
-
                 if (!shouldDrawContents)
-                    return;
+                    return cardWindow;
 
                 var cardMinimum = ImGui.GetWindowPos();
                 var cardMaximum = cardMinimum + cardSize;
@@ -283,6 +303,9 @@ public sealed class NameplateCardRenderer
                 var textMaximum = new Vector2(
                     cardMaximum.X - (HorizontalCardPadding * scale),
                     artworkMaximum.Y);
+                var availableTextWidth = MathF.Max(
+                    0f,
+                    cardSize.X - ((2f * HorizontalCardPadding + leadingContentWidth) * scale));
                 var style = ImGui.GetStyle();
                 var surfaceColor = GetSurfaceColor(opacity);
                 var titleColor = ImGui.GetColorU32(style.Colors[(int)ImGuiCol.Text]);
@@ -297,7 +320,7 @@ public sealed class NameplateCardRenderer
                     card.Title,
                     TitleFontSize * scale,
                     textMinimum,
-                    textMaximum.X,
+                    availableTextWidth,
                     titleColor,
                     TitleBoldOffsetX * scale,
                     scale);
@@ -306,7 +329,7 @@ public sealed class NameplateCardRenderer
                     artist,
                     ArtistFontSize * scale,
                     textMinimum + new Vector2(0f, ArtistOffsetY * scale),
-                    textMaximum.X,
+                    availableTextWidth,
                     artistColor);
                 drawList.PopClipRect();
             }
@@ -319,6 +342,8 @@ public sealed class NameplateCardRenderer
         {
             ImGui.PopStyleVar(3);
         }
+
+        return cardWindow;
     }
 
     private static void DrawCardSurface(
@@ -387,13 +412,12 @@ public sealed class NameplateCardRenderer
         string text,
         float fontSize,
         Vector2 origin,
-        float maximumX,
+        float availableWidth,
         uint color,
         float boldOffsetX,
         float scale)
     {
         var textWidth = MeasureTextWidth(text, fontSize) + boldOffsetX;
-        var availableWidth = MathF.Max(0f, maximumX - origin.X);
         if (!TextMarquee.ShouldScroll(textWidth, availableWidth))
         {
             DrawTextCopy(drawList, text, fontSize, origin, color, boldOffsetX);
@@ -434,10 +458,9 @@ public sealed class NameplateCardRenderer
         string text,
         float fontSize,
         Vector2 origin,
-        float maximumX,
+        float availableWidth,
         uint color)
     {
-        var availableWidth = MathF.Max(0f, maximumX - origin.X);
         var fittedText = TextEllipsis.Fit(
             text,
             availableWidth,

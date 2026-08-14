@@ -4,6 +4,15 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Changed
+
+- Move the normal public server to `https://api.xivfm.form-a.page` and automatically migrate installations still using the former IP-derived or Tailscale Funnel endpoints.
+
+### Fixed
+
+- Keep listening cards behind normal plugin settings and dialogs while preserving the local card above other players’ cards.
+- Prevent fitting track titles from falsely entering marquee mode as their projected card moves across the screen.
+
 ## [0.1.33] - 2026-07-30
 
 ### Fixed

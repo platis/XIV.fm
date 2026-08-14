@@ -7,6 +7,8 @@ public sealed class TextMarqueeTests
     [Theory]
     [InlineData(99f, 100f, false)]
     [InlineData(100f, 100f, false)]
+    [InlineData(100.49f, 100f, false)]
+    [InlineData(100.51f, 100f, true)]
     [InlineData(101f, 100f, true)]
     public void ScrollsOnlyWhenTextOverflows(float textWidth, float availableWidth, bool expected)
     {

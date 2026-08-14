@@ -66,6 +66,10 @@ public sealed class Plugin : IDalamudPlugin
                 StringComparison.OrdinalIgnoreCase) ||
             string.Equals(
                 this.configuration.ServerBaseUrl.Trim().TrimEnd('/'),
+                PluginConfiguration.LegacyPublicNginxBaseUrl,
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(
+                this.configuration.ServerBaseUrl.Trim().TrimEnd('/'),
                 PluginConfiguration.LegacyPublicFunnelBaseUrl,
                 StringComparison.OrdinalIgnoreCase))
         {
