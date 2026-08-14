@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.34] - 2026-08-14
+
 ### Changed
 
 - Move the normal public server to `https://api.xivfm.form-a.page` and automatically migrate installations still using the former IP-derived or Tailscale Funnel endpoints.
