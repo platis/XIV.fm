@@ -3,10 +3,10 @@
     "Author": "platis",
     "Name": "XIV.fm",
     "InternalName": "XIV.fm",
-    "AssemblyVersion": "0.1.33.0",
+    "AssemblyVersion": "0.1.34.0",
     "Punchline": "Share what you are listening to in Final Fantasy XIV.",
     "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
-    "Changelog": "- Stabilize other players’ scrolling track titles while their cards resize with distance during movement.",
+    "Changelog": "- Move the normal public server to https://api.xivfm.form-a.page and automatically migrate installations using the former sslip.io or Tailscale Funnel endpoints.\n- Keep listening cards correctly layered behind normal plugin UI and prevent fitting track titles from scrolling unexpectedly.",
     "Tags": [
       "lastfm",
       "music",
@@ -15,8 +15,8 @@
     ],
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.33/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.33/latest.zip",
+    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.34/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.34/latest.zip",
     "RepoUrl": "https://github.com/platis/XIV.fm"
   }
 ]
