@@ -7,9 +7,15 @@ namespace XIV.fm.Plugin.Core.Presence;
 
 public sealed class RemotePresenceStateStore
 {
+    /// <summary>
+    /// Keeps cards visible while the next sync replaces an expired snapshot. A snapshot can expire at any
+    /// point between two syncs, so this covers one full sync interval plus request time.
+    /// </summary>
+    public static readonly TimeSpan ReplacementGrace = TimeSpan.FromSeconds(8);
+
     private readonly Lock gate = new();
     private ImmutableArray<OverlayCard> cards = [];
-    private DateTimeOffset expiresAt = DateTimeOffset.MinValue;
+    private DateTimeOffset visibleUntil = DateTimeOffset.MinValue;
 
     public bool Apply(
         SnapshotResult result,
@@ -26,7 +32,8 @@ public sealed class RemotePresenceStateStore
             return false;
         }
 
-        var mapped = result.Snapshot.ExpiresAt <= now
+        var retainUntil = result.Snapshot.ExpiresAt.Add(ReplacementGrace);
+        var mapped = retainUntil <= now
             ? ImmutableArray<OverlayCard>.Empty
             : result.Snapshot.Entries
                 .Select(entry => OverlayCard.RemoteListening(
@@ -40,7 +47,7 @@ public sealed class RemotePresenceStateStore
         lock (this.gate)
         {
             this.cards = mapped;
-            this.expiresAt = result.Snapshot.ExpiresAt;
+            this.visibleUntil = retainUntil;
         }
 
         return true;
@@ -49,7 +56,7 @@ public sealed class RemotePresenceStateStore
     public ImmutableArray<OverlayCard> Read(DateTimeOffset now)
     {
         lock (this.gate)
-            return now < this.expiresAt ? this.cards : [];
+            return now < this.visibleUntil ? this.cards : [];
     }
 
     public void Clear()
@@ -57,7 +64,7 @@ public sealed class RemotePresenceStateStore
         lock (this.gate)
         {
             this.cards = [];
-            this.expiresAt = DateTimeOffset.MinValue;
+            this.visibleUntil = DateTimeOffset.MinValue;
         }
     }
 }

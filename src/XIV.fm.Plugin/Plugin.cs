@@ -141,6 +141,7 @@ public sealed class Plugin : IDalamudPlugin
             () => this.GetSyncSettings(),
             this.GetVisibilitySelection,
             () => overlayCoordinator?.RequestCapture(),
+            this.RefreshRejectedRelayMemberships,
             typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "0.0.0.0");
         this.developmentCoordinator = new DevelopmentOverlayCoordinator(
             framework,
@@ -446,9 +447,16 @@ public sealed class Plugin : IDalamudPlugin
             : new VisibilitySelection(VisibilityMode.Custom, relayIds);
     }
 
+    private void RefreshRejectedRelayMemberships()
+    {
+        // If another Relay action is running, the next rejected sync requests this again.
+        _ = this.relayCoordinator.TryRefreshMemberships();
+    }
+
     private void ReconcileRelaySelections(
         IReadOnlyCollection<Guid> joinedRelayIds,
-        Guid? autoSelectedRelayId)
+        Guid? autoSelectedRelayId,
+        bool afterRejection)
     {
         var joined = joinedRelayIds.ToHashSet();
         var previousRelayIds = this.configuration.SelectedRelayIds;
@@ -473,6 +481,14 @@ public sealed class Plugin : IDalamudPlugin
         this.configuration.SelectedRelayIds = relayIds;
         this.SaveConfiguration();
         this.serverSyncCoordinator.RequestImmediateSync();
+        if (afterRejection)
+        {
+            this.chatGui.Print(
+                this.configuration.Visibility == VisibilityMode.Private
+                    ? "You are no longer in the selected Relay. Visibility changed to Private."
+                    : "You are no longer in one of the selected Relays. It was removed from your audience.",
+                "XIV.fm");
+        }
     }
 
     private bool TryGetServerBaseUri(out Uri? serverBaseUri)

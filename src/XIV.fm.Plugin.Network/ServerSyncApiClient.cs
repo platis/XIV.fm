@@ -412,7 +412,16 @@ public sealed class ServerSyncApiClient : IServerSyncApiClient, IAccountLinkApiC
         var buffer = new byte[81920];
         while (true)
         {
-            var read = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            int read;
+            try
+            {
+                read = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            }
+            catch (IOException exception)
+            {
+                throw new HttpRequestException("The XIV.fm server connection was interrupted.", exception);
+            }
+
             if (read == 0)
                 return output.ToArray();
             if (output.Length + read > MaximumResponseBytes)

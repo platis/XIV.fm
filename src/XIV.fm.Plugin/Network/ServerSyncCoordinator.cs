@@ -13,6 +13,8 @@ namespace XIV.fm.Plugin.Network;
 
 public sealed class ServerSyncCoordinator : IDisposable
 {
+    private const string RelayMembershipRequiredCode = "relay_membership_required";
+
     private readonly Lock gate = new();
     private readonly IFramework framework;
     private readonly IClientState clientState;
@@ -22,14 +24,16 @@ public sealed class ServerSyncCoordinator : IDisposable
     private readonly Func<ServerSyncSettings> settings;
     private readonly Func<VisibilitySelection> visibilitySelection;
     private readonly Action ownListeningChanged;
+    private readonly Action refreshRelayMemberships;
     private readonly string pluginVersion;
     private readonly CancellationTokenSource disposalCancellation = new();
     private SyncRuntimeState state = SyncRuntimeState.Disabled;
-    private ListeningState ownListening = UnavailableListening;
     private CancellationTokenSource? activeRequest;
     private DateTimeOffset nextSyncAt = DateTimeOffset.MinValue;
     private string? knownSnapshotVersion;
     private readonly RemotePresenceStateStore remotePresence = new();
+    private readonly OwnListeningStateStore ownListening = new();
+    private int relayMembershipRejected;
     private int consecutiveFailures;
     private long generation;
     private bool disposed;
@@ -43,6 +47,7 @@ public sealed class ServerSyncCoordinator : IDisposable
         Func<ServerSyncSettings> settings,
         Func<VisibilitySelection> visibilitySelection,
         Action ownListeningChanged,
+        Action refreshRelayMemberships,
         string pluginVersion)
     {
         this.framework = framework;
@@ -53,6 +58,7 @@ public sealed class ServerSyncCoordinator : IDisposable
         this.settings = settings;
         this.visibilitySelection = visibilitySelection;
         this.ownListeningChanged = ownListeningChanged;
+        this.refreshRelayMemberships = refreshRelayMemberships;
         this.pluginVersion = pluginVersion;
         this.framework.Update += this.OnFrameworkUpdate;
         this.clientState.Login += this.OnWake;
@@ -62,12 +68,9 @@ public sealed class ServerSyncCoordinator : IDisposable
         this.clientState.InstanceChanged += this.OnLocationChanged;
     }
 
-    private static ListeningState UnavailableListening { get; } =
-        new(ListeningStatus.Unavailable, false, null, null);
-
     public SyncRuntimeState State => Volatile.Read(ref this.state);
 
-    public ListeningState OwnListening => Volatile.Read(ref this.ownListening);
+    public ListeningState OwnListening => this.ownListening.Read(DateTimeOffset.UtcNow);
 
     public ImmutableArray<OverlayCard> GetRemoteCards(DateTimeOffset now) =>
         this.remotePresence.Read(now);
@@ -77,9 +80,7 @@ public sealed class ServerSyncCoordinator : IDisposable
     public void SuspendForAccountDisconnect()
     {
         this.CancelActiveRequest(SyncRuntimeState.Disabled with { UpdatedAt = DateTimeOffset.UtcNow });
-        var listeningChanged = this.OwnListening != UnavailableListening;
-        Volatile.Write(ref this.ownListening, UnavailableListening);
-        if (listeningChanged)
+        if (this.ownListening.Clear(DateTimeOffset.UtcNow))
             this.ownListeningChanged();
     }
 
@@ -125,6 +126,9 @@ public sealed class ServerSyncCoordinator : IDisposable
 
             return;
         }
+
+        if (Interlocked.Exchange(ref this.relayMembershipRejected, 0) != 0)
+            this.refreshRelayMemberships();
 
         lock (this.gate)
         {
@@ -221,8 +225,7 @@ public sealed class ServerSyncCoordinator : IDisposable
                 this.activeRequest = null;
                 this.consecutiveFailures = 0;
                 this.knownSnapshotVersion = result.Response.LocationPresence.Version;
-                listeningChanged = result.Response.OwnListening != this.OwnListening;
-                Volatile.Write(ref this.ownListening, result.Response.OwnListening);
+                listeningChanged = this.ownListening.Apply(result.Response.OwnListening, now);
                 this.nextSyncAt = now.Add(SyncTimingPolicy.FromServerDelay(result.Response.NextSyncAfterSeconds));
                 Volatile.Write(
                     ref this.state,
@@ -240,7 +243,7 @@ public sealed class ServerSyncCoordinator : IDisposable
         {
             // Duty entry, logout, location changes, or disposal own the replacement state.
         }
-        catch (Exception exception) when (exception is ServerSyncException or HttpRequestException or TaskCanceledException)
+        catch (Exception exception)
         {
             var now = DateTimeOffset.UtcNow;
             lock (this.gate)
@@ -253,7 +256,7 @@ public sealed class ServerSyncCoordinator : IDisposable
                 this.nextSyncAt = now.Add(SyncTimingPolicy.FailureDelay(this.consecutiveFailures));
                 var error = exception is ServerSyncException serverError
                     ? $"{serverError.Code}: {serverError.Message}"
-                    : "The development server is unavailable.";
+                    : "The XIV.fm server is unavailable.";
                 Volatile.Write(
                     ref this.state,
                     new SyncRuntimeState(
@@ -262,6 +265,9 @@ public sealed class ServerSyncCoordinator : IDisposable
                         this.nextSyncAt,
                         Error: error));
             }
+
+            if (exception is ServerSyncException { Code: RelayMembershipRequiredCode })
+                Interlocked.Exchange(ref this.relayMembershipRejected, 1);
         }
         finally
         {
@@ -282,8 +288,11 @@ public sealed class ServerSyncCoordinator : IDisposable
 
     private void OnWake() => this.RestartAfterLifecycleChange();
 
-    private void OnLogout(int type, int code) => this.CancelActiveRequest(
-        new SyncRuntimeState(SyncRuntimeStatus.Waiting, DateTimeOffset.UtcNow));
+    private void OnLogout(int type, int code)
+    {
+        this.CancelActiveRequest(new SyncRuntimeState(SyncRuntimeStatus.Waiting, DateTimeOffset.UtcNow));
+        this.ownListening.Clear(DateTimeOffset.UtcNow);
+    }
 
     private void OnLocationChanged(uint value) => this.RestartAfterLifecycleChange();
 
