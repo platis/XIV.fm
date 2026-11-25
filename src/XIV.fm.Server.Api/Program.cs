@@ -215,6 +215,8 @@ if (!string.IsNullOrEmpty(developmentCredential))
     }
 }
 
+if (TrustedProxies.CreateOptions(app.Configuration[TrustedProxies.ConfigurationKey]) is { } forwardedHeaders)
+    app.UseForwardedHeaders(forwardedHeaders);
 app.UseMiddleware<RequestIdMiddleware>();
 app.UseMiddleware<ApiExceptionMiddleware>();
 app.UseStatusCodePages(async statusContext =>

@@ -212,12 +212,118 @@ public sealed class ListeningPollingCoordinatorTests
         Assert.Equal(0, lastFm.CallCount);
     }
 
+    [Fact]
+    public async Task TransientLeaseFailureDoesNotEndPolling()
+    {
+        var lastFm = new CountingRecentTracksClient();
+        var leases = new FlakyPollLeaseStore();
+        var options = CreateFastRetryOptions();
+        var coordinator = new ListeningPollingCoordinator(
+            lastFm,
+            new InMemoryListeningStateStore(),
+            leases,
+            TimeProvider.System,
+            options,
+            new ListeningFreshnessPolicy(options));
+        using var cancellation = new CancellationTokenSource();
+        coordinator.NotifyActive(CreateAccount(), DateTimeOffset.UtcNow.AddMinutes(1));
+        var run = coordinator.RunAsync(cancellation.Token);
+
+        await WaitUntilAsync(() => Volatile.Read(ref leases.CallCount) >= 1);
+        Assert.False(run.IsCompleted);
+        leases.IsAvailable = true;
+        await WaitUntilAsync(() => Volatile.Read(ref lastFm.CallCount) == 1);
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+    }
+
+    [Fact]
+    public async Task TransientCacheFailureDoesNotEndPolling()
+    {
+        var lastFm = new CountingRecentTracksClient();
+        var store = new FlakyListeningStateStore();
+        var options = CreateFastRetryOptions();
+        var coordinator = new ListeningPollingCoordinator(
+            lastFm,
+            store,
+            new InMemoryListeningPollLeaseStore(),
+            TimeProvider.System,
+            options,
+            new ListeningFreshnessPolicy(options));
+        using var cancellation = new CancellationTokenSource();
+        coordinator.NotifyActive(CreateAccount(), DateTimeOffset.UtcNow.AddMinutes(1));
+        var run = coordinator.RunAsync(cancellation.Token);
+
+        await WaitUntilAsync(() => Volatile.Read(ref store.CallCount) >= 2);
+        Assert.False(run.IsCompleted);
+        store.IsAvailable = true;
+        await WaitUntilAsync(() => Volatile.Read(ref lastFm.CallCount) == 1);
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+    }
+
+    private static LinkedLastFmAccount CreateAccount() => new(
+        new AccountId(Guid.NewGuid()),
+        new LastFmAccountIdentity("CanonicalListener"));
+
+    private static ListeningPollingOptions CreateFastRetryOptions() => new(
+        TimeSpan.FromSeconds(15),
+        TimeSpan.FromSeconds(20),
+        TimeSpan.FromSeconds(60),
+        TimeSpan.FromSeconds(180),
+        TimeSpan.FromMilliseconds(100),
+        100,
+        TimeSpan.FromSeconds(1));
+
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
         var deadline = DateTimeOffset.UtcNow.AddSeconds(3);
         while (!condition() && DateTimeOffset.UtcNow < deadline)
             await Task.Delay(10);
         Assert.True(condition());
+    }
+
+    private sealed class FlakyPollLeaseStore : IListeningPollLeaseStore
+    {
+        private readonly InMemoryListeningPollLeaseStore inner = new();
+        public int CallCount;
+
+        public volatile bool IsAvailable;
+
+        public ValueTask<IAsyncDisposable?> TryAcquireAsync(
+            AccountId accountId,
+            TimeSpan leaseLifetime,
+            CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref this.CallCount);
+            return this.IsAvailable
+                ? this.inner.TryAcquireAsync(accountId, leaseLifetime, cancellationToken)
+                : throw new TimeoutException("Expected test failure.");
+        }
+    }
+
+    private sealed class FlakyListeningStateStore : IListeningStateStore
+    {
+        private readonly InMemoryListeningStateStore inner = new();
+        public int CallCount;
+
+        public volatile bool IsAvailable;
+
+        public ValueTask<ListeningObservation?> GetAsync(AccountId accountId, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref this.CallCount);
+            return this.IsAvailable
+                ? this.inner.GetAsync(accountId, cancellationToken)
+                : throw new TimeoutException("Expected test failure.");
+        }
+
+        public ValueTask SetAsync(
+            AccountId accountId,
+            ListeningObservation observation,
+            CancellationToken cancellationToken) =>
+            this.inner.SetAsync(accountId, observation, cancellationToken);
     }
 
     private sealed class FailingRecentTracksClient : ILastFmRecentTracksClient

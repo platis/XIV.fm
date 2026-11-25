@@ -6,7 +6,7 @@ public interface IListeningPollingTelemetry
 
     void RecordPollSuccess();
 
-    void RecordPollFailure();
+    void RecordPollFailure(Exception exception);
 
     void RecordLeaseContention();
 }
@@ -27,7 +27,7 @@ public sealed class NullListeningPollingTelemetry : IListeningPollingTelemetry
     {
     }
 
-    public void RecordPollFailure()
+    public void RecordPollFailure(Exception exception)
     {
     }
 

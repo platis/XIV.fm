@@ -3,11 +3,12 @@ using XIV.fm.Server.Application.Abstractions;
 
 namespace XIV.fm.Server.Api.Telemetry;
 
-public sealed class XivFmTelemetry : IListeningPollingTelemetry, IPresenceSnapshotTelemetry, IRelayTelemetry, IDisposable
+public sealed partial class XivFmTelemetry : IListeningPollingTelemetry, IPresenceSnapshotTelemetry, IRelayTelemetry, IDisposable
 {
     public const string MeterName = "XIV.fm.Server";
 
     private readonly Meter meter = new(MeterName);
+    private readonly ILogger<XivFmTelemetry> logger;
     private readonly Counter<long> syncRequests;
     private readonly Counter<long> syncSuccesses;
     private readonly Counter<long> authenticationFailures;
@@ -28,8 +29,9 @@ public sealed class XivFmTelemetry : IListeningPollingTelemetry, IPresenceSnapsh
     private readonly Counter<long> relayLeaves;
     private readonly Counter<long> relayKicks;
 
-    public XivFmTelemetry()
+    public XivFmTelemetry(ILogger<XivFmTelemetry> logger)
     {
+        this.logger = logger;
         this.syncRequests = this.meter.CreateCounter<long>("xivfm.sync.requests");
         this.syncSuccesses = this.meter.CreateCounter<long>("xivfm.sync.successes");
         this.authenticationFailures = this.meter.CreateCounter<long>("xivfm.auth.failures");
@@ -64,7 +66,11 @@ public sealed class XivFmTelemetry : IListeningPollingTelemetry, IPresenceSnapsh
 
     public void RecordPollSuccess() => this.listeningPollSuccesses.Add(1);
 
-    public void RecordPollFailure() => this.listeningPollFailures.Add(1);
+    public void RecordPollFailure(Exception exception)
+    {
+        this.listeningPollFailures.Add(1);
+        LogPollFailure(this.logger, exception.GetType().Name, exception.InnerException?.GetType().Name);
+    }
 
     public void RecordLeaseContention() => this.listeningLeaseContentions.Add(1);
 
@@ -90,4 +96,8 @@ public sealed class XivFmTelemetry : IListeningPollingTelemetry, IPresenceSnapsh
     public void RecordKicked() => this.relayKicks.Add(1);
 
     public void Dispose() => this.meter.Dispose();
+
+    // Only exception types are logged; messages could carry provider or account details.
+    [LoggerMessage(1, LogLevel.Warning, "A listening poll failed: {ExceptionType} (cause: {CauseType}).")]
+    private static partial void LogPollFailure(ILogger logger, string exceptionType, string? causeType);
 }

@@ -1,4 +1,3 @@
-using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using XIV.fm.Server.Application.Abstractions;
@@ -75,53 +74,55 @@ public sealed class PostgresAccountLinkStore : IAccountLinkStore, ILinkedAccount
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        await using var context = await this.contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        await using var transaction = await context.Database
-            .BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-            .ConfigureAwait(false);
-        var session = await context.AccountLinkSessions
-            .SingleOrDefaultAsync(entity => entity.SessionId == sessionId.Value, cancellationToken)
-            .ConfigureAwait(false);
-        if (session is null ||
-            session.Status != (int)StoredAccountLinkStatus.Authorizing ||
-            session.ExpiresAt <= now)
-        {
-            throw new InvalidOperationException("The account-link session cannot be completed.");
-        }
-
-        var account = await context.LastFmAccounts
-            .SingleOrDefaultAsync(
-                entity => entity.NormalizedName == identity.NormalizedName,
-                cancellationToken)
-            .ConfigureAwait(false);
-        if (account is null)
-        {
-            account = new LastFmAccountEntity
+        await SerializableTransaction.ExecuteAsync(
+            this.contextFactory,
+            async (context, cancellationToken) =>
             {
-                AccountId = Guid.NewGuid(),
-                CanonicalName = identity.CanonicalName,
-                NormalizedName = identity.NormalizedName,
-                CreatedAt = now,
-            };
-            context.LastFmAccounts.Add(account);
-        }
-        else
-        {
-            account.CanonicalName = identity.CanonicalName;
-        }
+                var session = await context.AccountLinkSessions
+                    .SingleOrDefaultAsync(entity => entity.SessionId == sessionId.Value, cancellationToken)
+                    .ConfigureAwait(false);
+                if (session is null ||
+                    session.Status != (int)StoredAccountLinkStatus.Authorizing ||
+                    session.ExpiresAt <= now)
+                {
+                    throw new InvalidOperationException("The account-link session cannot be completed.");
+                }
 
-        context.InstallationCredentials.Add(new InstallationCredentialEntity
-        {
-            InstallationId = Guid.NewGuid(),
-            AccountId = account.AccountId,
-            CredentialHash = session.LinkCredentialHash,
-            CreatedAt = now,
-        });
-        session.Account = account;
-        session.Status = (int)StoredAccountLinkStatus.Linked;
-        session.CompletedAt = now;
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                var account = await context.LastFmAccounts
+                    .SingleOrDefaultAsync(
+                        entity => entity.NormalizedName == identity.NormalizedName,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (account is null)
+                {
+                    account = new LastFmAccountEntity
+                    {
+                        AccountId = Guid.NewGuid(),
+                        CanonicalName = identity.CanonicalName,
+                        NormalizedName = identity.NormalizedName,
+                        CreatedAt = now,
+                    };
+                    context.LastFmAccounts.Add(account);
+                }
+                else
+                {
+                    account.CanonicalName = identity.CanonicalName;
+                }
+
+                context.InstallationCredentials.Add(new InstallationCredentialEntity
+                {
+                    InstallationId = Guid.NewGuid(),
+                    AccountId = account.AccountId,
+                    CredentialHash = session.LinkCredentialHash,
+                    CreatedAt = now,
+                });
+                session.Account = account;
+                session.Status = (int)StoredAccountLinkStatus.Linked;
+                session.CompletedAt = now;
+                await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                return (Result: true, Commit: true);
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask FailAsync(
