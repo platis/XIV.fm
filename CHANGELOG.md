@@ -4,6 +4,8 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.35] - 2026-11-25
+
 ### Fixed
 
 - Keep nearby players’ cards visible while the shared location snapshot is replaced.
