@@ -1,4 +1,5 @@
 using System.Diagnostics.Metrics;
+using XIV.fm.Server.Api.Health;
 using XIV.fm.Server.Application.Abstractions;
 
 namespace XIV.fm.Server.Api.Telemetry;
@@ -9,6 +10,7 @@ public sealed partial class XivFmTelemetry : IListeningPollingTelemetry, IPresen
 
     private readonly Meter meter = new(MeterName);
     private readonly ILogger<XivFmTelemetry> logger;
+    private readonly ListeningPollingHealth pollingHealth;
     private readonly Counter<long> syncRequests;
     private readonly Counter<long> syncSuccesses;
     private readonly Counter<long> authenticationFailures;
@@ -29,9 +31,10 @@ public sealed partial class XivFmTelemetry : IListeningPollingTelemetry, IPresen
     private readonly Counter<long> relayLeaves;
     private readonly Counter<long> relayKicks;
 
-    public XivFmTelemetry(ILogger<XivFmTelemetry> logger)
+    public XivFmTelemetry(ILogger<XivFmTelemetry> logger, ListeningPollingHealth pollingHealth)
     {
         this.logger = logger;
+        this.pollingHealth = pollingHealth;
         this.syncRequests = this.meter.CreateCounter<long>("xivfm.sync.requests");
         this.syncSuccesses = this.meter.CreateCounter<long>("xivfm.sync.successes");
         this.authenticationFailures = this.meter.CreateCounter<long>("xivfm.auth.failures");
@@ -64,11 +67,16 @@ public sealed partial class XivFmTelemetry : IListeningPollingTelemetry, IPresen
     public void RecordCacheRead(bool found) =>
         (found ? this.listeningCacheHits : this.listeningCacheMisses).Add(1);
 
-    public void RecordPollSuccess() => this.listeningPollSuccesses.Add(1);
+    public void RecordPollSuccess()
+    {
+        this.listeningPollSuccesses.Add(1);
+        this.pollingHealth.RecordSuccess();
+    }
 
     public void RecordPollFailure(Exception exception)
     {
         this.listeningPollFailures.Add(1);
+        this.pollingHealth.RecordFailure();
         LogPollFailure(this.logger, exception.GetType().Name, exception.InnerException?.GetType().Name);
     }
 

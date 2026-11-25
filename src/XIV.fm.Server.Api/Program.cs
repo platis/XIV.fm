@@ -83,7 +83,7 @@ if (useInMemoryStorage)
     builder.Services.AddSingleton<LastFmRequestBudget>();
     builder.Services.AddSingleton<ILastFmRequestBudget>(
         services => services.GetRequiredService<LastFmRequestBudget>());
-    healthChecks.AddCheck<InMemoryStoresHealthCheck>("in_memory_stores", tags: ["ready"]);
+    healthChecks.AddCheck<InMemoryStoresHealthCheck>("in_memory_stores", tags: ["ready", "status"]);
 }
 else
 {
@@ -116,7 +116,8 @@ else
     builder.Services.AddSingleton(services => RetentionPolicy.Default.Covering(
         services.GetRequiredService<RelayOptions>().CreationRollingWindow));
     builder.Services.AddHostedService<RetentionHostedService>();
-    healthChecks.AddCheck<DurableStoresHealthCheck>("durable_stores", tags: ["ready"]);
+    healthChecks.AddCheck<PostgresHealthCheck>("postgres", tags: ["ready", "status"]);
+    healthChecks.AddCheck<RedisHealthCheck>("redis", tags: ["ready", "status"]);
 }
 
 var publicBaseUrl = builder.Configuration["XIVFM_PUBLIC_BASE_URL"];
@@ -166,6 +167,8 @@ builder.Services.AddSingleton<RelayPresenceSnapshotService>();
 builder.Services.AddSingleton<SyncApplicationService>();
 builder.Services.AddSingleton<AccountDeletionService>();
 builder.Services.AddSingleton<InstallationApplicationService>();
+builder.Services.AddSingleton<ListeningPollingHealth>();
+healthChecks.AddCheck<ListeningPollingHealthCheck>("lastfm_polling", tags: ["status"]);
 builder.Services.AddSingleton<XivFmTelemetry>();
 builder.Services.AddSingleton<IListeningPollingTelemetry>(
     services => services.GetRequiredService<XivFmTelemetry>());
@@ -265,6 +268,14 @@ app.MapHealthChecks(
     new HealthCheckOptions
     {
         Predicate = registration => registration.Tags.Contains("ready"),
+        ResponseWriter = HealthResponseWriter.WriteAsync,
+    });
+// For the private status page: every component separately; Last.fm trouble reports degraded, not down.
+app.MapHealthChecks(
+    "/health/status",
+    new HealthCheckOptions
+    {
+        Predicate = registration => registration.Tags.Contains("status"),
         ResponseWriter = HealthResponseWriter.WriteAsync,
     });
 app.MapSyncEndpoint();

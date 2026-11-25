@@ -64,6 +64,8 @@ api_host_ip="$(docker inspect --format '{{(index (index .HostConfig.PortBindings
 
 base_url="http://127.0.0.1:$port"
 curl -fsS "$base_url/health/ready" | jq -e '.status == "healthy"' >/dev/null
+curl -fsS "$base_url/health/status" \
+    | jq -e '.checks == {"postgres": "healthy", "redis": "healthy", "lastfm_polling": "healthy"}' >/dev/null
 curl -fsS \
     -H "Authorization: Bearer $credential" \
     -H 'Content-Type: application/json' \
