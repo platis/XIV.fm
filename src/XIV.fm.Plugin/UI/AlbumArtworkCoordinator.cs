@@ -12,6 +12,7 @@ public sealed class AlbumArtworkCoordinator : IDisposable
     private readonly IFramework framework;
     private readonly OverlayStateStore stateStore;
     private readonly AlbumArtworkCache cache;
+    private readonly NearbyArtworkTracker nearbyArtwork;
     private readonly Func<DutyParticipationPolicy> dutyPolicy;
     private DateTimeOffset nextPrepareAt = DateTimeOffset.MinValue;
     private bool wasSuspended;
@@ -20,11 +21,13 @@ public sealed class AlbumArtworkCoordinator : IDisposable
         IFramework framework,
         OverlayStateStore stateStore,
         AlbumArtworkCache cache,
+        NearbyArtworkTracker nearbyArtwork,
         Func<DutyParticipationPolicy> dutyPolicy)
     {
         this.framework = framework;
         this.stateStore = stateStore;
         this.cache = cache;
+        this.nearbyArtwork = nearbyArtwork;
         this.dutyPolicy = dutyPolicy;
         this.framework.Update += this.OnFrameworkUpdate;
     }
@@ -49,8 +52,9 @@ public sealed class AlbumArtworkCoordinator : IDisposable
         this.nextPrepareAt = now.AddSeconds(1);
         this.cache.Prepare(
             this.stateStore.Current.Cards
-                .OrderByDescending(static card => card.IsLocal)
+                .Where(static card => card.IsLocal)
                 .Select(static card => card.ArtworkUrl)
-                .OfType<Uri>());
+                .OfType<Uri>()
+                .Concat(this.nearbyArtwork.GetCurrent(now)));
     }
 }

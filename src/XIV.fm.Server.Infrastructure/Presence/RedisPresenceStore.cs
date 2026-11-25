@@ -9,6 +9,8 @@ namespace XIV.fm.Server.Infrastructure.Presence;
 
 public sealed class RedisPresenceStore : IPresenceStore
 {
+    // Longer than any heartbeat, so an index outlives its members but not forever.
+    private static readonly TimeSpan IndexLifetime = TimeSpan.FromMinutes(2);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly IConnectionMultiplexer connection;
     private readonly TimeProvider timeProvider;
@@ -34,25 +36,35 @@ public sealed class RedisPresenceStore : IPresenceStore
         var previousValues = await database.StringGetAsync([dataKey, pointerKey], CommandFlags.None).WaitAsync(cancellationToken).ConfigureAwait(false);
         var previous = previousValues[0].IsNullOrEmpty ? null : JsonSerializer.Deserialize<StoredPresence>((string)previousValues[0]!, JsonOptions);
         var previousIndexes = ParseIndexes(previousValues[1]);
-        foreach (var previousIndex in previousIndexes)
-            await database.SortedSetRemoveAsync(previousIndex, installationValue).WaitAsync(cancellationToken).ConfigureAwait(false);
-
-        await database.StringSetAsync(dataKey, JsonSerializer.Serialize(stored, JsonOptions), lifetime).WaitAsync(cancellationToken).ConfigureAwait(false);
         var indexes = CreatePublicationIndexes(heartbeat);
-        foreach (var index in indexes)
-            await database.SortedSetAddAsync(index, installationValue, heartbeat.ExpiresAt.ToUnixTimeMilliseconds()).WaitAsync(cancellationToken).ConfigureAwait(false);
-        if (indexes.Length == 0)
-            await database.KeyDeleteAsync(pointerKey).WaitAsync(cancellationToken).ConfigureAwait(false);
-        else
-            await database.StringSetAsync(pointerKey, JsonSerializer.Serialize(indexes.Select(key => (string)key!).ToArray(), JsonOptions), lifetime).WaitAsync(cancellationToken).ConfigureAwait(false);
 
+        // One ordered round trip: stale indexes go first, so a heartbeat is never indexed in two places.
+        var batch = database.CreateBatch();
+        var writes = new List<Task>();
+        foreach (var previousIndex in previousIndexes.Except(indexes))
+            writes.Add(batch.SortedSetRemoveAsync(previousIndex, installationValue));
+        writes.Add(batch.StringSetAsync(dataKey, JsonSerializer.Serialize(stored, JsonOptions), lifetime));
+        foreach (var index in indexes)
+        {
+            writes.Add(batch.SortedSetAddAsync(index, installationValue, heartbeat.ExpiresAt.ToUnixTimeMilliseconds()));
+            writes.Add(batch.KeyExpireAsync(index, IndexLifetime));
+        }
+
+        writes.Add(indexes.Length == 0
+            ? batch.KeyDeleteAsync(pointerKey)
+            : batch.StringSetAsync(
+                pointerKey,
+                JsonSerializer.Serialize(indexes.Select(key => (string)key!).ToArray(), JsonOptions),
+                lifetime));
         if (heartbeat.AccountId is AccountId accountId)
         {
             var accountKey = CreateAccountInstallationsKey(accountId);
-            await database.SetAddAsync(accountKey, installationValue).WaitAsync(cancellationToken).ConfigureAwait(false);
-            await database.KeyExpireAsync(accountKey, TimeSpan.FromMinutes(2)).WaitAsync(cancellationToken).ConfigureAwait(false);
+            writes.Add(batch.SetAddAsync(accountKey, installationValue));
+            writes.Add(batch.KeyExpireAsync(accountKey, IndexLifetime));
         }
 
+        batch.Execute();
+        await Task.WhenAll(writes).WaitAsync(cancellationToken).ConfigureAwait(false);
         return previous is null ? null : ToHeartbeat(previous);
     }
 

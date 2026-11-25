@@ -40,6 +40,10 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
+// Per-query and per-request detail would otherwise write dozens of lines for every sync.
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
+builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
+builder.Logging.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
 builder.Services.AddSingleton(TimeProvider.System);
 var storageMode = builder.Configuration["XIVFM_STORAGE_MODE"];
 var useInMemoryStorage = string.IsNullOrWhiteSpace(storageMode)
@@ -100,8 +104,7 @@ else
     builder.Services.AddSingleton<PostgresAccountLinkStore>();
     builder.Services.AddSingleton<IAccountLinkStore>(
         services => services.GetRequiredService<PostgresAccountLinkStore>());
-    builder.Services.AddSingleton<ILinkedAccountResolver>(
-        services => services.GetRequiredService<PostgresAccountLinkStore>());
+    builder.Services.AddSingleton<ILinkedAccountResolver, CachedLinkedAccountResolver>();
     builder.Services.AddSingleton<IListeningStateStore, RedisListeningStateStore>();
     builder.Services.AddSingleton<IListeningPollLeaseStore, RedisListeningPollLeaseStore>();
     builder.Services.AddSingleton<IPublicPresenceSnapshotCache, RedisPublicPresenceSnapshotCache>();

@@ -31,6 +31,31 @@ public sealed class RedisListeningStateStore : IListeningStateStore
             : JsonSerializer.Deserialize<ListeningObservation>((string)value!, JsonOptions);
     }
 
+    public async ValueTask<IReadOnlyDictionary<AccountId, ListeningObservation>> GetManyAsync(
+        IReadOnlyList<AccountId> accountIds,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var observations = new Dictionary<AccountId, ListeningObservation>(accountIds.Count);
+        if (accountIds.Count == 0)
+            return observations;
+
+        var values = await this.connection.GetDatabase()
+            .StringGetAsync(accountIds.Select(CreateKey).ToArray())
+            .WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+        for (var index = 0; index < values.Length; index++)
+        {
+            if (!values[index].IsNullOrEmpty &&
+                JsonSerializer.Deserialize<ListeningObservation>((string)values[index]!, JsonOptions) is { } observation)
+            {
+                observations[accountIds[index]] = observation;
+            }
+        }
+
+        return observations;
+    }
+
     public async ValueTask SetAsync(
         AccountId accountId,
         ListeningObservation observation,

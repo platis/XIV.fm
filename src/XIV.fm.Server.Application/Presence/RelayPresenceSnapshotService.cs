@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using XIV.fm.Contracts.V1;
@@ -16,7 +15,7 @@ public sealed class RelayPresenceSnapshotService
 {
     private const int MaximumCandidateHeartbeats = 2000;
     private static readonly TimeSpan SnapshotLifetime = TimeSpan.FromSeconds(20);
-    private readonly ConcurrentDictionary<BuildKey, SemaphoreSlim> buildLocks = new();
+    private readonly StripedLock buildLocks = new();
     private readonly IRelayStore relayStore;
     private readonly IPresenceStore presenceStore;
     private readonly IListeningStateStore listeningStateStore;
@@ -43,17 +42,26 @@ public sealed class RelayPresenceSnapshotService
         this.timeProvider = timeProvider;
     }
 
+    /// <returns>The viewer's current Relay revisions, or null when any membership is missing.</returns>
+    public ValueTask<IReadOnlyDictionary<Guid, long>?> AuthorizeAsync(
+        AccountId viewerAccountId,
+        IReadOnlyList<Guid> relayIds,
+        CancellationToken cancellationToken) =>
+        this.relayStore.GetMembershipRevisionsAsync(viewerAccountId, relayIds, cancellationToken);
+
+    /// <summary>
+    /// Builds the union for revisions from <see cref="AuthorizeAsync"/> and confirms them again afterwards.
+    /// </summary>
     public async ValueTask<AuthorizedRelaySnapshot?> GetAuthorizedUnionAsync(
         AccountId viewerAccountId,
         IReadOnlyList<Guid> relayIds,
+        IReadOnlyDictionary<Guid, long> authorizedRevisions,
         DomainLocationScope location,
         CancellationToken cancellationToken)
     {
+        var revisions = authorizedRevisions;
         for (var attempt = 0; attempt < 2; attempt++)
         {
-            var revisions = await this.relayStore.GetMembershipRevisionsAsync(viewerAccountId, relayIds, cancellationToken).ConfigureAwait(false);
-            if (revisions is null)
-                return null;
             var snapshots = new List<PresenceSnapshot>(relayIds.Count);
             foreach (var relayId in relayIds)
                 snapshots.Add(await this.GetRelayAsync(relayId, revisions[relayId], location, cancellationToken).ConfigureAwait(false));
@@ -62,7 +70,10 @@ public sealed class RelayPresenceSnapshotService
             if (confirmed is null)
                 return null;
             if (!revisions.All(pair => confirmed.TryGetValue(pair.Key, out var revision) && revision == pair.Value))
+            {
+                revisions = confirmed;
                 continue;
+            }
 
             var now = this.timeProvider.GetUtcNow();
             var entries = snapshots.SelectMany(snapshot => snapshot.Entries)
@@ -101,8 +112,7 @@ public sealed class RelayPresenceSnapshotService
         if (hit)
             return cached!;
 
-        var key = new BuildKey(relayId, revision, location);
-        var buildLock = this.buildLocks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+        var buildLock = this.buildLocks.Get(new BuildKey(relayId, revision, location));
         await buildLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -113,18 +123,20 @@ public sealed class RelayPresenceSnapshotService
             var heartbeats = await this.presenceStore.GetRelayAsync(relayId, location, now, MaximumCandidateHeartbeats, cancellationToken).ConfigureAwait(false);
             var candidates = heartbeats.Where(heartbeat => heartbeat.AccountId is not null).Select(heartbeat => heartbeat.AccountId!.Value).Distinct().ToArray();
             var members = await this.relayStore.GetCurrentMembersAsync(relayId, candidates, cancellationToken).ConfigureAwait(false);
-            var entries = new List<PresenceEntry>();
-            foreach (var heartbeat in heartbeats
+            var visible = heartbeats
                 .Where(heartbeat => heartbeat.AccountId is AccountId accountId && members.Contains(accountId))
                 .GroupBy(heartbeat => heartbeat.AccountId!.Value)
                 .Select(group => group.OrderByDescending(heartbeat => heartbeat.SeenAt).First())
                 .OrderBy(heartbeat => heartbeat.Character.Name, StringComparer.Ordinal)
                 .ThenBy(heartbeat => heartbeat.Character.HomeWorldId)
-                .Take(PublicPresenceSnapshotService.MaximumEntries))
-            {
-                var listening = await this.listeningStateStore.GetAsync(heartbeat.AccountId!.Value, cancellationToken).ConfigureAwait(false);
-                entries.Add(new PresenceEntry(new CharacterIdentity(heartbeat.Character.Name, heartbeat.Character.HomeWorldId), this.MapListening(listening, now)));
-            }
+                .Take(PublicPresenceSnapshotService.MaximumEntries)
+                .ToArray();
+            var listening = await this.listeningStateStore.GetManyAsync(visible.Select(heartbeat => heartbeat.AccountId!.Value).ToArray(), cancellationToken).ConfigureAwait(false);
+            var entries = visible
+                .Select(heartbeat => new PresenceEntry(
+                    new CharacterIdentity(heartbeat.Character.Name, heartbeat.Character.HomeWorldId),
+                    this.MapListening(listening.GetValueOrDefault(heartbeat.AccountId!.Value), now)))
+                .ToList();
             var snapshot = new PresenceSnapshot(
                 new LocationScope(location.CurrentWorldId, location.TerritoryId, location.MapId, location.InstanceId),
                 now,
