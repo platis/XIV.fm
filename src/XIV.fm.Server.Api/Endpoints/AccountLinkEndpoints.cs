@@ -85,7 +85,7 @@ public static class AccountLinkEndpoints
     {
         if (linkSessionId == Guid.Empty || state is null || token is null)
         {
-            await WriteBrowserResultAsync(context, false, cancellationToken).ConfigureAwait(false);
+            await BrowserResultPage.WriteAsync(context, false, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -96,27 +96,12 @@ public static class AccountLinkEndpoints
                 state,
                 token,
                 cancellationToken).ConfigureAwait(false);
-            await WriteBrowserResultAsync(context, completed, cancellationToken).ConfigureAwait(false);
+            await BrowserResultPage.WriteAsync(context, completed, cancellationToken).ConfigureAwait(false);
         }
         catch (LastFmAuthorizationException)
         {
-            await WriteBrowserResultAsync(context, false, cancellationToken).ConfigureAwait(false);
+            await BrowserResultPage.WriteAsync(context, false, cancellationToken).ConfigureAwait(false);
         }
-    }
-
-    private static async Task WriteBrowserResultAsync(
-        HttpContext context,
-        bool success,
-        CancellationToken cancellationToken)
-    {
-        context.Response.StatusCode = success ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest;
-        context.Response.ContentType = "text/plain; charset=utf-8";
-        context.Response.Headers.CacheControl = "no-store";
-        await context.Response.WriteAsync(
-            success
-                ? "XIV.fm is linked. You may close this browser window and return to the game."
-                : "This XIV.fm link is invalid, expired, or already used. Return to the game and start again.",
-            cancellationToken).ConfigureAwait(false);
     }
 
     private static Task WriteNotFoundAsync(HttpContext context, CancellationToken cancellationToken) =>

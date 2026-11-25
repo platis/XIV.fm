@@ -129,7 +129,7 @@ public sealed class RelayCoordinator : IDisposable
                     relays,
                     AutoSelectedRelayId: created.RelayId,
                     MembershipListIsAuthoritative: true,
-                    Message: $"Created {created.Name} and selected it in Privacy.");
+                    Message: $"Created {created.Name}. Your visibility is now Custom Relays.");
             },
             RelayRuntimeStatus.Working,
             out error);
@@ -187,7 +187,7 @@ public sealed class RelayCoordinator : IDisposable
                     relays,
                     AutoSelectedRelayId: accepted.Relay.RelayId,
                     MembershipListIsAuthoritative: true,
-                    Message: $"Joined {accepted.Relay.Name} and selected it in Privacy.");
+                    Message: $"Joined {accepted.Relay.Name}. Your visibility is now Custom Relays.");
             },
             RelayRuntimeStatus.Working,
             out error);

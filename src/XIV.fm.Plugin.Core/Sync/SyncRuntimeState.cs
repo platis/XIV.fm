@@ -15,7 +15,9 @@ public sealed record SyncRuntimeState(
     DateTimeOffset UpdatedAt,
     DateTimeOffset? NextSyncAt = null,
     string? LastRequestId = null,
-    string? Error = null)
+    string? Error = null,
+    string? ErrorCode = null,
+    DateTimeOffset? LastSuccessAt = null)
 {
     public static SyncRuntimeState Disabled { get; } =
         new(SyncRuntimeStatus.Disabled, DateTimeOffset.MinValue);

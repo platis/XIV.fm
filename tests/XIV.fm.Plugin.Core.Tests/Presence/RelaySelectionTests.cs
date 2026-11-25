@@ -1,3 +1,4 @@
+using XIV.fm.Contracts.V1;
 using XIV.fm.Plugin.Core.Presence;
 
 namespace XIV.fm.Plugin.Core.Tests.Presence;
@@ -62,5 +63,18 @@ public sealed class RelaySelectionTests
 
         Assert.Equal(2, selected.Length);
         Assert.Equal(relayIds[0], selected[^1]);
+    }
+
+    [Fact]
+    public void CustomVisibilityKeepsItsLastRelay()
+    {
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+
+        Assert.True(RelaySelection.CanDeselect([first, second], first, VisibilityMode.Custom));
+        Assert.False(RelaySelection.CanDeselect([first], first, VisibilityMode.Custom));
+        Assert.True(RelaySelection.CanDeselect([first], first, VisibilityMode.Public));
+        Assert.True(RelaySelection.CanDeselect([first], first, VisibilityMode.Private));
+        Assert.False(RelaySelection.CanDeselect([first], second, VisibilityMode.Public));
     }
 }

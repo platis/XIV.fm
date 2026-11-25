@@ -17,6 +17,12 @@ public static class CardAppearance
     public static float ToOpacity(int opacityPercent) =>
         NormalizeOpacityPercent(opacityPercent) / 100f;
 
+    /// <summary>
+    /// Text needs less outline as the card surface itself separates it from the scene.
+    /// </summary>
+    public static float TextOutlineOpacity(float cardOpacity) =>
+        0.8f - (0.5f * Math.Clamp(cardOpacity, 0f, 1f));
+
     public static int NormalizeSizePercent(int sizePercent) =>
         Math.Clamp(sizePercent, MinimumSizePercent, MaximumSizePercent);
 

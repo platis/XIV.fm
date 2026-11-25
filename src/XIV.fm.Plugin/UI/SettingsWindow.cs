@@ -9,19 +9,17 @@ using XIV.fm.Plugin.Core.Policy;
 using XIV.fm.Plugin.Core.Presence;
 using XIV.fm.Plugin.Core.Sync;
 using XIV.fm.Plugin.Network;
+using static XIV.fm.Plugin.UI.SettingsTheme;
 
 namespace XIV.fm.Plugin.UI;
 
 public sealed class SettingsWindow : Window
 {
-    private static readonly Vector4 Accent = new(0.88f, 0.23f, 0.36f, 1f);
-    private static readonly Vector4 Success = new(0.32f, 0.78f, 0.48f, 1f);
-    private static readonly Vector4 Warning = new(0.95f, 0.71f, 0.25f, 1f);
-    private static readonly Vector4 Danger = new(0.95f, 0.35f, 0.35f, 1f);
-    private static readonly Vector4 Neutral = new(0.62f, 0.65f, 0.7f, 1f);
-    private static readonly Vector4 PanelSurface = new(0.169f, 0.169f, 0.169f, 0.82f);
-    private static readonly Vector4 PanelSurfaceHovered = new(0.215f, 0.215f, 0.215f, 0.9f);
-    private static readonly Vector4 PanelBorder = new(0.42f, 0.42f, 0.44f, 0.5f);
+    private static readonly OverlayCard SampleCard = new(
+        new Core.Overlay.CharacterIdentity("Preview", 1),
+        "Track title",
+        "Artist name",
+        IsLocal: true);
 
     private readonly PluginConfiguration configuration;
     private readonly Action saveConfiguration;
@@ -39,7 +37,14 @@ public sealed class SettingsWindow : Window
     private readonly Func<OverlaySnapshot> overlaySnapshot;
     private readonly Func<OverlayRenderDiagnostics> renderDiagnostics;
     private readonly RelayCoordinator relayCoordinator;
-    private string? interactionMessage;
+    private readonly Func<ListeningState> ownListening;
+    private readonly Func<string?> relinkAccount;
+    private readonly AlbumArtworkCache artworkCache;
+    private readonly ListeningCardPainter previewPainter = new();
+    private string? accountMessage;
+    private string? relayMessage;
+    private bool previewOtherPlayer;
+    private bool wasLinked;
     private string newRelayName = string.Empty;
     private string invitationToken = string.Empty;
     private string renameRelayName = string.Empty;
@@ -67,7 +72,10 @@ public sealed class SettingsWindow : Window
         Func<SyncRuntimeState> syncState,
         Func<OverlaySnapshot> overlaySnapshot,
         Func<OverlayRenderDiagnostics> renderDiagnostics,
-        RelayCoordinator relayCoordinator)
+        RelayCoordinator relayCoordinator,
+        Func<ListeningState> ownListening,
+        Func<string?> relinkAccount,
+        AlbumArtworkCache artworkCache)
         : base("XIV.fm###XIV.fm.Settings")
     {
         this.configuration = configuration;
@@ -86,6 +94,9 @@ public sealed class SettingsWindow : Window
         this.overlaySnapshot = overlaySnapshot;
         this.renderDiagnostics = renderDiagnostics;
         this.relayCoordinator = relayCoordinator;
+        this.ownListening = ownListening;
+        this.relinkAccount = relinkAccount;
+        this.artworkCache = artworkCache;
         this.SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(434f, 350f),
@@ -104,7 +115,7 @@ public sealed class SettingsWindow : Window
         ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 5f * scale);
         try
         {
-            DrawHeader();
+            this.DrawHeader();
             ImGui.Spacing();
 
             if (!ImGui.BeginTabBar("XIV.fm.Settings.Tabs"))
@@ -148,32 +159,46 @@ public sealed class SettingsWindow : Window
         }
     }
 
-    private static void DrawHeader()
+    private ConnectionSummary GetConnection() => ConnectionSummary.Create(
+        this.hasInstallationCredential(),
+        this.configuration.LinkedLastFmAccountName,
+        this.dutyPolicy().IsInDuty,
+        this.syncState(),
+        this.ownListening(),
+        DateTimeOffset.UtcNow);
+
+    private void DrawHeader()
     {
         var scale = ImGuiHelpers.GlobalScale;
+        var connection = this.GetConnection();
         var width = MathF.Max(1f, ImGui.GetContentRegionAvail().X);
-        var height = 58f * scale;
+        var lineHeight = ImGui.GetTextLineHeight();
+        var height = lineHeight + (20f * scale);
         var origin = ImGui.GetCursorScreenPos();
         var maximum = origin + new Vector2(width, height);
         var drawList = ImGui.GetWindowDrawList();
-        var style = ImGui.GetStyle();
 
         drawList.AddRectFilled(origin, maximum, ImGui.GetColorU32(PanelSurface), 7f * scale);
         drawList.AddRect(origin, maximum, ImGui.GetColorU32(PanelBorder), 7f * scale);
-        drawList.AddRectFilled(
-            origin,
-            new Vector2(origin.X + (3f * scale), maximum.Y),
-            ImGui.GetColorU32(Accent),
-            7f * scale);
+        drawList.AddText(origin + new Vector2(14f, 10f) * scale, ImGui.GetColorU32(Accent), "XIV.fm");
 
-        var textOrigin = origin + new Vector2(14f, 10f) * scale;
-        drawList.AddText(textOrigin, ImGui.GetColorU32(Accent), "XIV.fm");
+        var status = this.hasInstallationCredential()
+            ? $"{connection.Title} · {GetVisibilityLabel(this.configuration.Visibility)}"
+            : connection.Title;
+        var statusX = maximum.X - (14f * scale) - ImGui.CalcTextSize(status).X;
+        drawList.AddCircleFilled(
+            new Vector2(statusX - (11f * scale), origin.Y + (height / 2f)),
+            4f * scale,
+            ImGui.GetColorU32(GetTone(connection.Tone)));
         drawList.AddText(
-            textOrigin + new Vector2(0f, 24f * scale),
-            ImGui.GetColorU32(style.Colors[(int)ImGuiCol.TextDisabled]),
-            "Your soundtrack, above your nameplate.");
+            new Vector2(statusX, origin.Y + (10f * scale)),
+            ImGui.GetColorU32(ImGui.GetStyle().Colors[(int)ImGuiCol.Text]),
+            status);
         ImGui.SetCursorScreenPos(new Vector2(origin.X, maximum.Y + (4f * scale)));
     }
+
+    private static string GetVisibilityLabel(VisibilityMode visibility) =>
+        visibility == VisibilityMode.Custom ? "Custom Relays" : visibility.ToString();
 
     private void DrawAccountTab()
     {
@@ -185,16 +210,23 @@ public sealed class SettingsWindow : Window
             "Last.fm account",
             "Connect securely in your browser. XIV.fm never sees or stores your Last.fm password.");
 
+        if (linked != this.wasLinked)
+        {
+            this.wasLinked = linked;
+            this.accountMessage = null;
+            this.relayMessage = null;
+        }
+
         if (linked)
         {
             var disconnect = this.disconnectState();
-            var accountName = string.IsNullOrWhiteSpace(this.configuration.LinkedLastFmAccountName)
-                ? "your linked Last.fm account"
-                : this.configuration.LinkedLastFmAccountName;
-            DrawStatusPanel(
-                "Connected",
-                $"Listening as {accountName}. Your temporary authorization session was discarded after linking.",
-                Success);
+            var connection = this.GetConnection();
+            DrawStatusPanel(connection.Title, connection.Detail, GetTone(connection.Tone));
+            if (connection.RequiresRelink)
+            {
+                this.DrawRelink(duty);
+                return;
+            }
 
             if (disconnect.Status == AccountDisconnectRuntimeStatus.Disconnecting)
             {
@@ -252,7 +284,7 @@ public sealed class SettingsWindow : Window
             if (DrawDangerButton("Disconnect"))
             {
                 var error = this.disconnectAccount();
-                this.interactionMessage = error;
+                this.accountMessage = error;
                 if (error is null)
                     this.confirmingDisconnect = false;
             }
@@ -265,8 +297,8 @@ public sealed class SettingsWindow : Window
 
             if (!duty.AllowsServerRequests)
                 ImGui.TextDisabled("You can disconnect after leaving the duty.");
-            if (!string.IsNullOrWhiteSpace(this.interactionMessage))
-                ImGui.TextWrapped(this.interactionMessage);
+            if (!string.IsNullOrWhiteSpace(this.accountMessage))
+                ImGui.TextWrapped(this.accountMessage);
             return;
         }
 
@@ -287,7 +319,7 @@ public sealed class SettingsWindow : Window
                 if (DrawSecondaryButton("Cancel and start over"))
                 {
                     this.cancelAccountLink();
-                    this.interactionMessage = "The pending link was cleared.";
+                    this.accountMessage = "The pending link was cleared.";
                 }
 
                 break;
@@ -309,7 +341,7 @@ public sealed class SettingsWindow : Window
                     if (DrawSecondaryButton("Cancel and start over"))
                     {
                         this.cancelAccountLink();
-                        this.interactionMessage = "The pending link was cleared.";
+                        this.accountMessage = "The pending link was cleared.";
                     }
                 }
                 else
@@ -319,19 +351,29 @@ public sealed class SettingsWindow : Window
 
                 break;
             default:
-                DrawStatusPanel(
-                    "Not connected",
-                    "Connect Last.fm to show your real listening state above your character.",
-                    Neutral);
+                var disconnected = this.GetConnection();
+                DrawStatusPanel(disconnected.Title, disconnected.Detail, GetTone(disconnected.Tone));
                 this.DrawLinkButton(duty);
                 break;
         }
 
-        if (!string.IsNullOrWhiteSpace(this.interactionMessage))
+        if (!string.IsNullOrWhiteSpace(this.accountMessage))
         {
             ImGui.Spacing();
-            DrawStatusPanel("Status", this.interactionMessage, Neutral);
+            DrawStatusPanel("Status", this.accountMessage, Neutral);
         }
+    }
+
+    private void DrawRelink(DutyParticipationPolicy duty)
+    {
+        ImGui.TextDisabled("Your visibility returns to Private until you choose it again.");
+        if (!duty.AllowsServerRequests)
+            ImGui.BeginDisabled();
+        var requested = DrawPrimaryButton("Connect Last.fm again");
+        if (!duty.AllowsServerRequests)
+            ImGui.EndDisabled();
+        if (requested)
+            this.accountMessage = this.relinkAccount();
     }
 
     private void DrawLinkButton(DutyParticipationPolicy duty)
@@ -342,7 +384,7 @@ public sealed class SettingsWindow : Window
         if (DrawPrimaryButton("Connect Last.fm in browser", new Vector2(240f * ImGuiHelpers.GlobalScale, 0f)))
         {
             var error = this.startAccountLink();
-            this.interactionMessage = error ?? "Creating a Last.fm connection link…";
+            this.accountMessage = error;
         }
 
         if (!duty.AllowsServerRequests)
@@ -370,7 +412,7 @@ public sealed class SettingsWindow : Window
 
         if (DrawPrimaryButton(openLabel))
         {
-            this.interactionMessage = this.openAuthorizationLink(authorizationUri) ??
+            this.accountMessage = this.openAuthorizationLink(authorizationUri) ??
                 "Last.fm authorization was opened in your default browser.";
         }
 
@@ -382,7 +424,7 @@ public sealed class SettingsWindow : Window
         if (DrawSecondaryButton(copyLabel))
         {
             ImGui.SetClipboardText(authorizationUri.AbsoluteUri);
-            this.interactionMessage = "Connection link copied to the clipboard.";
+            this.accountMessage = "Connection link copied to the clipboard.";
         }
 
         ImGui.Spacing();
@@ -429,6 +471,8 @@ public sealed class SettingsWindow : Window
         if (!cards)
             ImGui.BeginDisabled();
 
+        this.DrawCardPreview();
+
         ImGui.TextUnformatted("Card background opacity");
         ImGui.TextDisabled("Adjust the card surface without fading its text or artwork.");
         ImGui.Spacing();
@@ -443,8 +487,9 @@ public sealed class SettingsWindow : Window
                 "%d%%"))
         {
             this.configuration.CardOpacityPercent = CardAppearance.NormalizeOpacityPercent(opacity);
-            changed = true;
         }
+
+        changed |= ImGui.IsItemDeactivatedAfterEdit();
 
         if (opacity != CardAppearance.DefaultOpacityPercent)
         {
@@ -458,6 +503,19 @@ public sealed class SettingsWindow : Window
         {
             ImGui.TextDisabled("60% · default");
         }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        var outline = this.configuration.OutlineCardText;
+        if (ImGui.Checkbox("Outline card text", ref outline))
+        {
+            this.configuration.OutlineCardText = outline;
+            changed = true;
+        }
+
+        ImGui.TextDisabled("Keeps text readable over bright scenes.");
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -478,8 +536,10 @@ public sealed class SettingsWindow : Window
                 "%d%%"))
         {
             this.configuration.OwnCardSizePercent = CardAppearance.NormalizeSizePercent(ownCardSize);
-            changed = true;
+            this.previewOtherPlayer = false;
         }
+
+        changed |= ImGui.IsItemDeactivatedAfterEdit();
 
         ImGui.TextUnformatted("Other players’ cards");
         ImGui.TextDisabled("Cards shrink smoothly as players approach the distance limit.");
@@ -493,8 +553,10 @@ public sealed class SettingsWindow : Window
                 "%d%%"))
         {
             this.configuration.OtherCardSizePercent = CardAppearance.NormalizeSizePercent(otherCardSize);
-            changed = true;
+            this.previewOtherPlayer = true;
         }
+
+        changed |= ImGui.IsItemDeactivatedAfterEdit();
 
         if (ownCardSize != CardAppearance.DefaultSizePercent ||
             otherCardSize != CardAppearance.DefaultSizePercent)
@@ -529,8 +591,9 @@ public sealed class SettingsWindow : Window
                 "%d yalms"))
         {
             this.configuration.RemoteCardDistanceYalms = OverlayVisibility.NormalizeRemoteDistance(range);
-            changed = true;
         }
+
+        changed |= ImGui.IsItemDeactivatedAfterEdit();
 
         if (range != OverlayVisibility.DefaultRemoteDistanceYalms)
         {
@@ -555,17 +618,63 @@ public sealed class SettingsWindow : Window
             this.saveConfiguration();
     }
 
+    private void DrawCardPreview()
+    {
+        var scale = ImGuiHelpers.GlobalScale;
+        ImGui.TextUnformatted("Preview");
+        ImGui.SameLine();
+        if (ImGui.RadioButton("My card", !this.previewOtherPlayer))
+            this.previewOtherPlayer = false;
+        ImGui.SameLine();
+        if (ImGui.RadioButton("Other players", this.previewOtherPlayer))
+            this.previewOtherPlayer = true;
+
+        var card = this.overlaySnapshot().Cards.FirstOrDefault(candidate => candidate.IsLocal) ?? SampleCard;
+        this.artworkCache.TryGet(card.ArtworkUrl, out var artwork);
+        var cardScale = scale * CardAppearance.ToScale(this.previewOtherPlayer
+            ? this.configuration.NormalizedOtherCardSizePercent
+            : this.configuration.NormalizedOwnCardSizePercent);
+        var cardSize = ListeningCardPainter.Measure(card, artwork is not null, cardScale);
+
+        var width = MathF.Max(1f, ImGui.GetContentRegionAvail().X);
+        var height = 136f * scale;
+        var origin = ImGui.GetCursorScreenPos();
+        var maximum = origin + new Vector2(width, height);
+        ImGui.Dummy(new Vector2(width, height));
+
+        // Dark to bright, like the scenes a card appears over.
+        var drawList = ImGui.GetWindowDrawList();
+        drawList.PushClipRect(origin, maximum, true);
+        var dark = ImGui.GetColorU32(new Vector4(0.1f, 0.12f, 0.14f, 1f));
+        var bright = ImGui.GetColorU32(new Vector4(0.93f, 0.94f, 0.92f, 1f));
+        drawList.AddRectFilledMultiColor(origin, maximum, dark, bright, bright, dark);
+        var cardMinimum = origin + ((new Vector2(width, height) - cardSize) / 2f);
+        this.previewPainter.Draw(
+            drawList,
+            card,
+            artwork,
+            cardMinimum,
+            cardSize,
+            cardScale,
+            CardAppearance.ToOpacity(this.configuration.NormalizedCardOpacityPercent),
+            this.configuration.OutlineCardText,
+            isHovered: false,
+            clipToWindow: true);
+        drawList.PopClipRect();
+        ImGui.Spacing();
+    }
+
     private void DrawPrivacyTab()
     {
         DrawSectionHeader(
-            "Who can receive your listening presence?",
-            "Private still retrieves your music for your own card, but publishes no social presence.");
+            "Who can see your listening card?",
+            "You see other players’ cards only through the audience you share with.");
 
         var visibility = this.configuration.Visibility;
         if (DrawChoiceCard(
                 "XIV.fm.Visibility.Private",
                 "Private",
-                "Only you can see your listening card.",
+                "Only you see your card. You don’t see other players’ cards.",
                 visibility == VisibilityMode.Private,
                 true))
         {
@@ -575,7 +684,7 @@ public sealed class SettingsWindow : Window
         if (DrawChoiceCard(
                 "XIV.fm.Visibility.Public",
                 "Public",
-                "Nearby XIV.fm listeners in your current game location can receive your presence.",
+                "Anyone using XIV.fm as Public in your location can see your card, and you can see theirs.",
                 visibility == VisibilityMode.Public,
                 true))
         {
@@ -590,10 +699,10 @@ public sealed class SettingsWindow : Window
                 "XIV.fm.Visibility.Custom",
                 "Custom Relays",
                 customEnabled
-                    ? $"Share and receive presence through {selectedRelayCount} selected Relay{(selectedRelayCount == 1 ? string.Empty : "s")}."
+                    ? $"Only members of your {selectedRelayCount} selected Relay{(selectedRelayCount == 1 ? string.Empty : "s")} in your location can see your card, and you can see theirs."
                     : hasLinkedAccount
                         ? "Select at least one joined Relay below."
-                        : "Connect Last.fm to choose a private Relay audience.",
+                        : "Connect Last.fm to share with Relays.",
                 visibility == VisibilityMode.Custom,
                 customEnabled))
         {
@@ -603,7 +712,9 @@ public sealed class SettingsWindow : Window
         if (hasLinkedAccount)
         {
             ImGui.TextUnformatted("Relay audience");
-            ImGui.TextDisabled("Choose up to five Relays to share and receive presence.");
+            ImGui.TextDisabled(visibility == VisibilityMode.Custom
+                ? "Choose up to five Relays. At least one must stay selected."
+                : "Choose up to five Relays. They apply when you select Custom Relays.");
             if (relayState.Relays.IsEmpty)
             {
                 ImGui.TextDisabled(relayState.Status is RelayRuntimeStatus.Idle or RelayRuntimeStatus.Loading
@@ -616,9 +727,9 @@ public sealed class SettingsWindow : Window
                 {
                     ImGui.PushID($"PrivacyRelay.{relay.RelayId:D}");
                     var selected = this.configuration.SelectedRelayIds.Contains(relay.RelayId);
-                    var canSelect = selected || RelaySelection.CanSelect(
-                        this.configuration.SelectedRelayIds,
-                        relay.RelayId);
+                    var canSelect = selected
+                        ? RelaySelection.CanDeselect(this.configuration.SelectedRelayIds, relay.RelayId, visibility)
+                        : RelaySelection.CanSelect(this.configuration.SelectedRelayIds, relay.RelayId);
                     if (!canSelect)
                         ImGui.BeginDisabled();
                     if (ImGui.Checkbox(relay.Name, ref selected))
@@ -635,8 +746,6 @@ public sealed class SettingsWindow : Window
             }
         }
 
-        ImGui.Spacing();
-        ImGui.TextDisabled("Changing this setting requests an immediate sync.");
     }
 
     private void DrawRelaysTab()
@@ -705,11 +814,11 @@ public sealed class SettingsWindow : Window
             if (this.relayCoordinator.TryAcceptInvitation(this.invitationToken, out var error))
             {
                 this.invitationToken = string.Empty;
-                this.interactionMessage = null;
+                this.relayMessage = null;
             }
             else
             {
-                this.interactionMessage = error;
+                this.relayMessage = error;
             }
         }
 
@@ -732,11 +841,11 @@ public sealed class SettingsWindow : Window
             if (this.relayCoordinator.TryCreate(this.newRelayName, out var error))
             {
                 this.newRelayName = string.Empty;
-                this.interactionMessage = null;
+                this.relayMessage = null;
             }
             else
             {
-                this.interactionMessage = error;
+                this.relayMessage = error;
             }
         }
 
@@ -758,10 +867,10 @@ public sealed class SettingsWindow : Window
             this.DrawRelayTable(state, duty, busy);
         }
 
-        if (!string.IsNullOrWhiteSpace(this.interactionMessage))
+        if (!string.IsNullOrWhiteSpace(this.relayMessage))
         {
             ImGui.Spacing();
-            DrawStatusPanel("Status", this.interactionMessage, Neutral);
+            DrawStatusPanel("Status", this.relayMessage, Neutral);
         }
     }
 
@@ -938,7 +1047,7 @@ public sealed class SettingsWindow : Window
             }
             else
             {
-                this.interactionMessage = error;
+                this.relayMessage = error;
             }
         }
 
@@ -998,7 +1107,7 @@ public sealed class SettingsWindow : Window
             if (DrawPrimaryButton("Copy invitation"))
             {
                 ImGui.SetClipboardText(secret);
-                this.interactionMessage = "Invitation copied to the clipboard.";
+                this.relayMessage = "Invitation copied to the clipboard.";
             }
 
             ImGui.SameLine();
@@ -1092,7 +1201,7 @@ public sealed class SettingsWindow : Window
                         if (this.relayCoordinator.TryKickMember(relay.RelayId, member.MembershipId, out var error))
                             this.confirmingKickMembershipId = null;
                         else
-                            this.interactionMessage = error;
+                            this.relayMessage = error;
                     }
 
                     if (!duty.AllowsServerRequests || busy)
@@ -1135,7 +1244,7 @@ public sealed class SettingsWindow : Window
                 if (this.relayCoordinator.TryDelete(relay.RelayId, out var error))
                     this.confirmingDeleteRelayId = null;
                 else
-                    this.interactionMessage = error;
+                    this.relayMessage = error;
             }
 
             if (!duty.AllowsServerRequests || busy)
@@ -1157,23 +1266,23 @@ public sealed class SettingsWindow : Window
         }
         else
         {
+            if (!RelaySelection.CanDeselect(relayIds, relayId, this.configuration.Visibility))
+                return;
             relayIds.Remove(relayId);
         }
 
         this.configuration.SelectedRelayIds = RelaySelection.Normalize(relayIds).ToList();
-        this.configuration.Visibility = this.configuration.SelectedRelayIds.Count == 0
-            ? VisibilityMode.Private
-            : VisibilityMode.Custom;
         this.saveConfiguration();
-        this.requestSync();
+        if (this.configuration.Visibility == VisibilityMode.Custom)
+            this.requestSync();
     }
 
     private void RunRelayAction(RelayAction action)
     {
         if (!action(out var error))
-            this.interactionMessage = error;
+            this.relayMessage = error;
         else
-            this.interactionMessage = null;
+            this.relayMessage = null;
     }
 
     private static string FormatTimestamp(DateTimeOffset timestamp) =>
@@ -1418,31 +1527,6 @@ public sealed class SettingsWindow : Window
         ImGui.TextWrapped(value);
     }
 
-    private static bool DrawPrimaryButton(string label, Vector2 size = default)
-    {
-        var scale = ImGuiHelpers.GlobalScale;
-        var hovered = new Vector4(
-            MathF.Min(1f, Accent.X + 0.08f),
-            MathF.Min(1f, Accent.Y + 0.08f),
-            MathF.Min(1f, Accent.Z + 0.08f),
-            Accent.W);
-        var active = new Vector4(Accent.X * 0.86f, Accent.Y * 0.86f, Accent.Z * 0.86f, Accent.W);
-
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 5f * scale);
-        ImGui.PushStyleColor(ImGuiCol.Button, Accent);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, hovered);
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, active);
-        try
-        {
-            return ImGui.Button(label, size);
-        }
-        finally
-        {
-            ImGui.PopStyleColor(3);
-            ImGui.PopStyleVar();
-        }
-    }
-
     private static float GetButtonWidth(string label) =>
         ImGui.CalcTextSize(label).X + (ImGui.GetStyle().FramePadding.X * 2f);
 
@@ -1458,60 +1542,4 @@ public sealed class SettingsWindow : Window
         if (availableWidth > buttonWidth)
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + availableWidth - buttonWidth);
     }
-
-    private static bool DrawOutlinedDangerButton(string label)
-    {
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, ImGuiHelpers.GlobalScale);
-        ImGui.PushStyleColor(ImGuiCol.Text, Danger);
-        ImGui.PushStyleColor(ImGuiCol.Border, WithAlpha(Danger, 0.78f));
-        ImGui.PushStyleColor(ImGuiCol.Button, Vector4.Zero);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, WithAlpha(Danger, 0.12f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, WithAlpha(Danger, 0.22f));
-        try
-        {
-            return ImGui.Button(label);
-        }
-        finally
-        {
-            ImGui.PopStyleColor(5);
-            ImGui.PopStyleVar();
-        }
-    }
-
-    private static bool DrawDangerButton(string label)
-    {
-        var hovered = new Vector4(
-            MathF.Min(1f, Danger.X + 0.06f),
-            MathF.Min(1f, Danger.Y + 0.06f),
-            MathF.Min(1f, Danger.Z + 0.06f),
-            Danger.W);
-        var active = new Vector4(Danger.X * 0.86f, Danger.Y * 0.86f, Danger.Z * 0.86f, Danger.W);
-        ImGui.PushStyleColor(ImGuiCol.Button, Danger);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, hovered);
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, active);
-        try
-        {
-            return ImGui.Button(label);
-        }
-        finally
-        {
-            ImGui.PopStyleColor(3);
-        }
-    }
-
-    private static bool DrawSecondaryButton(string label)
-    {
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 5f * ImGuiHelpers.GlobalScale);
-        try
-        {
-            return ImGui.Button(label);
-        }
-        finally
-        {
-            ImGui.PopStyleVar();
-        }
-    }
-
-    private static Vector4 WithAlpha(Vector4 color, float alpha) =>
-        new(color.X, color.Y, color.Z, alpha);
 }

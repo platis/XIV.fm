@@ -13,8 +13,6 @@ namespace XIV.fm.Plugin.Network;
 
 public sealed class ServerSyncCoordinator : IDisposable
 {
-    private const string RelayMembershipRequiredCode = "relay_membership_required";
-
     private readonly Lock gate = new();
     private readonly IFramework framework;
     private readonly IClientState clientState;
@@ -35,6 +33,9 @@ public sealed class ServerSyncCoordinator : IDisposable
     private readonly OwnListeningStateStore ownListening = new();
     private int relayMembershipRejected;
     private int consecutiveFailures;
+    private DateTimeOffset? lastSuccessAt;
+    private string? lastError;
+    private string? lastErrorCode;
     private long generation;
     private bool disposed;
 
@@ -79,7 +80,7 @@ public sealed class ServerSyncCoordinator : IDisposable
 
     public void SuspendForAccountDisconnect()
     {
-        this.CancelActiveRequest(SyncRuntimeState.Disabled with { UpdatedAt = DateTimeOffset.UtcNow });
+        this.CancelActiveRequest(SyncRuntimeStatus.Disabled, DateTimeOffset.UtcNow);
         if (this.ownListening.Clear(DateTimeOffset.UtcNow))
             this.ownListeningChanged();
     }
@@ -97,7 +98,7 @@ public sealed class ServerSyncCoordinator : IDisposable
         this.clientState.MapIdChanged -= this.OnLocationChanged;
         this.clientState.InstanceChanged -= this.OnLocationChanged;
         this.disposalCancellation.Cancel();
-        this.CancelActiveRequest(SyncRuntimeState.Disabled);
+        this.CancelActiveRequest(SyncRuntimeStatus.Disabled, DateTimeOffset.UtcNow);
         this.disposalCancellation.Dispose();
         if (this.apiClient is IDisposable disposableClient)
             disposableClient.Dispose();
@@ -110,9 +111,7 @@ public sealed class ServerSyncCoordinator : IDisposable
         {
             if (this.State.Status != SyncRuntimeStatus.SuspendedDuty)
             {
-                this.CancelActiveRequest(new SyncRuntimeState(
-                    SyncRuntimeStatus.SuspendedDuty,
-                    now));
+                this.CancelActiveRequest(SyncRuntimeStatus.SuspendedDuty, now);
             }
 
             return;
@@ -122,7 +121,7 @@ public sealed class ServerSyncCoordinator : IDisposable
         if (!TryValidateSettings(currentSettings, out var serverBaseUri))
         {
             if (this.State.Status != SyncRuntimeStatus.Disabled)
-                this.CancelActiveRequest(SyncRuntimeState.Disabled with { UpdatedAt = now });
+                this.CancelActiveRequest(SyncRuntimeStatus.Disabled, now);
 
             return;
         }
@@ -184,7 +183,7 @@ public sealed class ServerSyncCoordinator : IDisposable
             requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(this.disposalCancellation.Token);
             this.activeRequest = requestCancellation;
             requestGeneration = ++this.generation;
-            Volatile.Write(ref this.state, new SyncRuntimeState(SyncRuntimeStatus.Syncing, now));
+            this.PublishState(SyncRuntimeStatus.Syncing, now);
         }
 
         _ = this.ExecuteRequestAsync(
@@ -227,13 +226,10 @@ public sealed class ServerSyncCoordinator : IDisposable
                 this.knownSnapshotVersion = result.Response.LocationPresence.Version;
                 listeningChanged = this.ownListening.Apply(result.Response.OwnListening, now);
                 this.nextSyncAt = now.Add(SyncTimingPolicy.FromServerDelay(result.Response.NextSyncAfterSeconds));
-                Volatile.Write(
-                    ref this.state,
-                    new SyncRuntimeState(
-                        SyncRuntimeStatus.Healthy,
-                        now,
-                        this.nextSyncAt,
-                        result.RequestId));
+                this.lastSuccessAt = now;
+                this.lastError = null;
+                this.lastErrorCode = null;
+                this.PublishState(SyncRuntimeStatus.Healthy, now, this.nextSyncAt, result.RequestId);
             }
 
             if (listeningChanged)
@@ -254,19 +250,15 @@ public sealed class ServerSyncCoordinator : IDisposable
                 this.activeRequest = null;
                 this.consecutiveFailures++;
                 this.nextSyncAt = now.Add(SyncTimingPolicy.FailureDelay(this.consecutiveFailures));
-                var error = exception is ServerSyncException serverError
-                    ? $"{serverError.Code}: {serverError.Message}"
-                    : "The XIV.fm server is unavailable.";
-                Volatile.Write(
-                    ref this.state,
-                    new SyncRuntimeState(
-                        SyncRuntimeStatus.Failed,
-                        now,
-                        this.nextSyncAt,
-                        Error: error));
+                var serverError = exception as ServerSyncException;
+                this.lastErrorCode = serverError?.Code;
+                this.lastError = serverError is null
+                    ? "The XIV.fm server is unavailable."
+                    : $"{serverError.Code}: {serverError.Message}";
+                this.PublishState(SyncRuntimeStatus.Failed, now, this.nextSyncAt);
             }
 
-            if (exception is ServerSyncException { Code: RelayMembershipRequiredCode })
+            if (exception is ServerSyncException { Code: ConnectionSummary.RelayMembershipRequiredCode })
                 Interlocked.Exchange(ref this.relayMembershipRejected, 1);
         }
         finally
@@ -280,9 +272,7 @@ public sealed class ServerSyncCoordinator : IDisposable
         lock (this.gate)
         {
             this.nextSyncAt = now.Add(delay);
-            Volatile.Write(
-                ref this.state,
-                new SyncRuntimeState(SyncRuntimeStatus.Waiting, now, this.nextSyncAt));
+            this.PublishState(SyncRuntimeStatus.Waiting, now, this.nextSyncAt);
         }
     }
 
@@ -290,16 +280,17 @@ public sealed class ServerSyncCoordinator : IDisposable
 
     private void OnLogout(int type, int code)
     {
-        this.CancelActiveRequest(new SyncRuntimeState(SyncRuntimeStatus.Waiting, DateTimeOffset.UtcNow));
+        this.CancelActiveRequest(SyncRuntimeStatus.Waiting, DateTimeOffset.UtcNow);
         this.ownListening.Clear(DateTimeOffset.UtcNow);
     }
 
     private void OnLocationChanged(uint value) => this.RestartAfterLifecycleChange();
 
     private void RestartAfterLifecycleChange() => this.CancelActiveRequest(
-        new SyncRuntimeState(SyncRuntimeStatus.Waiting, DateTimeOffset.UtcNow));
+        SyncRuntimeStatus.Waiting,
+        DateTimeOffset.UtcNow);
 
-    private void CancelActiveRequest(SyncRuntimeState replacementState)
+    private void CancelActiveRequest(SyncRuntimeStatus replacementStatus, DateTimeOffset now)
     {
         lock (this.gate)
         {
@@ -309,9 +300,36 @@ public sealed class ServerSyncCoordinator : IDisposable
             this.nextSyncAt = DateTimeOffset.MinValue;
             this.knownSnapshotVersion = null;
             this.remotePresence.Clear();
-            Volatile.Write(ref this.state, replacementState);
+            if (replacementStatus == SyncRuntimeStatus.Disabled)
+            {
+                this.consecutiveFailures = 0;
+                this.lastSuccessAt = null;
+                this.lastError = null;
+                this.lastErrorCode = null;
+            }
+
+            this.PublishState(replacementStatus, now);
         }
     }
+
+    /// <summary>
+    /// The last outcome stays visible while a replacement request waits or runs. Callers hold the gate.
+    /// </summary>
+    private void PublishState(
+        SyncRuntimeStatus status,
+        DateTimeOffset now,
+        DateTimeOffset? nextSyncAt = null,
+        string? requestId = null) =>
+        Volatile.Write(
+            ref this.state,
+            new SyncRuntimeState(
+                status,
+                now,
+                nextSyncAt,
+                requestId,
+                this.lastError,
+                this.lastErrorCode,
+                this.lastSuccessAt));
 
     public static bool TryValidateSettings(ServerSyncSettings settings, out Uri? serverBaseUri)
     {
