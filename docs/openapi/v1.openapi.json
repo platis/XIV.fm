@@ -226,6 +226,37 @@
         }
       }
     },
+    "/v1/account": {
+      "delete": {
+        "operationId": "deleteAccount",
+        "summary": "Delete the linked XIV.fm account",
+        "description": "Permanently removes the linked account, all of its installations and link sessions, every Relay it owns, its membership in other Relays, and its active presence. The Last.fm account and its listening history are unchanged. The authenticating credential is unauthorized afterwards.",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Account deleted.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
     "/v1/sync": {
       "post": {
         "operationId": "syncPresence",

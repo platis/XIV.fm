@@ -49,6 +49,9 @@ public sealed class ListeningPollingCoordinator : IListeningPollingCoordinator
     public void NotifyActive(LinkedLastFmAccount account, DateTimeOffset activeUntil) =>
         this.activations.Writer.TryWrite(new Activation(account, activeUntil));
 
+    public void Forget(LinkedLastFmAccount account) =>
+        this.activations.Writer.TryWrite(new Activation(account, DateTimeOffset.MinValue));
+
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -87,6 +90,12 @@ public sealed class ListeningPollingCoordinator : IListeningPollingCoordinator
     {
         while (this.activations.Reader.TryRead(out var activation))
         {
+            if (activation.ActiveUntil == DateTimeOffset.MinValue)
+            {
+                this.plans.Remove(activation.Account.AccountId);
+                continue;
+            }
+
             if (this.plans.TryGetValue(activation.Account.AccountId, out var existing))
             {
                 existing.Account = activation.Account;

@@ -324,6 +324,9 @@ public sealed class ListeningPollingCoordinatorTests
             ListeningObservation observation,
             CancellationToken cancellationToken) =>
             this.inner.SetAsync(accountId, observation, cancellationToken);
+
+        public ValueTask RemoveAsync(AccountId accountId, CancellationToken cancellationToken) =>
+            this.inner.RemoveAsync(accountId, cancellationToken);
     }
 
     private sealed class FailingRecentTracksClient : ILastFmRecentTracksClient

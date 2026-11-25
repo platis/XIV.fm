@@ -20,6 +20,7 @@ class OpenApiContractTests(unittest.TestCase):
         self.assertIn("get", self.document["paths"]["/v1/account-links/{linkSessionId}/callback"])
         self.assertIn("post", self.document["paths"]["/v1/installations/current/credential"])
         self.assertIn("delete", self.document["paths"]["/v1/installations/current"])
+        self.assertIn("delete", self.document["paths"]["/v1/account"])
         self.assertIn("post", self.document["paths"]["/v1/relays"])
         self.assertIn("delete", self.document["paths"]["/v1/relays/{relayId}/members/{membershipId}"])
         self.assertIn("post", self.document["paths"]["/v1/relay-invitations/accept"])

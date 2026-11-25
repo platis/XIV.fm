@@ -134,6 +134,30 @@ public sealed class InMemoryAccountLinkStore : IAccountLinkStore, ILinkedAccount
         }
     }
 
+    internal async ValueTask<IReadOnlyList<InstallationId>> RemoveAccountAsync(
+        AccountId accountId,
+        CancellationToken cancellationToken)
+    {
+        InstallationId[] installations;
+        lock (this.gate)
+        {
+            installations = this.accountsByInstallation
+                .Where(pair => pair.Value.AccountId == accountId)
+                .Select(pair => pair.Key)
+                .ToArray();
+            foreach (var installation in installations)
+                this.accountsByInstallation.Remove(installation);
+            foreach (var session in this.sessions.Where(pair => pair.Value.Account?.AccountId == accountId).ToArray())
+                this.sessions.Remove(session.Key);
+            foreach (var account in this.accounts.Where(pair => pair.Value.AccountId == accountId).ToArray())
+                this.accounts.Remove(account.Key);
+        }
+
+        foreach (var installation in installations)
+            await this.credentials.RevokeAsync(installation, cancellationToken).ConfigureAwait(false);
+        return installations;
+    }
+
     public string? GetAccountName(AccountId accountId)
     {
         lock (this.gate)

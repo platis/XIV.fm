@@ -148,6 +148,70 @@ public sealed class RelayEndpointTests
             response.Dispose();
     }
 
+    [Fact]
+    public async Task AccountDeletionRemovesOwnedRelaysMembershipAndEveryCredential()
+    {
+        await using var factory = new ServerApiFactory();
+        var leaverCredential = await CreateLinkedCredentialAsync(factory, "Leaver", "leaver");
+        var leaverSecondCredential = await CreateLinkedCredentialAsync(factory, "Leaver", "leaver-second");
+        var friendCredential = await CreateLinkedCredentialAsync(factory, "Friend", "friend");
+        using var leaver = CreateClient(factory, leaverCredential);
+        using var leaverSecond = CreateClient(factory, leaverSecondCredential);
+        using var friend = CreateClient(factory, friendCredential);
+        var owned = await CreateRelayAsync(leaver, "Leaver Relay");
+        var joined = await CreateRelayAsync(friend, "Friend Relay");
+        await JoinAsync(friend, await CreateInvitationAsync(leaver, owned.RelayId));
+        await JoinAsync(leaver, await CreateInvitationAsync(friend, joined.RelayId));
+        using var published = await leaver.PostAsJsonAsync(ApiRoutes.Sync, CreateCustomSync("Leaver Cat", 54, joined.RelayId));
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+
+        using var deleted = await leaver.DeleteAsync(ApiRoutes.DeleteAccount);
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+
+        using var firstAfter = await leaver.GetAsync(ApiRoutes.Relays);
+        using var secondAfter = await leaverSecond.GetAsync(ApiRoutes.Relays);
+        Assert.Equal(HttpStatusCode.Unauthorized, firstAfter.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, secondAfter.StatusCode);
+        var friendRelays = await friend.GetFromJsonAsync<RelayListResponse>(ApiRoutes.Relays);
+        var remaining = Assert.Single(friendRelays!.Relays);
+        Assert.Equal(joined.RelayId, remaining.RelayId);
+        Assert.Equal(1, remaining.MemberCount);
+        using var friendSync = await friend.PostAsJsonAsync(ApiRoutes.Sync, CreateCustomSync("Friend Cat", 55, joined.RelayId));
+        var presence = await friendSync.Content.ReadFromJsonAsync<SyncResponse>();
+        Assert.Equal("Friend Cat", Assert.Single(presence!.LocationPresence.Snapshot!.Entries).Character.Name);
+        using var lostRelay = await friend.PostAsJsonAsync(ApiRoutes.Sync, CreateCustomSync("Friend Cat", 55, owned.RelayId));
+        Assert.Equal(HttpStatusCode.Forbidden, lostRelay.StatusCode);
+    }
+
+    [Fact]
+    public async Task AccountDeletionRequiresALinkedAccount()
+    {
+        await using var factory = new ServerApiFactory();
+        using var anonymous = factory.CreateClient();
+        using var unlinked = CreateClient(factory, ServerApiFactory.Credential);
+
+        using var anonymousResponse = await anonymous.DeleteAsync(ApiRoutes.DeleteAccount);
+        using var unlinkedResponse = await unlinked.DeleteAsync(ApiRoutes.DeleteAccount);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, unlinkedResponse.StatusCode);
+    }
+
+    private static async Task<RelayResponse> CreateRelayAsync(HttpClient owner, string name)
+    {
+        using var response = await owner.PostAsJsonAsync(ApiRoutes.Relays, new CreateRelayRequest(name, Guid.NewGuid()));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<RelayResponse>())!;
+    }
+
+    private static async Task JoinAsync(HttpClient member, CreatedRelayInvitationResponse invitation)
+    {
+        using var response = await member.PostAsJsonAsync(
+            ApiRoutes.RelayInvitationAccept,
+            new RelayInvitationTokenRequest(invitation.Token));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     private static async Task<CreatedRelayInvitationResponse> CreateInvitationAsync(HttpClient owner, Guid relayId)
     {
         using var response = await owner.PostAsJsonAsync($"/v1/relays/{relayId:D}/invitations", new CreateRelayInvitationRequest());

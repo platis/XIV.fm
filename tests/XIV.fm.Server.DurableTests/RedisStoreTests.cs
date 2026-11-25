@@ -62,6 +62,9 @@ public sealed class RedisStoreTests
         await states.SetAsync(account, observation, CancellationToken.None);
 
         Assert.Equal(observation, await states.GetAsync(account, CancellationToken.None));
+
+        await states.RemoveAsync(account, CancellationToken.None);
+        Assert.Null(await states.GetAsync(account, CancellationToken.None));
     }
 
     [Fact]

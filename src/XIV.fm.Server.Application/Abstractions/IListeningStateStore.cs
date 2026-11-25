@@ -11,4 +11,6 @@ public interface IListeningStateStore
         AccountId accountId,
         ListeningObservation observation,
         CancellationToken cancellationToken);
+
+    ValueTask RemoveAsync(AccountId accountId, CancellationToken cancellationToken);
 }

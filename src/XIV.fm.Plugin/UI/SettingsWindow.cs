@@ -41,6 +41,7 @@ public sealed class SettingsWindow : Window
     private readonly Func<string?> relinkAccount;
     private readonly AlbumArtworkCache artworkCache;
     private readonly Action<HiddenPlayer> unhidePlayer;
+    private readonly Func<string?> deleteAccount;
     private readonly ListeningCardPainter previewPainter = new();
     private string? accountMessage;
     private string? relayMessage;
@@ -56,6 +57,8 @@ public sealed class SettingsWindow : Window
     private Guid? expandedRelayId;
     private Guid? pendingManagementRelayId;
     private bool confirmingDisconnect;
+    private bool confirmingAccountDeletion;
+    private bool loadingDeletionRelays;
 
     public SettingsWindow(
         PluginConfiguration configuration,
@@ -77,7 +80,8 @@ public sealed class SettingsWindow : Window
         Func<ListeningState> ownListening,
         Func<string?> relinkAccount,
         AlbumArtworkCache artworkCache,
-        Action<HiddenPlayer> unhidePlayer)
+        Action<HiddenPlayer> unhidePlayer,
+        Func<string?> deleteAccount)
         : base("XIV.fm###XIV.fm.Settings")
     {
         this.configuration = configuration;
@@ -100,6 +104,7 @@ public sealed class SettingsWindow : Window
         this.relinkAccount = relinkAccount;
         this.artworkCache = artworkCache;
         this.unhidePlayer = unhidePlayer;
+        this.deleteAccount = deleteAccount;
         this.SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(434f, 350f),
@@ -216,6 +221,9 @@ public sealed class SettingsWindow : Window
         if (linked != this.wasLinked)
         {
             this.wasLinked = linked;
+            this.confirmingDisconnect = false;
+            this.confirmingAccountDeletion = false;
+            this.loadingDeletionRelays = false;
             this.accountMessage = null;
             this.relayMessage = null;
         }
@@ -234,8 +242,8 @@ public sealed class SettingsWindow : Window
             if (disconnect.Status == AccountDisconnectRuntimeStatus.Disconnecting)
             {
                 DrawStatusPanel(
-                    "Disconnecting",
-                    "Removing this XIV.fm link…",
+                    disconnect.IsAccountDeletion ? "Deleting account" : "Disconnecting",
+                    disconnect.IsAccountDeletion ? "Deleting your XIV.fm account…" : "Removing this XIV.fm link…",
                     Warning);
                 return;
             }
@@ -262,20 +270,28 @@ public sealed class SettingsWindow : Window
                     ImGui.Spacing();
                 AlignNextButtonRight(disconnectLabel);
                 if (DrawOutlinedDangerButton(disconnectLabel))
+                {
                     this.confirmingDisconnect = true;
+                    this.confirmingAccountDeletion = false;
+                }
             }
 
             ImGui.Spacing();
             if (disconnect.Status == AccountDisconnectRuntimeStatus.Failed)
             {
                 DrawStatusPanel(
-                    "Couldn’t disconnect",
-                    "XIV.fm couldn’t remove the link. You can try again.",
+                    disconnect.IsAccountDeletion ? "Couldn’t delete your account" : "Couldn’t disconnect",
+                    disconnect.IsAccountDeletion
+                        ? "Your account may not be deleted. You can try again."
+                        : "XIV.fm couldn’t remove the link. You can try again.",
                     Danger);
             }
 
             if (!this.confirmingDisconnect)
+            {
+                this.DrawAccountDeletion(duty);
                 return;
+            }
 
             DrawStatusPanel(
                 "Disconnect Last.fm?",
@@ -365,6 +381,64 @@ public sealed class SettingsWindow : Window
             ImGui.Spacing();
             DrawStatusPanel("Status", this.accountMessage, Neutral);
         }
+    }
+
+    private void DrawAccountDeletion(DutyParticipationPolicy duty)
+    {
+        ImGui.Separator();
+        ImGui.Spacing();
+        if (!this.confirmingAccountDeletion)
+        {
+            ImGui.TextDisabled("Delete everything XIV.fm stores about you.");
+            if (DrawOutlinedDangerButton("Delete XIV.fm account"))
+            {
+                this.confirmingAccountDeletion = true;
+                this.accountMessage = null;
+
+                // The confirmation must list the Relays that exist now.
+                this.loadingDeletionRelays = this.relayCoordinator.TryRefresh(out var refreshError);
+                if (!this.loadingDeletionRelays)
+                    this.accountMessage = refreshError;
+            }
+
+            return;
+        }
+
+        var relayState = this.relayCoordinator.State;
+        var loading = relayState.Status is RelayRuntimeStatus.Loading or RelayRuntimeStatus.Working;
+        var ready = this.loadingDeletionRelays && relayState.Status == RelayRuntimeStatus.Ready;
+        var owned = relayState.Relays.Where(relay => relay.IsOwner).Select(relay => relay.Name).ToArray();
+        var relayWarning = !ready
+            ? string.Empty
+            : owned.Length == 0
+                ? " You don’t own any Relays."
+                : $" These Relays are deleted for all their members: {string.Join(", ", owned)}.";
+        DrawStatusPanel(
+            "Delete your XIV.fm account?",
+            "This disconnects every device, removes you from all Relays, and cannot be undone. " +
+            $"Your Last.fm account and listening history aren’t changed.{relayWarning}",
+            Danger);
+        if (loading)
+            ImGui.TextDisabled("Checking your Relays…");
+        else if (!ready)
+            ImGui.TextDisabled("Your Relays couldn’t be checked. Cancel and try again.");
+
+        if (!duty.AllowsServerRequests || !ready)
+            ImGui.BeginDisabled();
+        if (DrawDangerButton("Delete permanently"))
+            this.accountMessage = this.deleteAccount();
+        if (!duty.AllowsServerRequests || !ready)
+            ImGui.EndDisabled();
+        ImGui.SameLine();
+        if (DrawSecondaryButton("Cancel"))
+        {
+            this.confirmingAccountDeletion = false;
+            this.loadingDeletionRelays = false;
+            this.accountMessage = null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(this.accountMessage))
+            ImGui.TextWrapped(this.accountMessage);
     }
 
     private void DrawRelink(DutyParticipationPolicy duty)

@@ -27,4 +27,11 @@ public sealed class InMemoryListeningStateStore : IListeningStateStore
         this.states[accountId] = observation;
         return ValueTask.CompletedTask;
     }
+
+    public ValueTask RemoveAsync(AccountId accountId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        this.states.TryRemove(accountId, out _);
+        return ValueTask.CompletedTask;
+    }
 }

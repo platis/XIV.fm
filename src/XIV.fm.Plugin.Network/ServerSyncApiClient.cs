@@ -102,15 +102,37 @@ public sealed class ServerSyncApiClient : IServerSyncApiClient, IAccountLinkApiC
         return await this.SendAsync<AccountLinkStatusResponse>(message, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task RevokeCurrentInstallationAsync(
+    public Task RevokeCurrentInstallationAsync(
         Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        CancellationToken cancellationToken) =>
+        this.DeleteAsync(
+            new Uri(serverBaseUri, ApiRoutes.RevokeCurrentInstallation),
+            installationCredential,
+            pluginVersion,
+            cancellationToken);
+
+    public Task DeleteAccountAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        CancellationToken cancellationToken) =>
+        this.DeleteAsync(
+            new Uri(serverBaseUri, ApiRoutes.DeleteAccount),
+            installationCredential,
+            pluginVersion,
+            cancellationToken);
+
+    private async Task DeleteAsync(
+        Uri endpoint,
         string installationCredential,
         string pluginVersion,
         CancellationToken cancellationToken)
     {
         using var message = new HttpRequestMessage(
             HttpMethod.Delete,
-            new Uri(serverBaseUri, ApiRoutes.RevokeCurrentInstallation));
+            endpoint);
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", installationCredential);
         message.Headers.UserAgent.ParseAdd($"XIV.fm/{pluginVersion}");
 
@@ -127,7 +149,7 @@ public sealed class ServerSyncApiClient : IServerSyncApiClient, IAccountLinkApiC
             var error = TryDeserialize<ApiError>(bytes);
             throw new ServerSyncException(
                 error?.Code ?? $"http_{(int)response.StatusCode}",
-                error?.Title ?? "The XIV.fm server rejected the disconnect request.");
+                error?.Title ?? "The XIV.fm server rejected the request.");
         }
     }
 

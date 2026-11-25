@@ -14,6 +14,8 @@ public static class ApiRoutes
 
     public const string RevokeCurrentInstallation = "/v1/installations/current";
 
+    public const string DeleteAccount = "/v1/account";
+
     public const string Relays = "/v1/relays";
 
     public const string Relay = "/v1/relays/{relayId:guid}";

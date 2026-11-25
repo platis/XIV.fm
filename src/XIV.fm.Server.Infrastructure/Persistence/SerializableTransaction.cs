@@ -60,7 +60,8 @@ internal static class SerializableTransaction
             {
                 return postgres.SqlState is PostgresErrorCodes.SerializationFailure
                     or PostgresErrorCodes.DeadlockDetected
-                    or PostgresErrorCodes.UniqueViolation;
+                    or PostgresErrorCodes.UniqueViolation
+                    or PostgresErrorCodes.ForeignKeyViolation;
             }
         }
 

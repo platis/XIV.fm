@@ -204,7 +204,8 @@ public sealed class Plugin : IDalamudPlugin
             () => this.serverSyncCoordinator.OwnListening,
             this.RelinkAccount,
             this.artworkCache,
-            this.UnhidePlayer);
+            this.UnhidePlayer,
+            this.TryDeleteAccount);
         this.onboardingWindow = new OnboardingWindow(
             this.TryStartAccountLink,
             this.OpenSettings,
@@ -373,9 +374,13 @@ public sealed class Plugin : IDalamudPlugin
         this.SaveConfiguration();
     }
 
-    private string? TryDisconnectAccount()
+    private string? TryDeleteAccount() => this.TryDisconnectAccount(deleteAccount: true);
+
+    private string? TryDisconnectAccount() => this.TryDisconnectAccount(deleteAccount: false);
+
+    private string? TryDisconnectAccount(bool deleteAccount)
     {
-        if (!this.accountDisconnectCoordinator.TryStart(out var error))
+        if (!this.accountDisconnectCoordinator.TryStart(deleteAccount, out var error))
             return error ?? "Last.fm could not be disconnected.";
 
         this.serverSyncCoordinator.SuspendForAccountDisconnect();
@@ -387,7 +392,7 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     private string? RelinkAccount()
     {
-        this.CompleteAccountDisconnect();
+        this.CompleteAccountDisconnect(accountDeleted: false);
         return this.TryStartAccountLink();
     }
 
@@ -596,7 +601,7 @@ public sealed class Plugin : IDalamudPlugin
         this.chatGui.Print($"Linked Last.fm account {accountName}.", "XIV.fm");
     }
 
-    private void CompleteAccountDisconnect()
+    private void CompleteAccountDisconnect(bool accountDeleted)
     {
         if (this.configuration.DeveloperServerEnabled)
             this.configuration.DeveloperInstallationCredential = string.Empty;
@@ -610,7 +615,11 @@ public sealed class Plugin : IDalamudPlugin
         this.SaveConfiguration();
         this.serverSyncCoordinator.SuspendForAccountDisconnect();
         this.developmentCoordinator.RequestCapture();
-        this.chatGui.Print("Last.fm disconnected from this XIV.fm installation.", "XIV.fm");
+        this.chatGui.Print(
+            accountDeleted
+                ? "Your XIV.fm account was deleted."
+                : "Last.fm disconnected from this XIV.fm installation.",
+            "XIV.fm");
     }
 
     private void ClearPendingLink() => this.ClearPendingLink(save: true);
