@@ -3,10 +3,10 @@
     "Author": "platis",
     "Name": "XIV.fm",
     "InternalName": "XIV.fm",
-    "AssemblyVersion": "0.1.39.0",
+    "AssemblyVersion": "0.1.40.0",
     "Punchline": "Share what you are listening to in Final Fantasy XIV.",
     "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
-    "Changelog": "- See the devices linked to your account and disconnect ones you no longer use, from Account settings.",
+    "Changelog": "- Improve frame rate in crowded places by matching cards to players more efficiently.\n- Load covers only for players near enough to show.",
     "Tags": [
       "lastfm",
       "music",
@@ -15,8 +15,8 @@
     ],
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.39/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.39/latest.zip",
+    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.40/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.40/latest.zip",
     "RepoUrl": "https://github.com/platis/XIV.fm"
   }
 ]
