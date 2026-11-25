@@ -3,10 +3,10 @@
     "Author": "platis",
     "Name": "XIV.fm",
     "InternalName": "XIV.fm",
-    "AssemblyVersion": "0.1.35.0",
+    "AssemblyVersion": "0.1.36.0",
     "Punchline": "Share what you are listening to in Final Fantasy XIV.",
     "Description": "XIV.fm displays Last.fm listening presence on cards anchored above player nameplates.",
-    "Changelog": "- Keep nearby players' cards visible instead of blinking off while location data refreshes.\n- Remove your own card two minutes after syncing stops instead of showing the last track indefinitely.\n- Recover automatically after being removed from a selected Relay or after it is deleted.\n- Resume syncing after a connection is interrupted.",
+    "Changelog": "- Show the real connection state in settings, including retries, duty pauses, lost Relays, and links that need to be connected again.\n- Add a live card preview and an optional card text outline, off by default, in Overlay settings.\n- Use gold for primary settings controls and red only for destructive actions.\n- Explain in Privacy who sees your card; selecting Relays no longer changes your visibility.\n- Save Overlay sliders when released.",
     "Tags": [
       "lastfm",
       "music",
@@ -15,8 +15,8 @@
     ],
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.35/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.35/latest.zip",
+    "DownloadLinkInstall": "https://github.com/platis/XIV.fm/releases/download/v0.1.36/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/platis/XIV.fm/releases/download/v0.1.36/latest.zip",
     "RepoUrl": "https://github.com/platis/XIV.fm"
   }
 ]
