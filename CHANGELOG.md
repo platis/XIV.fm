@@ -4,6 +4,20 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Fixed
+
+- Keep nearby players’ cards visible while the shared location snapshot is replaced.
+- Remove your own card two minutes after the last successful sync instead of showing the last track indefinitely.
+- Recover automatically after being removed from a selected Relay or after it is deleted: the Relay leaves your audience, visibility falls back to Private when none remain, and syncing continues.
+- Resume syncing after a connection is interrupted in the middle of a response.
+- Server: retry simultaneous Relay and account-link changes instead of failing them.
+- Server: keep Last.fm polling and the API running through transient Redis failures.
+- Server: apply anonymous rate limits per client behind the reverse proxy.
+
+### Changed
+
+- Run PostgreSQL, Redis, and container integration tests in CI.
+
 ## [0.1.34] - 2026-08-14
 
 ### Changed

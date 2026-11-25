@@ -84,6 +84,7 @@ src/XIV.fm.Plugin.Network/     Typed bounded HTTP client
 src/XIV.fm.Server.*/           API, Application, Domain, and Infrastructure modules
 tests/XIV.fm.Contracts.Tests   Wire-format contract tests
 tests/XIV.fm.Plugin.Core.Tests Core unit tests
+tests/XIV.fm.Server.DurableTests PostgreSQL and Redis adapter tests
 tests/XIV.fm.Server.Tests      Server integration and credential-lifecycle tests
 docs/                          Product, OpenAPI, architecture, and delivery decisions
 ```
@@ -138,7 +139,14 @@ Run all formatting, tests, and builds:
 ./scripts/check.sh
 ```
 
-Equivalent commands:
+Run the PostgreSQL and Redis tests, which need Docker:
+
+```bash
+./scripts/test-durable.sh
+./scripts/test-containers.sh
+```
+
+Equivalent commands for `check.sh`:
 
 ```bash
 dotnet restore XIV.fm.slnx --locked-mode

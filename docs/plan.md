@@ -158,6 +158,16 @@ This phase is intentionally collaborative with the product owner.
 
 **Exit:** production SLOs, privacy, capacity, incident response, and rollback are verified.
 
+## Reliability step 1 (2026-11-25)
+
+- [x] Keep nearby cards visible while a shared snapshot is replaced.
+- [x] Retry serializable PostgreSQL conflicts in Relay changes and account linking.
+- [x] Keep Last.fm polling and the API alive through transient Redis failures.
+- [x] Apply anonymous rate limits per client behind the reverse proxy.
+- [x] Recover sync after losing membership in a selected Relay.
+- [x] Stop showing the last local track when syncs keep failing.
+- [x] Run PostgreSQL, Redis, and container tests in CI.
+
 ## Immediate next steps
 
 1. Validate automatic Custom selection after both create and join, the disclosure-table management flow, and playing-only card visibility in game.
