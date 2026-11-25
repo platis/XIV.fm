@@ -4,11 +4,13 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.36] - 2026-11-25
+
 ### Added
 
 - Show the real connection in the settings header and Account tab, including retries, duty pauses, lost Relays, missing Last.fm data, and links that need to be connected again.
 - Add a live card preview to Overlay settings.
-- Add an optional outline that keeps card text readable over bright scenes. Card colors and opacity are unchanged.
+- Add an optional outline, off by default, that keeps card text readable over bright scenes. Card colors and opacity are unchanged.
 - Show a styled result page after Last.fm authorization.
 
 ### Changed
