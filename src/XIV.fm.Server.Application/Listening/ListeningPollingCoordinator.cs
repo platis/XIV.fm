@@ -95,10 +95,20 @@ public sealed class ListeningPollingCoordinator : IListeningPollingCoordinator
                 continue;
             }
 
-            var cached = await this.stateStore
-                .GetAsync(activation.Account.AccountId, cancellationToken)
-                .ConfigureAwait(false);
-            this.telemetry.RecordCacheRead(cached is not null);
+            ListeningObservation? cached = null;
+            try
+            {
+                cached = await this.stateStore
+                    .GetAsync(activation.Account.AccountId, cancellationToken)
+                    .ConfigureAwait(false);
+                this.telemetry.RecordCacheRead(cached is not null);
+            }
+            catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                // The poll itself rechecks the cache and backs off while the store is unavailable.
+                this.telemetry.RecordPollFailure(exception);
+            }
+
             var now = this.timeProvider.GetUtcNow();
             var nextPollAt = cached is null
                 ? now
@@ -115,61 +125,14 @@ public sealed class ListeningPollingCoordinator : IListeningPollingCoordinator
     private async ValueTask PollAsync(PollPlan plan, CancellationToken cancellationToken)
     {
         var now = this.timeProvider.GetUtcNow();
-        var lease = await this.leaseStore
-            .TryAcquireAsync(plan.Account.AccountId, PollLeaseLifetime, cancellationToken)
-            .ConfigureAwait(false);
-        if (lease is null)
-        {
-            this.telemetry.RecordLeaseContention();
-            var shared = await this.stateStore
-                .GetAsync(plan.Account.AccountId, cancellationToken)
-                .ConfigureAwait(false);
-            this.telemetry.RecordCacheRead(shared is not null);
-            plan.NextPollAt = shared is null
-                ? now.Add(InitialBackoff)
-                : shared.ObservedAt.Add(this.freshnessPolicy.GetPollInterval(shared.Status));
-            if (plan.NextPollAt <= now)
-                plan.NextPollAt = now.Add(InitialBackoff);
-            return;
-        }
-
-        await using var acquiredLease = lease.ConfigureAwait(false);
         try
         {
-            var shared = await this.stateStore
-                .GetAsync(plan.Account.AccountId, cancellationToken)
-                .ConfigureAwait(false);
-            this.telemetry.RecordCacheRead(shared is not null);
-            if (shared is not null)
-            {
-                var sharedNextPollAt = shared.ObservedAt.Add(
-                    this.freshnessPolicy.GetPollInterval(shared.Status));
-                if (sharedNextPollAt > now)
-                {
-                    plan.ConsecutiveFailures = 0;
-                    plan.NextPollAt = sharedNextPollAt;
-                    return;
-                }
-            }
-
-            var observation = await this.lastFm
-                    .GetCurrentAsync(plan.Account.Identity, cancellationToken)
-                    .ConfigureAwait(false);
-            await this.stateStore
-                .SetAsync(plan.Account.AccountId, observation, cancellationToken)
-                .ConfigureAwait(false);
-            this.telemetry.RecordPollSuccess();
-            plan.ConsecutiveFailures = 0;
-            plan.NextPollAt = observation.ObservedAt.Add(AddScheduleJitter(
-                this.freshnessPolicy.GetPollInterval(observation.Status)));
+            await this.PollOnceAsync(plan, now, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
-            throw;
-        }
-        catch
-        {
-            this.telemetry.RecordPollFailure();
+            // Lease, cache, and provider failures all back off; none may end the polling loop.
+            this.telemetry.RecordPollFailure(exception);
             plan.ConsecutiveFailures++;
             var exponent = Math.Min(plan.ConsecutiveFailures - 1, 16);
             var maximumTicks = Math.Min(
@@ -182,8 +145,60 @@ public sealed class ListeningPollingCoordinator : IListeningPollingCoordinator
                 backoff = this.options.CircuitBreakDuration;
             }
 
-            plan.NextPollAt = now.Add(backoff);
+            plan.NextPollAt = this.timeProvider.GetUtcNow().Add(backoff);
         }
+    }
+
+    private async ValueTask PollOnceAsync(
+        PollPlan plan,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var lease = await this.leaseStore
+            .TryAcquireAsync(plan.Account.AccountId, PollLeaseLifetime, cancellationToken)
+            .ConfigureAwait(false);
+        if (lease is null)
+        {
+            this.telemetry.RecordLeaseContention();
+            var contended = await this.stateStore
+                .GetAsync(plan.Account.AccountId, cancellationToken)
+                .ConfigureAwait(false);
+            this.telemetry.RecordCacheRead(contended is not null);
+            plan.NextPollAt = contended is null
+                ? now.Add(InitialBackoff)
+                : contended.ObservedAt.Add(this.freshnessPolicy.GetPollInterval(contended.Status));
+            if (plan.NextPollAt <= now)
+                plan.NextPollAt = now.Add(InitialBackoff);
+            return;
+        }
+
+        await using var acquiredLease = lease.ConfigureAwait(false);
+        var shared = await this.stateStore
+            .GetAsync(plan.Account.AccountId, cancellationToken)
+            .ConfigureAwait(false);
+        this.telemetry.RecordCacheRead(shared is not null);
+        if (shared is not null)
+        {
+            var sharedNextPollAt = shared.ObservedAt.Add(
+                this.freshnessPolicy.GetPollInterval(shared.Status));
+            if (sharedNextPollAt > now)
+            {
+                plan.ConsecutiveFailures = 0;
+                plan.NextPollAt = sharedNextPollAt;
+                return;
+            }
+        }
+
+        var observation = await this.lastFm
+            .GetCurrentAsync(plan.Account.Identity, cancellationToken)
+            .ConfigureAwait(false);
+        await this.stateStore
+            .SetAsync(plan.Account.AccountId, observation, cancellationToken)
+            .ConfigureAwait(false);
+        this.telemetry.RecordPollSuccess();
+        plan.ConsecutiveFailures = 0;
+        plan.NextPollAt = observation.ObservedAt.Add(AddScheduleJitter(
+            this.freshnessPolicy.GetPollInterval(observation.Status)));
     }
 
     private static TimeSpan AddScheduleJitter(TimeSpan interval)

@@ -69,7 +69,7 @@ curl -fsS \
     -H 'Content-Type: application/json' \
     --data '{"pluginVersion":"0.1.2.0","character":{"name":"Alice Cat","homeWorldId":54},"location":{"currentWorldId":63,"territoryId":129,"mapId":130,"instanceId":2},"visibility":{"mode":"private","relayIds":[]},"knownSnapshotVersion":null}' \
     "$base_url/v1/sync" \
-    | jq -e '.ownListening.status == "unavailable" and .nextSyncAfterSeconds == 30' >/dev/null
+    | jq -e '.ownListening.status == "unavailable" and .nextSyncAfterSeconds == 5' >/dev/null
 
 hash_length="$("${compose[@]}" exec --no-TTY postgres \
     psql --username xivfm --dbname xivfm --tuples-only --no-align \

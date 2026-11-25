@@ -57,6 +57,7 @@ XIVFM_PUBLIC_BASE_URL=https://api.example.invalid
 XIVFM_LASTFM_API_KEY=<server-side Last.fm API key>
 XIVFM_LASTFM_SHARED_SECRET=<server-side Last.fm shared secret>
 XIVFM_LASTFM_ARTWORK_ENABLED=false
+XIVFM_TRUSTED_PROXY_NETWORKS=172.18.0.0/16
 XIVFM_RELAYS__MAXIMUMACTIVEOWNEDRELAYS=3
 XIVFM_RELAYS__MAXIMUMCREATIONSPERROLLINGWINDOW=10
 XIVFM_RELAYS__CREATIONROLLINGWINDOWDAYS=30
@@ -70,6 +71,8 @@ XIVFM_RELAYS__MAXIMUMSELECTEDRELAYS=5
 ```
 
 `XIVFM_PUBLIC_BASE_URL` is the externally reachable HTTPS origin used for Last.fm callbacks. The API key is safe to send to Last.fm and appears in provider authorization URLs; the shared secret remains server-side and must never enter plugin configuration, logs, images, or Git.
+
+`XIVFM_TRUSTED_PROXY_NETWORKS` is a comma-separated list of CIDR networks whose reverse proxy may set `X-Forwarded-For`. Without it, every client behind the proxy shares the anonymous rate limits. Only the address appended by the proxy itself is used.
 
 Production migration execution should be a controlled deployment step. Automatic startup migration exists only for disposable integration workflows.
 

@@ -38,3 +38,24 @@ jobs:
           name: XIV.fm-development-plugin
           path: src/XIV.fm.Plugin/bin/Release/XIV.fm/latest.zip
           if-no-files-found: error
+
+  durable:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.301
+
+      - name: Test PostgreSQL and Redis adapters
+        run: ./scripts/test-durable.sh
+
+      - name: Test the containerized API
+        run: ./scripts/test-containers.sh

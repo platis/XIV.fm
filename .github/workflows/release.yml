@@ -64,7 +64,9 @@ jobs:
           printf '%s\n' "$RELEASE_NOTES" > "$RUNNER_TEMP/release-notes.md"
 
       - name: Run quality gates
-        run: ./scripts/check.sh
+        run: |
+          ./scripts/check.sh
+          ./scripts/test-durable.sh
 
       - name: Generate Dalamud repository manifest
         run: |

@@ -14,6 +14,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/XIV.fm.Contracts.Tests/XIV.fm.Contracts.Tests.csproj" />
     <Project Path="tests/XIV.fm.Plugin.Core.Tests/XIV.fm.Plugin.Core.Tests.csproj" />
+    <Project Path="tests/XIV.fm.Server.DurableTests/XIV.fm.Server.DurableTests.csproj" />
     <Project Path="tests/XIV.fm.Server.Tests/XIV.fm.Server.Tests.csproj" />
   </Folder>
 </Solution>
