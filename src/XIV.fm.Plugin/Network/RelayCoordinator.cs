@@ -41,7 +41,7 @@ public sealed class RelayCoordinator : IDisposable
     private readonly IRelayApiClient apiClient;
     private readonly Func<DutyParticipationPolicy> dutyPolicy;
     private readonly Func<ServerSyncSettings> settings;
-    private readonly Action<IReadOnlyCollection<Guid>, Guid?> membershipsRefreshed;
+    private readonly Action<IReadOnlyCollection<Guid>, Guid?, bool> membershipsRefreshed;
     private readonly string pluginVersion;
     private readonly ConcurrentQueue<Action> frameworkActions = new();
     private readonly CancellationTokenSource disposalCancellation = new();
@@ -55,7 +55,7 @@ public sealed class RelayCoordinator : IDisposable
         IRelayApiClient apiClient,
         Func<DutyParticipationPolicy> dutyPolicy,
         Func<ServerSyncSettings> settings,
-        Action<IReadOnlyCollection<Guid>, Guid?> membershipsRefreshed,
+        Action<IReadOnlyCollection<Guid>, Guid?, bool> membershipsRefreshed,
         string pluginVersion)
     {
         this.framework = framework;
@@ -91,6 +91,19 @@ public sealed class RelayCoordinator : IDisposable
         },
         RelayRuntimeStatus.Loading,
         out error);
+
+    /// <summary>
+    /// Reloads memberships after the server rejected a selected Relay, without discarding open owner
+    /// controls or an invitation secret that has not been copied yet.
+    /// </summary>
+    public bool TryRefreshMemberships() => this.TryStart(
+        "Checking your Custom Relays…",
+        async (context, cancellationToken) => new RelayOperationCompletion(
+            await this.ListAsync(context, cancellationToken).ConfigureAwait(false),
+            MembershipListIsAuthoritative: true,
+            AfterRejection: true),
+        RelayRuntimeStatus.Loading,
+        out _);
 
     public bool TryCreate(string name, out string? error)
     {
@@ -491,6 +504,20 @@ public sealed class RelayCoordinator : IDisposable
         }
 
         this.CompleteActiveRequest(requestCancellation);
+        var previous = this.State;
+        if (completion.AfterRejection &&
+            previous.ManagedRelayId is Guid managedRelayId &&
+            completion.Relays.Any(relay => relay.RelayId == managedRelayId && relay.IsOwner))
+        {
+            completion = completion with
+            {
+                ManagedRelayId = managedRelayId,
+                Members = previous.Members,
+                Invitations = previous.Invitations,
+                CreatedInvitationToken = previous.CreatedInvitationToken,
+            };
+        }
+
         Volatile.Write(
             ref this.state,
             new RelayRuntimeState(
@@ -507,7 +534,8 @@ public sealed class RelayCoordinator : IDisposable
         {
             this.membershipsRefreshed(
                 completion.Relays.Select(relay => relay.RelayId).ToArray(),
-                completion.AutoSelectedRelayId);
+                completion.AutoSelectedRelayId,
+                completion.AfterRejection);
         }
     }
 
@@ -621,5 +649,6 @@ public sealed class RelayCoordinator : IDisposable
         string? CreatedInvitationToken = null,
         Guid? AutoSelectedRelayId = null,
         bool MembershipListIsAuthoritative = false,
+        bool AfterRejection = false,
         string? Message = null);
 }

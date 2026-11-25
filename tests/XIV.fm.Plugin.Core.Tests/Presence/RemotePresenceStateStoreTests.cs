@@ -11,7 +11,7 @@ public sealed class RemotePresenceStateStoreTests
     private static readonly ContractLocationScope Location = new(63, 129, 130, 2);
 
     [Fact]
-    public void UnchangedVersionRetainsCardsOnlyUntilSnapshotExpiry()
+    public void CardsSurviveSnapshotReplacementButNotItsGracePeriod()
     {
         var store = new RemotePresenceStateStore();
         var snapshot = CreateSnapshot(Location, Now.AddSeconds(20));
@@ -19,8 +19,40 @@ public sealed class RemotePresenceStateStoreTests
         Assert.True(store.Apply(new SnapshotResult("v1", snapshot), Location, Now));
         Assert.Single(store.Read(Now));
         Assert.True(store.Apply(new SnapshotResult("v1", null), Location, Now.AddSeconds(5)));
-        Assert.Single(store.Read(Now.AddSeconds(19)));
-        Assert.Empty(store.Read(Now.AddSeconds(20)));
+        Assert.Single(store.Read(Now.AddSeconds(20)));
+        Assert.Single(store.Read(Now.AddSeconds(27.9)));
+        Assert.Empty(store.Read(Now.AddSeconds(28)));
+    }
+
+    [Fact]
+    public void CardsStayVisibleAcrossRepeatedSharedSnapshotReplacement()
+    {
+        // Another viewer rebuilds the shared snapshot, so it expires just after this client's sync.
+        var store = new RemotePresenceStateStore();
+        for (var cycle = 0; cycle < 10; cycle++)
+        {
+            var builtAt = Now.AddSeconds(cycle * 25);
+            store.Apply(
+                new SnapshotResult($"v{cycle}", CreateSnapshot(Location, builtAt.AddSeconds(20))),
+                Location,
+                builtAt);
+            for (var second = 0d; second < 25; second += 0.5)
+                Assert.Single(store.Read(builtAt.AddSeconds(second)));
+        }
+    }
+
+    [Fact]
+    public void ReplacementWithoutAPlayerRemovesTheirCardImmediately()
+    {
+        var store = new RemotePresenceStateStore();
+        store.Apply(new SnapshotResult("v1", CreateSnapshot(Location, Now.AddSeconds(20))), Location, Now);
+
+        store.Apply(
+            new SnapshotResult("v2", CreateSnapshot(Location, Now.AddSeconds(25)) with { Entries = [] }),
+            Location,
+            Now.AddSeconds(5));
+
+        Assert.Empty(store.Read(Now.AddSeconds(5)));
     }
 
     [Fact]
