@@ -40,6 +40,7 @@ public sealed class SettingsWindow : Window
     private readonly Func<ListeningState> ownListening;
     private readonly Func<string?> relinkAccount;
     private readonly AlbumArtworkCache artworkCache;
+    private readonly Action<HiddenPlayer> unhidePlayer;
     private readonly ListeningCardPainter previewPainter = new();
     private string? accountMessage;
     private string? relayMessage;
@@ -75,7 +76,8 @@ public sealed class SettingsWindow : Window
         RelayCoordinator relayCoordinator,
         Func<ListeningState> ownListening,
         Func<string?> relinkAccount,
-        AlbumArtworkCache artworkCache)
+        AlbumArtworkCache artworkCache,
+        Action<HiddenPlayer> unhidePlayer)
         : base("XIV.fm###XIV.fm.Settings")
     {
         this.configuration = configuration;
@@ -97,6 +99,7 @@ public sealed class SettingsWindow : Window
         this.ownListening = ownListening;
         this.relinkAccount = relinkAccount;
         this.artworkCache = artworkCache;
+        this.unhidePlayer = unhidePlayer;
         this.SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(434f, 350f),
@@ -477,25 +480,45 @@ public sealed class SettingsWindow : Window
         ImGui.TextDisabled("Adjust the card surface without fading its text or artwork.");
         ImGui.Spacing();
 
-        var opacity = this.configuration.NormalizedCardOpacityPercent;
+        ImGui.TextUnformatted("My card");
+        var ownOpacity = this.configuration.NormalizedOwnCardOpacityPercent;
         ImGui.SetNextItemWidth(-1f);
         if (ImGui.SliderInt(
-                "##XIV.fm.CardOpacity",
-                ref opacity,
+                "##XIV.fm.OwnCardOpacity",
+                ref ownOpacity,
                 CardAppearance.MinimumOpacityPercent,
                 CardAppearance.MaximumOpacityPercent,
                 "%d%%"))
         {
-            this.configuration.CardOpacityPercent = CardAppearance.NormalizeOpacityPercent(opacity);
+            this.configuration.CardOpacityPercent = CardAppearance.NormalizeOpacityPercent(ownOpacity);
+            this.previewOtherPlayer = false;
         }
 
         changed |= ImGui.IsItemDeactivatedAfterEdit();
 
-        if (opacity != CardAppearance.DefaultOpacityPercent)
+        ImGui.TextUnformatted("Other players’ cards");
+        var otherOpacity = this.configuration.NormalizedOtherCardOpacityPercent;
+        ImGui.SetNextItemWidth(-1f);
+        if (ImGui.SliderInt(
+                "##XIV.fm.OtherCardOpacity",
+                ref otherOpacity,
+                CardAppearance.MinimumOpacityPercent,
+                CardAppearance.MaximumOpacityPercent,
+                "%d%%"))
         {
-            if (DrawSecondaryButton("Reset to 60%"))
+            this.configuration.OtherCardOpacityPercent = CardAppearance.NormalizeOpacityPercent(otherOpacity);
+            this.previewOtherPlayer = true;
+        }
+
+        changed |= ImGui.IsItemDeactivatedAfterEdit();
+
+        if (ownOpacity != CardAppearance.DefaultOpacityPercent ||
+            otherOpacity != CardAppearance.DefaultOpacityPercent)
+        {
+            if (DrawSecondaryButton("Reset opacity to 60%"))
             {
                 this.configuration.CardOpacityPercent = CardAppearance.DefaultOpacityPercent;
+                this.configuration.OtherCardOpacityPercent = CardAppearance.DefaultOpacityPercent;
                 changed = true;
             }
         }
@@ -609,7 +632,7 @@ public sealed class SettingsWindow : Window
         }
 
         ImGui.Spacing();
-        ImGui.TextDisabled("Hold Alt and click a listening card to open its track on Last.fm.");
+        ImGui.TextDisabled("Hold Alt and click a card to open its track. Hold Alt and right-click to hide that player’s card.");
 
         if (!cards)
             ImGui.EndDisabled();
@@ -656,7 +679,9 @@ public sealed class SettingsWindow : Window
             cardMinimum,
             cardSize,
             cardScale,
-            CardAppearance.ToOpacity(this.configuration.NormalizedCardOpacityPercent),
+            CardAppearance.ToOpacity(this.previewOtherPlayer
+                ? this.configuration.NormalizedOtherCardOpacityPercent
+                : this.configuration.NormalizedOwnCardOpacityPercent),
             this.configuration.OutlineCardText,
             isHovered: false,
             clipToWindow: true);
@@ -746,6 +771,31 @@ public sealed class SettingsWindow : Window
             }
         }
 
+        this.DrawHiddenPlayers();
+    }
+
+    private void DrawHiddenPlayers()
+    {
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Hidden players");
+        if (this.configuration.HiddenPlayers.Count == 0)
+        {
+            ImGui.TextDisabled("Hold Alt and right-click a card to hide that player’s cards.");
+            return;
+        }
+
+        ImGui.TextDisabled("You don’t see these players’ cards. They can still see yours.");
+        foreach (var player in this.configuration.HiddenPlayers.ToArray())
+        {
+            ImGui.PushID($"Hidden.{player.Name}.{player.HomeWorldId}");
+            if (DrawSecondaryButton("Show"))
+                this.unhidePlayer(player);
+            ImGui.SameLine();
+            ImGui.TextUnformatted(player.ToString());
+            ImGui.PopID();
+        }
     }
 
     private void DrawRelaysTab()
@@ -1306,7 +1356,8 @@ public sealed class SettingsWindow : Window
         DrawKeyValue("Account link", link.Status.ToString());
         DrawKeyValue("Sync", sync.Status.ToString());
         DrawKeyValue("Visibility", this.configuration.Visibility.ToString());
-        DrawKeyValue("Card opacity", $"{this.configuration.NormalizedCardOpacityPercent}%");
+        DrawKeyValue("My card opacity", $"{this.configuration.NormalizedOwnCardOpacityPercent}%");
+        DrawKeyValue("Other card opacity", $"{this.configuration.NormalizedOtherCardOpacityPercent}%");
         DrawKeyValue("My card size", $"{this.configuration.NormalizedOwnCardSizePercent}%");
         DrawKeyValue("Other card size", $"{this.configuration.NormalizedOtherCardSizePercent}%");
         DrawKeyValue("Own card", this.configuration.ShowOwnListeningCard ? "Visible" : "Hidden");

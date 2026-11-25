@@ -12,7 +12,7 @@ Measurements at 1× Dalamud UI scale:
 - Title: 21.6 px (20% larger), visually bold
 - Artist: 19.2 px (20% larger), subdued
 - Artist vertical offset from title origin: 23 px
-- Background: FFXIV-style charcoal gray (`#2B2B2B`) with configurable 0–100% opacity, defaulting to 60%
+- Background: FFXIV-style charcoal gray (`#2B2B2B`) with configurable 0–100% opacity, set independently for the local card and other players’ cards and defaulting to 60%
 - Display scale: independently configurable from 50–150% for the local card and other players’ cards, defaulting to 100% for both; remote cards retain full configured size through 2 yalms, then smoothly scale toward 65% at the selected distance limit without dropping below 50% absolute size
 - Text outline: optional 1.1 px black outline, off by default, from 80% opacity without a card surface to 30% on an opaque one; text and surface colors are unchanged
 - Surface separation: compact two-layer shadow, adaptive 1 px border, and a restrained top-edge highlight

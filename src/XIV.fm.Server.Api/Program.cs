@@ -10,12 +10,14 @@ using XIV.fm.Server.Api.Endpoints;
 using XIV.fm.Server.Api.Health;
 using XIV.fm.Server.Api.Http;
 using XIV.fm.Server.Api.Listening;
+using XIV.fm.Server.Api.Retention;
 using XIV.fm.Server.Api.Telemetry;
 using XIV.fm.Server.Application.Abstractions;
 using XIV.fm.Server.Application.AccountLinks;
 using XIV.fm.Server.Application.Listening;
 using XIV.fm.Server.Application.Presence;
 using XIV.fm.Server.Application.Relays;
+using XIV.fm.Server.Application.Retention;
 using XIV.fm.Server.Application.Sync;
 using XIV.fm.Server.Domain.Installations;
 using XIV.fm.Server.Infrastructure.AccountLinks;
@@ -25,6 +27,7 @@ using XIV.fm.Server.Infrastructure.Listening;
 using XIV.fm.Server.Infrastructure.Persistence;
 using XIV.fm.Server.Infrastructure.Presence;
 using XIV.fm.Server.Infrastructure.Relays;
+using XIV.fm.Server.Infrastructure.Retention;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 16 * 1024);
@@ -101,6 +104,10 @@ else
     builder.Services.AddSingleton<IRelayPresenceSnapshotCache, RedisRelayPresenceSnapshotCache>();
     builder.Services.AddSingleton<IRelayStore, PostgresRelayStore>();
     builder.Services.AddSingleton<ILastFmRequestBudget, RedisLastFmRequestBudget>();
+    builder.Services.AddSingleton<IRetentionStore, PostgresRetentionStore>();
+    builder.Services.AddSingleton(services => RetentionPolicy.Default.Covering(
+        services.GetRequiredService<RelayOptions>().CreationRollingWindow));
+    builder.Services.AddHostedService<RetentionHostedService>();
     healthChecks.AddCheck<DurableStoresHealthCheck>("durable_stores", tags: ["ready"]);
 }
 
