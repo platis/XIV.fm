@@ -14,6 +14,7 @@ using XIV.fm.Server.Api.Retention;
 using XIV.fm.Server.Api.Telemetry;
 using XIV.fm.Server.Application.Abstractions;
 using XIV.fm.Server.Application.AccountLinks;
+using XIV.fm.Server.Application.Accounts;
 using XIV.fm.Server.Application.Listening;
 using XIV.fm.Server.Application.Presence;
 using XIV.fm.Server.Application.Relays;
@@ -21,6 +22,7 @@ using XIV.fm.Server.Application.Retention;
 using XIV.fm.Server.Application.Sync;
 using XIV.fm.Server.Domain.Installations;
 using XIV.fm.Server.Infrastructure.AccountLinks;
+using XIV.fm.Server.Infrastructure.Accounts;
 using XIV.fm.Server.Infrastructure.Authentication;
 using XIV.fm.Server.Infrastructure.LastFm;
 using XIV.fm.Server.Infrastructure.Listening;
@@ -72,6 +74,7 @@ if (useInMemoryStorage)
     builder.Services.AddSingleton<IRelayPresenceSnapshotCache, InMemoryRelayPresenceSnapshotCache>();
     builder.Services.AddSingleton<InMemoryRelayStore>();
     builder.Services.AddSingleton<IRelayStore>(services => services.GetRequiredService<InMemoryRelayStore>());
+    builder.Services.AddSingleton<IAccountDeletionStore, InMemoryAccountDeletionStore>();
     builder.Services.AddSingleton<LastFmRequestBudget>();
     builder.Services.AddSingleton<ILastFmRequestBudget>(
         services => services.GetRequiredService<LastFmRequestBudget>());
@@ -104,6 +107,7 @@ else
     builder.Services.AddSingleton<IRelayPresenceSnapshotCache, RedisRelayPresenceSnapshotCache>();
     builder.Services.AddSingleton<IRelayStore, PostgresRelayStore>();
     builder.Services.AddSingleton<ILastFmRequestBudget, RedisLastFmRequestBudget>();
+    builder.Services.AddSingleton<IAccountDeletionStore, PostgresAccountDeletionStore>();
     builder.Services.AddSingleton<IRetentionStore, PostgresRetentionStore>();
     builder.Services.AddSingleton(services => RetentionPolicy.Default.Covering(
         services.GetRequiredService<RelayOptions>().CreationRollingWindow));
@@ -156,6 +160,7 @@ builder.Services.AddSingleton<RelayApplicationService>();
 builder.Services.AddSingleton<PublicPresenceSnapshotService>();
 builder.Services.AddSingleton<RelayPresenceSnapshotService>();
 builder.Services.AddSingleton<SyncApplicationService>();
+builder.Services.AddSingleton<AccountDeletionService>();
 builder.Services.AddSingleton<XivFmTelemetry>();
 builder.Services.AddSingleton<IListeningPollingTelemetry>(
     services => services.GetRequiredService<XivFmTelemetry>());
@@ -259,6 +264,7 @@ app.MapHealthChecks(
     });
 app.MapSyncEndpoint();
 app.MapInstallationEndpoints();
+app.MapAccountEndpoints();
 app.MapAccountLinkEndpoints();
 app.MapRelayEndpoints();
 

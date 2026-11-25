@@ -17,6 +17,35 @@ public sealed class InMemoryRelayStore : IRelayStore
         this.accounts = accounts;
     }
 
+    internal (IReadOnlyList<Guid> Deleted, IReadOnlyList<Guid> Left) RemoveAccount(AccountId accountId, DateTimeOffset now)
+    {
+        lock (this.gate)
+        {
+            var deleted = this.relays.Values.Where(relay => relay.OwnerAccountId == accountId).ToArray();
+            foreach (var relay in deleted)
+            {
+                foreach (var invitation in relay.Invitations)
+                    this.invitationsByHash.Remove(invitation.TokenHash);
+                this.relays.Remove(relay.RelayId);
+            }
+
+            var left = new List<Guid>();
+            foreach (var relay in this.relays.Values)
+            {
+                relay.Removals.Remove(accountId);
+                foreach (var invitation in relay.Invitations.Where(invitation => invitation.AcceptedByAccountId == accountId))
+                    invitation.AcceptedByAccountId = null;
+                if (relay.Members.RemoveAll(member => member.AccountId == accountId) == 0)
+                    continue;
+                relay.MembershipRevision++;
+                relay.UpdatedAt = now;
+                left.Add(relay.RelayId);
+            }
+
+            return (deleted.Select(relay => relay.RelayId).ToArray(), left);
+        }
+    }
+
     public ValueTask<RelayStoreResult<StoredRelay>> CreateAsync(
         AccountId accountId,
         string name,

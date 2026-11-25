@@ -16,7 +16,8 @@ public enum AccountDisconnectRuntimeStatus
 public sealed record AccountDisconnectRuntimeState(
     AccountDisconnectRuntimeStatus Status,
     DateTimeOffset UpdatedAt,
-    string? Error = null);
+    string? Error = null,
+    bool IsAccountDeletion = false);
 
 public sealed class AccountDisconnectCoordinator : IDisposable
 {
@@ -25,7 +26,7 @@ public sealed class AccountDisconnectCoordinator : IDisposable
     private readonly IInstallationApiClient apiClient;
     private readonly Func<DutyParticipationPolicy> dutyPolicy;
     private readonly Func<ServerSyncSettings> settings;
-    private readonly Action completeDisconnect;
+    private readonly Action<bool> completeDisconnect;
     private readonly string pluginVersion;
     private readonly ConcurrentQueue<Action> frameworkActions = new();
     private readonly CancellationTokenSource disposalCancellation = new();
@@ -39,7 +40,7 @@ public sealed class AccountDisconnectCoordinator : IDisposable
         IInstallationApiClient apiClient,
         Func<DutyParticipationPolicy> dutyPolicy,
         Func<ServerSyncSettings> settings,
-        Action completeDisconnect,
+        Action<bool> completeDisconnect,
         string pluginVersion)
     {
         this.framework = framework;
@@ -53,7 +54,10 @@ public sealed class AccountDisconnectCoordinator : IDisposable
 
     public AccountDisconnectRuntimeState State => Volatile.Read(ref this.state);
 
-    public bool TryStart(out string? error)
+    /// <summary>
+    /// Revokes this installation, or permanently deletes the whole XIV.fm account.
+    /// </summary>
+    public bool TryStart(bool deleteAccount, out string? error)
     {
         error = null;
         if (!this.dutyPolicy().AllowsServerRequests)
@@ -88,10 +92,12 @@ public sealed class AccountDisconnectCoordinator : IDisposable
                 ref this.state,
                 new AccountDisconnectRuntimeState(
                     AccountDisconnectRuntimeStatus.Disconnecting,
-                    DateTimeOffset.UtcNow));
+                    DateTimeOffset.UtcNow,
+                    IsAccountDeletion: deleteAccount));
             _ = this.DisconnectAsync(
                 serverBaseUri!,
                 current.InstallationCredential,
+                deleteAccount,
                 this.activeRequest,
                 requestGeneration);
             return true;
@@ -155,6 +161,7 @@ public sealed class AccountDisconnectCoordinator : IDisposable
     private async Task DisconnectAsync(
         Uri serverBaseUri,
         string credential,
+        bool deleteAccount,
         CancellationTokenSource requestCancellation,
         long requestGeneration)
     {
@@ -166,20 +173,34 @@ public sealed class AccountDisconnectCoordinator : IDisposable
                 throw new OperationCanceledException(requestCancellation.Token);
             }
 
-            await this.apiClient.RevokeCurrentInstallationAsync(
-                serverBaseUri,
-                credential,
-                this.pluginVersion,
-                requestCancellation.Token).ConfigureAwait(false);
-            this.QueueCompletion(requestCancellation, requestGeneration);
+            if (deleteAccount)
+            {
+                await this.apiClient.DeleteAccountAsync(
+                    serverBaseUri,
+                    credential,
+                    this.pluginVersion,
+                    requestCancellation.Token).ConfigureAwait(false);
+            }
+            else
+            {
+                await this.apiClient.RevokeCurrentInstallationAsync(
+                    serverBaseUri,
+                    credential,
+                    this.pluginVersion,
+                    requestCancellation.Token).ConfigureAwait(false);
+            }
+
+            this.QueueCompletion(requestCancellation, requestGeneration, deleteAccount);
         }
         catch (OperationCanceledException) when (requestCancellation.IsCancellationRequested)
         {
             requestCancellation.Dispose();
         }
-        catch (ServerSyncException exception) when (exception.Code == "installation_credential_required")
+        catch (ServerSyncException exception) when (
+            !deleteAccount && exception.Code == "installation_credential_required")
         {
-            this.QueueCompletion(requestCancellation, requestGeneration);
+            // An already revoked link is disconnected, but it proves nothing about account deletion.
+            this.QueueCompletion(requestCancellation, requestGeneration, deleteAccount);
         }
         catch (Exception exception) when (exception is ServerSyncException or HttpRequestException or TaskCanceledException)
         {
@@ -200,14 +221,16 @@ public sealed class AccountDisconnectCoordinator : IDisposable
                     new AccountDisconnectRuntimeState(
                         AccountDisconnectRuntimeStatus.Failed,
                         DateTimeOffset.UtcNow,
-                        error));
+                        error,
+                        deleteAccount));
             });
         }
     }
 
     private void QueueCompletion(
         CancellationTokenSource requestCancellation,
-        long requestGeneration) =>
+        long requestGeneration,
+        bool deleteAccount) =>
         this.frameworkActions.Enqueue(() =>
         {
             if (!this.IsCurrentGeneration(requestGeneration))
@@ -217,7 +240,7 @@ public sealed class AccountDisconnectCoordinator : IDisposable
             }
 
             this.CompleteActiveRequest(requestCancellation);
-            this.completeDisconnect();
+            this.completeDisconnect(deleteAccount);
             Volatile.Write(
                 ref this.state,
                 new AccountDisconnectRuntimeState(

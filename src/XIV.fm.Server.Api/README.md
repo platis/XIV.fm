@@ -86,6 +86,7 @@ Production migration execution should be a controlled deployment step. Automatic
 - `POST /v1/sync`
 - `POST /v1/installations/current/credential` — rotate and return a replacement once.
 - `DELETE /v1/installations/current` — revoke and disconnect the current installation, removing its active presence without changing the Last.fm account.
+- `DELETE /v1/account` — permanently delete the linked account, its installations, owned Relays, and memberships.
 - `/v1/relays` and `/v1/relays/{relayId}` — create, list, read, rename, and delete Relays.
 - `/v1/relays/{relayId}/members...` — owner member listing/kick and member leave.
 - `/v1/relays/{relayId}/invitations...` — owner invitation creation/list/revocation.

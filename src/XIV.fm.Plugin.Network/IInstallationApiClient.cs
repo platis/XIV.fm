@@ -7,4 +7,10 @@ public interface IInstallationApiClient
         string installationCredential,
         string pluginVersion,
         CancellationToken cancellationToken);
+
+    Task DeleteAccountAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        CancellationToken cancellationToken);
 }

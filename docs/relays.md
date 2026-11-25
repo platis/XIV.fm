@@ -81,7 +81,7 @@ POST   /relay-invitations/preview
 POST   /relay-invitations/accept
 ```
 
-Ownership transfer, if needed, uses a two-party proposal/acceptance flow. The owner cannot leave or kick themselves before transferring or deleting the Relay.
+Ownership transfer, if needed, uses a two-party proposal/acceptance flow. The owner cannot leave or kick themselves before transferring or deleting the Relay. Deleting the owner's XIV.fm account deletes the Relays they own.
 
 ### Create
 

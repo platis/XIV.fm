@@ -44,6 +44,12 @@ public sealed class RedisListeningStateStore : IListeningStateStore
             .ConfigureAwait(false);
     }
 
+    public async ValueTask RemoveAsync(AccountId accountId, CancellationToken cancellationToken) =>
+        await this.connection.GetDatabase()
+            .KeyDeleteAsync(CreateKey(accountId))
+            .WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+
     private static RedisKey CreateKey(AccountId accountId) =>
         $"xivfm:listening:account:{accountId.Value:D}";
 }

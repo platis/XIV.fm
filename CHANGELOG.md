@@ -4,6 +4,12 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.38] - 2026-11-25
+
+### Added
+
+- Delete your XIV.fm account from Account settings. This disconnects every device, deletes the Relays you own, and removes you from other Relays. Your Last.fm account is not changed.
+
 ## [0.1.37] - 2026-11-25
 
 ### Added

@@ -145,7 +145,8 @@ Provider artwork is disabled by default because the currently reviewed Last.fm t
 - Return no global player directory.
 - Keep metrics free of account, character, Relay, and track labels.
 - Keep detailed metrics and administration private.
-- Make account deletion and Relay deletion explicit, testable operations.
+- Account deletion removes the account, all installations and link sessions, owned Relays, and other Relay memberships in one transaction, then active presence and cached listening state. Pending provider polls may keep cached listening state for at most its 15-minute lifetime.
+- Relay deletion is an explicit, testable operation.
 
 ## Deployment
 
