@@ -115,16 +115,19 @@ public sealed class Plugin : IDalamudPlugin
             this.OpenSettings);
         this.stateStore = new OverlayStateStore();
         this.artworkCache = new AlbumArtworkCache(textureProvider);
+        var nearbyArtwork = new NearbyArtworkTracker();
         this.artworkCoordinator = new AlbumArtworkCoordinator(
             framework,
             this.stateStore,
             this.artworkCache,
+            nearbyArtwork,
             () => this.CurrentDutyPolicy);
         this.cardRenderer = new NameplateCardRenderer(
             objectTable,
             gameGui,
             this.stateStore,
             this.artworkCache,
+            nearbyArtwork,
             () => this.configuration.ShowPlaceholderCards && this.CurrentDutyPolicy.AllowsOverlay,
             () => this.configuration.ShowOwnListeningCard,
             () => this.configuration.NormalizedRemoteCardDistanceYalms,

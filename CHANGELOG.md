@@ -4,6 +4,16 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.40] - 2026-11-25
+
+### Changed
+
+- Match cards to players with a lookup instead of comparing every card with every player on each frame.
+- Load covers only for players near enough to show, instead of everyone in the zone.
+- Server: use fewer database and Redis requests per sync, and keep memory use independent of how many places players visit.
+- Server: check Last.fm for several accounts at once, so one slow response no longer delays everyone.
+- Server: stop writing per-query and per-request log detail.
+
 ## [0.1.39] - 2026-11-25
 
 ### Added

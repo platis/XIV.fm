@@ -63,6 +63,11 @@ public sealed class RedisStoreTests
 
         Assert.Equal(observation, await states.GetAsync(account, CancellationToken.None));
 
+        var missing = new AccountId(Guid.NewGuid());
+        var many = await states.GetManyAsync([missing, account], CancellationToken.None);
+        Assert.Equal(observation, Assert.Single(many).Value);
+        Assert.Empty(await states.GetManyAsync([], CancellationToken.None));
+
         await states.RemoveAsync(account, CancellationToken.None);
         Assert.Null(await states.GetAsync(account, CancellationToken.None));
     }
@@ -80,6 +85,15 @@ public sealed class RedisStoreTests
             CreateHeartbeat(installation, account, first, VisibilityMode.Public),
             CancellationToken.None);
         Assert.Single(await GetPublicAsync(presence, first));
+
+        // Repeating an unchanged heartbeat must keep it indexed.
+        await presence.UpsertAsync(
+            CreateHeartbeat(installation, account, first, VisibilityMode.Public),
+            CancellationToken.None);
+        Assert.Single(await GetPublicAsync(presence, first));
+        var ttl = await this.stores.Redis.GetDatabase().KeyTimeToLiveAsync(
+            $"xivfm:presence:public:{first.CurrentWorldId}:{first.TerritoryId}:{first.MapId}:{first.InstanceId}");
+        Assert.InRange(ttl!.Value, TimeSpan.FromSeconds(61), TimeSpan.FromMinutes(2));
 
         await presence.UpsertAsync(
             CreateHeartbeat(installation, account, second, VisibilityMode.Public),

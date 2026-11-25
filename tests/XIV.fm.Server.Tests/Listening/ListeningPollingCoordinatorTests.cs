@@ -264,6 +264,66 @@ public sealed class ListeningPollingCoordinatorTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
     }
 
+    [Fact]
+    public async Task SlowAccountDoesNotDelayOthers()
+    {
+        var slow = new LinkedLastFmAccount(new AccountId(Guid.NewGuid()), new LastFmAccountIdentity("SlowListener"));
+        var lastFm = new BlockingRecentTracksClient("SlowListener");
+        var store = new InMemoryListeningStateStore();
+        var options = ListeningPollingOptions.Default;
+        var coordinator = new ListeningPollingCoordinator(
+            lastFm,
+            store,
+            new InMemoryListeningPollLeaseStore(),
+            TimeProvider.System,
+            options,
+            new ListeningFreshnessPolicy(options));
+        coordinator.NotifyActive(slow, DateTimeOffset.UtcNow.AddMinutes(1));
+        var others = Enumerable.Range(0, 20).Select(_ => CreateAccount()).ToArray();
+        foreach (var account in others)
+            coordinator.NotifyActive(account, DateTimeOffset.UtcNow.AddMinutes(1));
+        using var cancellation = new CancellationTokenSource();
+        var run = coordinator.RunAsync(cancellation.Token);
+
+        await WaitUntilAsync(() => Volatile.Read(ref lastFm.CompletedCount) == others.Length);
+        Assert.Equal(1, lastFm.BlockedCount);
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+    }
+
+    [Fact]
+    public async Task ConcurrentPollsAreBoundedAndNeverRepeatAnAccount()
+    {
+        var lastFm = new BlockingRecentTracksClient(blockedName: null);
+        var options = ListeningPollingOptions.Default;
+        var coordinator = new ListeningPollingCoordinator(
+            lastFm,
+            new InMemoryListeningStateStore(),
+            new InMemoryListeningPollLeaseStore(),
+            TimeProvider.System,
+            options,
+            new ListeningFreshnessPolicy(options));
+        for (var index = 0; index < 30; index++)
+        {
+            var account = new LinkedLastFmAccount(
+                new AccountId(Guid.NewGuid()),
+                new LastFmAccountIdentity($"Listener{index}"));
+            for (var repeat = 0; repeat < 3; repeat++)
+                coordinator.NotifyActive(account, DateTimeOffset.UtcNow.AddMinutes(1));
+        }
+
+        using var cancellation = new CancellationTokenSource();
+        var run = coordinator.RunAsync(cancellation.Token);
+        await WaitUntilAsync(() => Volatile.Read(ref lastFm.BlockedCount) >= 8);
+        await Task.Delay(300);
+        Assert.Equal(8, lastFm.BlockedCount);
+        Assert.Equal(8, lastFm.Names.Distinct().Count());
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+    }
+
     private static LinkedLastFmAccount CreateAccount() => new(
         new AccountId(Guid.NewGuid()),
         new LastFmAccountIdentity("CanonicalListener"));
@@ -319,6 +379,11 @@ public sealed class ListeningPollingCoordinatorTests
                 : throw new TimeoutException("Expected test failure.");
         }
 
+        public ValueTask<IReadOnlyDictionary<AccountId, ListeningObservation>> GetManyAsync(
+            IReadOnlyList<AccountId> accountIds,
+            CancellationToken cancellationToken) =>
+            this.inner.GetManyAsync(accountIds, cancellationToken);
+
         public ValueTask SetAsync(
             AccountId accountId,
             ListeningObservation observation,
@@ -340,6 +405,29 @@ public sealed class ListeningPollingCoordinatorTests
             cancellationToken.ThrowIfCancellationRequested();
             Interlocked.Increment(ref this.CallCount);
             throw new LastFmRecentTracksException("Expected test failure.");
+        }
+    }
+
+    private sealed class BlockingRecentTracksClient(string? blockedName) : ILastFmRecentTracksClient
+    {
+        public int BlockedCount;
+        public int CompletedCount;
+
+        public System.Collections.Concurrent.ConcurrentBag<string> Names { get; } = [];
+
+        public async ValueTask<ListeningObservation> GetCurrentAsync(
+            LastFmAccountIdentity identity,
+            CancellationToken cancellationToken)
+        {
+            this.Names.Add(identity.CanonicalName);
+            if (blockedName is null || identity.CanonicalName == blockedName)
+            {
+                Interlocked.Increment(ref this.BlockedCount);
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+
+            Interlocked.Increment(ref this.CompletedCount);
+            return new ListeningObservation(ListeningObservationStatus.NotPlaying, DateTimeOffset.UtcNow, null);
         }
     }
 

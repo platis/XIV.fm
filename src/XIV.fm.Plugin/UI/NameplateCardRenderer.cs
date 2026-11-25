@@ -29,6 +29,10 @@ public sealed class NameplateCardRenderer
     private readonly AlbumArtworkCache artworkCache;
     private readonly ListeningCardPainter painter = new();
     private readonly List<ImGuiWindowPtr> remoteCardWindows = [];
+    private readonly List<(int Index, IPlayerCharacter Target, float DistanceYalms)> nearbyCards = [];
+    private readonly LoadedPlayerIdentities identities = new();
+    private readonly NearbyArtworkTracker nearbyArtwork;
+    private RemoteCardLookup lookup = RemoteCardLookup.Empty;
     private readonly Func<bool> isEnabled;
     private readonly Func<bool> showOwnCard;
     private readonly Func<int> remoteDistanceYalms;
@@ -48,6 +52,7 @@ public sealed class NameplateCardRenderer
         IGameGui gameGui,
         OverlayStateStore stateStore,
         AlbumArtworkCache artworkCache,
+        NearbyArtworkTracker nearbyArtwork,
         Func<bool> isEnabled,
         Func<bool> showOwnCard,
         Func<int> remoteDistanceYalms,
@@ -64,6 +69,7 @@ public sealed class NameplateCardRenderer
         this.gameGui = gameGui;
         this.stateStore = stateStore;
         this.artworkCache = artworkCache;
+        this.nearbyArtwork = nearbyArtwork;
         this.isEnabled = isEnabled;
         this.showOwnCard = showOwnCard;
         this.remoteDistanceYalms = remoteDistanceYalms;
@@ -102,65 +108,48 @@ public sealed class NameplateCardRenderer
         float? localNameplateHeightYalms = null;
         var interactionModifierHeld = this.isInteractionModifierHeld();
         var maximumRemoteDistanceYalms = this.remoteDistanceYalms();
-        var loadedPlayers = this.objectTable.PlayerObjects.OfType<IPlayerCharacter>().ToArray();
+        var now = DateTimeOffset.UtcNow;
         this.remoteCardWindows.Clear();
         ImGuiWindowPtr? localCardWindow = null;
-        for (var layer = 0; layer < OverlayCardStacking.CardLayerCount; layer++)
+
+        this.FindNearbyCards(localPlayer, snapshot, maximumRemoteDistanceYalms, now, out matchedPlayers);
+        inRangePlayers = this.nearbyCards.Count;
+        foreach (var (index, target, distanceYalms) in this.nearbyCards)
         {
-            foreach (var card in snapshot.Cards)
-            {
-                if (OverlayCardStacking.GetLayer(card.IsLocal) != layer)
-                    continue;
-                if (!OverlayVisibility.ShouldRenderCard(card.IsLocal, this.showOwnCard()))
-                    continue;
-
-                var target = card.IsLocal
-                    ? localPlayer
-                    : FindLoadedPlayer(card.Character, loadedPlayers);
-
-                if (target is null)
-                    continue;
-
-                matchedPlayers++;
-                var distanceYalms = 0f;
-                if (!card.IsLocal)
-                {
-                    distanceYalms = Vector3.Distance(localPlayer.Position, target.Position);
-                    if (!float.IsFinite(distanceYalms) ||
-                        !OverlayVisibility.IsRemoteWithinRange(
-                            localPlayer.Position,
-                            target.Position,
-                            maximumRemoteDistanceYalms))
-                    {
-                        continue;
-                    }
-                }
-
-                inRangePlayers++;
-                if (!DalamudNameplateAnchor.TryGetWorldPosition(target, out var worldAnchor))
-                    continue;
-                if (card.IsLocal)
-                    localNameplateHeightYalms = OverlayAnchor.GetHeightYalms(target.Position, worldAnchor);
-                var cardAnchor = OverlayAnchor.AddSafetyHeight(worldAnchor);
-                if (!this.gameGui.WorldToScreen(cardAnchor, out var screenAnchor))
-                    continue;
-
-                projectedAnchors++;
-                var cardWindow = this.DrawCard(
-                    card,
-                    target,
-                    screenAnchor,
-                    distanceYalms,
-                    maximumRemoteDistanceYalms,
-                    interactionModifierHeld);
-                if (card.IsLocal)
-                    localCardWindow = cardWindow;
-                else
-                    this.remoteCardWindows.Add(cardWindow);
-                renderedCards++;
-            }
+            var cardWindow = this.TryDrawCard(
+                snapshot.Cards[index],
+                target,
+                distanceYalms,
+                maximumRemoteDistanceYalms,
+                interactionModifierHeld,
+                ref projectedAnchors,
+                ref localNameplateHeightYalms);
+            if (cardWindow is not { } window)
+                continue;
+            this.remoteCardWindows.Add(window);
+            renderedCards++;
         }
 
+        // The local card is drawn last so it stays above every remote card.
+        var localCard = snapshot.Cards.FirstOrDefault(static card => card.IsLocal);
+        if (localCard is not null && OverlayVisibility.ShouldRenderCard(true, this.showOwnCard()))
+        {
+            matchedPlayers++;
+            inRangePlayers++;
+            localCardWindow = this.TryDrawCard(
+                localCard,
+                localPlayer,
+                0f,
+                maximumRemoteDistanceYalms,
+                interactionModifierHeld,
+                ref projectedAnchors,
+                ref localNameplateHeightYalms);
+            if (localCardWindow is not null)
+                renderedCards++;
+        }
+
+        // Game objects must not be kept beyond the frame that read them.
+        this.nearbyCards.Clear();
         ArrangeCardWindowStack(localCardWindow, this.remoteCardWindows);
 
         this.PublishDiagnostics(
@@ -172,17 +161,83 @@ public sealed class NameplateCardRenderer
             localNameplateHeightYalms);
     }
 
-    private static IPlayerCharacter? FindLoadedPlayer(
-        CharacterIdentity character,
-        IReadOnlyList<IPlayerCharacter> loadedPlayers)
+    private void FindNearbyCards(
+        IPlayerCharacter localPlayer,
+        OverlaySnapshot snapshot,
+        int maximumRemoteDistanceYalms,
+        DateTimeOffset now,
+        out int matchedPlayers)
     {
-        foreach (var player in loadedPlayers)
+        matchedPlayers = 0;
+        this.nearbyCards.Clear();
+        if (!ReferenceEquals(this.lookup.Snapshot, snapshot))
+            this.lookup = new RemoteCardLookup(snapshot);
+        if (this.lookup.IsEmpty)
+            return;
+
+        this.identities.BeginFrame(now);
+        var localPosition = localPlayer.Position;
+        foreach (var gameObject in this.objectTable.PlayerObjects)
         {
-            if (character.Matches(DalamudCharacterIdentity.From(player)))
-                return player;
+            if (gameObject is not IPlayerCharacter player ||
+                this.identities.Get(player.GameObjectId, player, DecodeIdentity) is not { } identity ||
+                !this.lookup.TryFind(identity, out var index))
+            {
+                continue;
+            }
+
+            matchedPlayers++;
+            var position = player.Position;
+            var distanceYalms = Vector3.Distance(localPosition, position);
+            if (!float.IsFinite(distanceYalms))
+                continue;
+            if (distanceYalms <= maximumRemoteDistanceYalms + NearbyArtworkTracker.PreloadYalms &&
+                snapshot.Cards[index].ArtworkUrl is { } artworkUrl)
+            {
+                this.nearbyArtwork.Observe(artworkUrl, now);
+            }
+
+            if (OverlayVisibility.IsRemoteWithinRange(localPosition, position, maximumRemoteDistanceYalms))
+                this.nearbyCards.Add((index, player, distanceYalms));
         }
 
-        return null;
+        // Snapshot order keeps overlapping cards stacked the same way on every frame.
+        this.nearbyCards.Sort(static (first, second) => first.Index.CompareTo(second.Index));
+    }
+
+    private static CharacterIdentity? DecodeIdentity(IPlayerCharacter player)
+    {
+        var name = player.Name.ToString();
+        var homeWorldId = player.HomeWorld.RowId;
+        return string.IsNullOrWhiteSpace(name) || homeWorldId == 0
+            ? null
+            : new CharacterIdentity(name, homeWorldId);
+    }
+
+    private ImGuiWindowPtr? TryDrawCard(
+        OverlayCard card,
+        IPlayerCharacter target,
+        float distanceYalms,
+        int maximumRemoteDistanceYalms,
+        bool interactionModifierHeld,
+        ref int projectedAnchors,
+        ref float? localNameplateHeightYalms)
+    {
+        if (!DalamudNameplateAnchor.TryGetWorldPosition(target, out var worldAnchor))
+            return null;
+        if (card.IsLocal)
+            localNameplateHeightYalms = OverlayAnchor.GetHeightYalms(target.Position, worldAnchor);
+        if (!this.gameGui.WorldToScreen(OverlayAnchor.AddSafetyHeight(worldAnchor), out var screenAnchor))
+            return null;
+
+        projectedAnchors++;
+        return this.DrawCard(
+            card,
+            target,
+            screenAnchor,
+            distanceYalms,
+            maximumRemoteDistanceYalms,
+            interactionModifierHeld);
     }
 
     private static void ArrangeCardWindowStack(

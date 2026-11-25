@@ -88,18 +88,14 @@ public sealed class SyncApplicationService
                 "A linked account is required for social presence."));
         }
 
+        IReadOnlyDictionary<Guid, long>? relayRevisions = null;
         if (request.Visibility.Mode == VisibilityMode.Custom)
         {
-            var membership = await this.relaySnapshotService.GetAuthorizedUnionAsync(
+            relayRevisions = await this.relaySnapshotService.AuthorizeAsync(
                 linkedAccount!.AccountId,
                 request.Visibility.RelayIds,
-                new DomainLocationScope(
-                    request.Location.CurrentWorldId,
-                    request.Location.TerritoryId,
-                    request.Location.MapId,
-                    request.Location.InstanceId),
                 cancellationToken).ConfigureAwait(false);
-            if (membership is null)
+            if (relayRevisions is null)
             {
                 return SyncResult.Failed(new SyncFailure(
                     SyncFailureKind.Authorization,
@@ -196,6 +192,7 @@ public sealed class SyncApplicationService
             var authorized = await this.relaySnapshotService.GetAuthorizedUnionAsync(
                 linkedAccount!.AccountId,
                 request.Visibility.RelayIds,
+                relayRevisions!,
                 heartbeat.Location,
                 cancellationToken).ConfigureAwait(false);
             if (authorized is null)

@@ -18,6 +18,21 @@ public sealed class InMemoryListeningStateStore : IListeningStateStore
             this.states.TryGetValue(accountId, out var observation) ? observation : null);
     }
 
+    public ValueTask<IReadOnlyDictionary<AccountId, ListeningObservation>> GetManyAsync(
+        IReadOnlyList<AccountId> accountIds,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var observations = new Dictionary<AccountId, ListeningObservation>(accountIds.Count);
+        foreach (var accountId in accountIds)
+        {
+            if (this.states.TryGetValue(accountId, out var observation))
+                observations[accountId] = observation;
+        }
+
+        return ValueTask.FromResult<IReadOnlyDictionary<AccountId, ListeningObservation>>(observations);
+    }
+
     public ValueTask SetAsync(
         AccountId accountId,
         ListeningObservation observation,

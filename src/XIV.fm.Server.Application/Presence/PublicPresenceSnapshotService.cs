@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using XIV.fm.Contracts.V1;
@@ -15,7 +14,7 @@ public sealed class PublicPresenceSnapshotService
     private const int MaximumCandidateHeartbeats = 2000;
     private static readonly TimeSpan SnapshotLifetime = TimeSpan.FromSeconds(20);
 
-    private readonly ConcurrentDictionary<DomainLocationScope, SemaphoreSlim> buildLocks = new();
+    private readonly StripedLock buildLocks = new();
     private readonly IPresenceStore presenceStore;
     private readonly IListeningStateStore listeningStateStore;
     private readonly IPublicPresenceSnapshotCache snapshotCache;
@@ -50,7 +49,7 @@ public sealed class PublicPresenceSnapshotService
         if (cacheHit)
             return cached!;
 
-        var buildLock = this.buildLocks.GetOrAdd(location, _ => new SemaphoreSlim(1, 1));
+        var buildLock = this.buildLocks.Get(location);
         await buildLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -64,22 +63,22 @@ public sealed class PublicPresenceSnapshotService
                 now,
                 MaximumCandidateHeartbeats,
                 cancellationToken).ConfigureAwait(false);
-            var entries = new List<PresenceEntry>();
-            foreach (var heartbeat in heartbeats
+            var visible = heartbeats
                 .Where(heartbeat => heartbeat.AccountId is not null)
                 .GroupBy(heartbeat => heartbeat.AccountId!.Value)
                 .Select(group => group.OrderByDescending(heartbeat => heartbeat.SeenAt).First())
                 .OrderBy(heartbeat => heartbeat.Character.Name, StringComparer.Ordinal)
                 .ThenBy(heartbeat => heartbeat.Character.HomeWorldId)
-                .Take(MaximumEntries))
-            {
-                var listening = await this.listeningStateStore
-                    .GetAsync(heartbeat.AccountId!.Value, cancellationToken)
-                    .ConfigureAwait(false);
-                entries.Add(new PresenceEntry(
+                .Take(MaximumEntries)
+                .ToArray();
+            var listening = await this.listeningStateStore
+                .GetManyAsync(visible.Select(heartbeat => heartbeat.AccountId!.Value).ToArray(), cancellationToken)
+                .ConfigureAwait(false);
+            var entries = visible
+                .Select(heartbeat => new PresenceEntry(
                     new CharacterIdentity(heartbeat.Character.Name, heartbeat.Character.HomeWorldId),
-                    MapListening(listening, now)));
-            }
+                    this.MapListening(listening.GetValueOrDefault(heartbeat.AccountId!.Value), now)))
+                .ToList();
 
             var contractLocation = new LocationScope(
                 location.CurrentWorldId,
