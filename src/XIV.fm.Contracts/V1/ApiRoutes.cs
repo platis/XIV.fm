@@ -14,6 +14,10 @@ public static class ApiRoutes
 
     public const string RevokeCurrentInstallation = "/v1/installations/current";
 
+    public const string Installations = "/v1/installations";
+
+    public const string Installation = "/v1/installations/{installationId:guid}";
+
     public const string DeleteAccount = "/v1/account";
 
     public const string Relays = "/v1/relays";
@@ -39,6 +43,9 @@ public static class ApiRoutes
 
     public static string GetAccountLinkCallback(Guid linkSessionId) =>
         $"/v1/account-links/{linkSessionId:D}/callback";
+
+    public static string GetInstallation(Guid installationId) =>
+        $"/v1/installations/{installationId:D}";
 
     public static string GetRelay(Guid relayId) =>
         $"/v1/relays/{relayId:D}";

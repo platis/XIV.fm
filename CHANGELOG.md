@@ -4,6 +4,13 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.39] - 2026-11-25
+
+### Added
+
+- See the devices linked to your account and disconnect ones you no longer use, from Account settings.
+- Server: use a limited database role that cannot change the schema, roles, or other databases.
+
 ## [0.1.38] - 2026-11-25
 
 ### Added

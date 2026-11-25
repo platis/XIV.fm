@@ -111,6 +111,10 @@ namespace XIV.fm.Server.Infrastructure.Persistence.Migrations
                         .HasColumnName("credential_hash")
                         .IsFixedLength();
 
+                    b.Property<DateTimeOffset?>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_used_at");
+
                     b.Property<DateTimeOffset?>("RevokedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("revoked_at");

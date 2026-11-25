@@ -15,6 +15,7 @@ using XIV.fm.Server.Api.Telemetry;
 using XIV.fm.Server.Application.Abstractions;
 using XIV.fm.Server.Application.AccountLinks;
 using XIV.fm.Server.Application.Accounts;
+using XIV.fm.Server.Application.Installations;
 using XIV.fm.Server.Application.Listening;
 using XIV.fm.Server.Application.Presence;
 using XIV.fm.Server.Application.Relays;
@@ -161,6 +162,7 @@ builder.Services.AddSingleton<PublicPresenceSnapshotService>();
 builder.Services.AddSingleton<RelayPresenceSnapshotService>();
 builder.Services.AddSingleton<SyncApplicationService>();
 builder.Services.AddSingleton<AccountDeletionService>();
+builder.Services.AddSingleton<InstallationApplicationService>();
 builder.Services.AddSingleton<XivFmTelemetry>();
 builder.Services.AddSingleton<IListeningPollingTelemetry>(
     services => services.GetRequiredService<XivFmTelemetry>());

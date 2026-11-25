@@ -12,6 +12,9 @@ public sealed class PostgresInstallationCredentialStore : IInstallationCredentia
     private const int MinimumCredentialLength = 32;
     private const int MaximumCredentialLength = 512;
 
+    // Coarse on purpose: it avoids a write per sync and records no activity pattern.
+    private static readonly TimeSpan LastUsedResolution = TimeSpan.FromHours(6);
+
     private readonly IDbContextFactory<XivFmDbContext> contextFactory;
     private readonly TimeProvider timeProvider;
 
@@ -32,13 +35,27 @@ public sealed class PostgresInstallationCredentialStore : IInstallationCredentia
 
         var hash = Hash(credential);
         await using var context = await this.contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var installationId = await context.InstallationCredentials
+        var installation = await context.InstallationCredentials
             .AsNoTracking()
             .Where(entity => entity.CredentialHash == hash && entity.RevokedAt == null)
-            .Select(entity => (Guid?)entity.InstallationId)
+            .Select(entity => new { entity.InstallationId, entity.LastUsedAt })
             .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
-        return installationId is null ? null : new InstallationId(installationId.Value);
+        if (installation is null)
+            return null;
+
+        var now = this.timeProvider.GetUtcNow();
+        if (installation.LastUsedAt is null || now - installation.LastUsedAt >= LastUsedResolution)
+        {
+            await context.InstallationCredentials
+                .Where(entity => entity.InstallationId == installation.InstallationId)
+                .ExecuteUpdateAsync(
+                    updates => updates.SetProperty(entity => entity.LastUsedAt, now),
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        return new InstallationId(installation.InstallationId);
     }
 
     public async ValueTask<IssuedInstallationCredential> ProvisionAsync(CancellationToken cancellationToken)

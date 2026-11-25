@@ -226,6 +226,86 @@
         }
       }
     },
+    "/v1/installations": {
+      "get": {
+        "operationId": "listInstallations",
+        "summary": "List the account's linked installations",
+        "description": "Returns active installations of the authenticated account. lastUsedAt is approximate and null until the installation is next used.",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Linked installations.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/installations/{installationId}": {
+      "delete": {
+        "operationId": "revokeInstallation",
+        "summary": "Disconnect a linked installation",
+        "description": "Revokes an active installation of the same account and removes its active presence.",
+        "security": [
+          {
+            "installationBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "installationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Installation disconnected and revoked.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
     "/v1/account": {
       "delete": {
         "operationId": "deleteAccount",
@@ -1039,6 +1119,51 @@
       }
     },
     "schemas": {
+      "InstallationListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "installations"
+        ],
+        "properties": {
+          "installations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallationResponse"
+            }
+          }
+        }
+      },
+      "InstallationResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "installationId",
+          "linkedAt",
+          "lastUsedAt",
+          "isCurrent"
+        ],
+        "properties": {
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "linkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUsedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "isCurrent": {
+            "type": "boolean"
+          }
+        }
+      },
       "StartAccountLinkResponse": {
         "type": "object",
         "additionalProperties": false,

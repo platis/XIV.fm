@@ -15,4 +15,6 @@ public sealed class InstallationCredentialEntity
     public DateTimeOffset? RotatedAt { get; set; }
 
     public DateTimeOffset? RevokedAt { get; set; }
+
+    public DateTimeOffset? LastUsedAt { get; set; }
 }

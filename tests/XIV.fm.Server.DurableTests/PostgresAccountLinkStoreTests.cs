@@ -73,6 +73,44 @@ public sealed class PostgresAccountLinkStoreTests
         Assert.Null(await credentials.AuthenticateAsync(rotated, CancellationToken.None));
     }
 
+    [Fact]
+    public async Task InstallationsAreListedWithCoarseLastUse()
+    {
+        var identity = new LastFmAccountIdentity($"listener-{Guid.NewGuid():N}");
+        var first = await this.AuthorizeAsync();
+        var second = await this.AuthorizeAsync();
+        await this.links.CompleteAsync(first.SessionId, identity, DateTimeOffset.UtcNow.AddDays(-1), CancellationToken.None);
+        await this.links.CompleteAsync(second.SessionId, identity, DateTimeOffset.UtcNow, CancellationToken.None);
+        var clock = new AdjustableTimeProvider();
+        var credentials = new PostgresInstallationCredentialStore(this.stores.Contexts, clock);
+        var firstId = (await credentials.AuthenticateAsync(first.LinkCredential, CancellationToken.None))!.Value;
+        var account = (await this.links.GetForInstallationAsync(firstId, CancellationToken.None))!.AccountId;
+
+        var listed = await this.links.ListInstallationsAsync(account, CancellationToken.None);
+        Assert.Equal(2, listed.Count);
+        Assert.Null(listed[0].LastUsedAt);
+        Assert.Equal(firstId, listed[1].InstallationId);
+        var firstUse = listed[1].LastUsedAt;
+        Assert.NotNull(firstUse);
+
+        clock.Now = clock.Now.AddHours(5);
+        await credentials.AuthenticateAsync(first.LinkCredential, CancellationToken.None);
+        Assert.Equal(firstUse, (await this.links.ListInstallationsAsync(account, CancellationToken.None))[1].LastUsedAt);
+        clock.Now = clock.Now.AddHours(1).AddSeconds(1);
+        await credentials.AuthenticateAsync(first.LinkCredential, CancellationToken.None);
+        Assert.True((await this.links.ListInstallationsAsync(account, CancellationToken.None))[1].LastUsedAt > firstUse);
+
+        await credentials.RevokeAsync(firstId, CancellationToken.None);
+        Assert.Single(await this.links.ListInstallationsAsync(account, CancellationToken.None));
+    }
+
+    private sealed class AdjustableTimeProvider : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = DateTimeOffset.UtcNow;
+
+        public override DateTimeOffset GetUtcNow() => this.Now;
+    }
+
     private async Task<NewAccountLinkSession> AuthorizeAsync()
     {
         var now = DateTimeOffset.UtcNow;

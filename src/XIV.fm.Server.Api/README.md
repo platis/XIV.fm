@@ -74,7 +74,14 @@ XIVFM_RELAYS__MAXIMUMSELECTEDRELAYS=5
 
 `XIVFM_TRUSTED_PROXY_NETWORKS` is a comma-separated list of CIDR networks whose reverse proxy may set `X-Forwarded-For`. Without it, every client behind the proxy shares the anonymous rate limits. Only the address appended by the proxy itself is used.
 
-Production migration execution should be a controlled deployment step. Automatic startup migration exists only for disposable integration workflows.
+Production connects as the limited `xivfm_app` role. Create or update it as the database owner with `deploy/postgres/app-role.sql` after applying migrations. Generate migration SQL with:
+
+```bash
+dotnet ef migrations script <previous> --idempotent \
+    --project src/XIV.fm.Server.Infrastructure --startup-project src/XIV.fm.Server.Infrastructure
+```
+
+Production migration execution should be a controlled deployment step, run by the database owner. `XIVFM_APPLY_MIGRATIONS` cannot work with the limited role. Automatic startup migration exists only for disposable integration workflows.
 
 ## Endpoints
 
@@ -86,6 +93,7 @@ Production migration execution should be a controlled deployment step. Automatic
 - `POST /v1/sync`
 - `POST /v1/installations/current/credential` — rotate and return a replacement once.
 - `DELETE /v1/installations/current` — revoke and disconnect the current installation, removing its active presence without changing the Last.fm account.
+- `GET /v1/installations` and `DELETE /v1/installations/{installationId}` — list and disconnect the account's installations.
 - `DELETE /v1/account` — permanently delete the linked account, its installations, owned Relays, and memberships.
 - `/v1/relays` and `/v1/relays/{relayId}` — create, list, read, rename, and delete Relays.
 - `/v1/relays/{relayId}/members...` — owner member listing/kick and member leave.

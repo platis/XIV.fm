@@ -184,6 +184,38 @@ public sealed class RelayEndpointTests
     }
 
     [Fact]
+    public async Task InstallationsCanOnlyBeSeenAndRevokedByTheirOwnAccount()
+    {
+        await using var factory = new ServerApiFactory();
+        using var first = CreateClient(factory, await CreateLinkedCredentialAsync(factory, "Devices", "device-first"));
+        using var second = CreateClient(factory, await CreateLinkedCredentialAsync(factory, "Devices", "device-second"));
+        using var stranger = CreateClient(factory, await CreateLinkedCredentialAsync(factory, "Stranger", "stranger"));
+        using var unlinked = CreateClient(factory, ServerApiFactory.Credential);
+
+        var listed = (await first.GetFromJsonAsync<InstallationListResponse>(ApiRoutes.Installations))!.Installations;
+        Assert.Equal(2, listed.Count);
+        var other = Assert.Single(listed, installation => !installation.IsCurrent);
+        var strangerOwn = Assert.Single(
+            (await stranger.GetFromJsonAsync<InstallationListResponse>(ApiRoutes.Installations))!.Installations);
+        Assert.True(strangerOwn.IsCurrent);
+
+        using var foreign = await stranger.DeleteAsync(ApiRoutes.GetInstallation(other.InstallationId));
+        using var unlinkedList = await unlinked.GetAsync(ApiRoutes.Installations);
+        using var unlinkedRevoke = await unlinked.DeleteAsync(ApiRoutes.GetInstallation(other.InstallationId));
+        Assert.Equal(HttpStatusCode.NotFound, foreign.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, unlinkedList.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, unlinkedRevoke.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await second.GetAsync(ApiRoutes.Installations)).StatusCode);
+
+        using var revoked = await first.DeleteAsync(ApiRoutes.GetInstallation(other.InstallationId));
+        Assert.Equal(HttpStatusCode.NoContent, revoked.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await second.GetAsync(ApiRoutes.Installations)).StatusCode);
+        Assert.Single((await first.GetFromJsonAsync<InstallationListResponse>(ApiRoutes.Installations))!.Installations);
+        using var repeated = await first.DeleteAsync(ApiRoutes.GetInstallation(other.InstallationId));
+        Assert.Equal(HttpStatusCode.NotFound, repeated.StatusCode);
+    }
+
+    [Fact]
     public async Task AccountDeletionRequiresALinkedAccount()
     {
         await using var factory = new ServerApiFactory();

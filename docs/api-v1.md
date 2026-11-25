@@ -157,6 +157,10 @@ For Private visibility, the server returns an empty location snapshot. Public an
 
 If `knownSnapshotVersion` is still current, `locationPresence.version` is returned and `locationPresence.snapshot` is null. This avoids retransmitting a shared snapshot while still returning fresh heartbeat and own-listening metadata. A future conditional GET may expose the same version through an HTTP ETag; snapshot versions remain opaque in either transport.
 
+## Installations
+
+`GET /v1/installations` lists the account's active installations with their link date and approximate last use. `DELETE /v1/installations/{installationId}` disconnects one of them; installations of other accounts are reported as not found.
+
 ## Account deletion
 
 `DELETE /v1/account` permanently removes the linked account, every installation and link session, every Relay it owns, and its membership in other Relays. All of the account's credentials are unauthorized afterwards. The plugin lists owned Relays and asks for confirmation first. Last.fm data is unchanged.

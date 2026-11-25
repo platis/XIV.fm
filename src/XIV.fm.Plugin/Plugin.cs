@@ -36,6 +36,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly AccountLinkCoordinator accountLinkCoordinator;
     private readonly AccountDisconnectCoordinator accountDisconnectCoordinator;
     private readonly RelayCoordinator relayCoordinator;
+    private readonly DeviceCoordinator deviceCoordinator;
     private readonly SettingsWindow settingsWindow;
     private readonly OnboardingWindow onboardingWindow;
 
@@ -184,6 +185,12 @@ public sealed class Plugin : IDalamudPlugin
             () => this.GetSyncSettings(),
             this.ReconcileRelaySelections,
             typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "0.0.0.0");
+        this.deviceCoordinator = new DeviceCoordinator(
+            framework,
+            new ServerSyncApiClient(),
+            () => this.CurrentDutyPolicy,
+            () => this.GetSyncSettings(),
+            typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "0.0.0.0");
         this.settingsWindow = new SettingsWindow(
             this.configuration,
             this.SaveConfiguration,
@@ -205,7 +212,8 @@ public sealed class Plugin : IDalamudPlugin
             this.RelinkAccount,
             this.artworkCache,
             this.UnhidePlayer,
-            this.TryDeleteAccount);
+            this.TryDeleteAccount,
+            this.deviceCoordinator);
         this.onboardingWindow = new OnboardingWindow(
             this.TryStartAccountLink,
             this.OpenSettings,
@@ -240,6 +248,7 @@ public sealed class Plugin : IDalamudPlugin
         this.accountLinkCoordinator.Dispose();
         this.accountDisconnectCoordinator.Dispose();
         this.relayCoordinator.Dispose();
+        this.deviceCoordinator.Dispose();
         this.serverSyncCoordinator.Dispose();
         this.developmentCoordinator.Dispose();
     }
@@ -323,7 +332,10 @@ public sealed class Plugin : IDalamudPlugin
         this.onboardingWindow.Complete();
         this.settingsWindow.IsOpen = true;
         if (this.HasInstallationCredential)
+        {
             this.relayCoordinator.EnsureLoaded();
+            this.deviceCoordinator.Refresh();
+        }
     }
 
     private void OpenGitHub() => Util.OpenLink("https://github.com/platis/XIV.fm");
@@ -596,6 +608,7 @@ public sealed class Plugin : IDalamudPlugin
         this.ClearPendingLink(save: false);
         this.accountDisconnectCoordinator.Reset();
         this.relayCoordinator.Reset();
+        this.deviceCoordinator.Reset();
         this.SaveConfiguration();
         this.relayCoordinator.EnsureLoaded();
         this.chatGui.Print($"Linked Last.fm account {accountName}.", "XIV.fm");
@@ -611,6 +624,7 @@ public sealed class Plugin : IDalamudPlugin
         this.configuration.Visibility = VisibilityMode.Private;
         this.configuration.SelectedRelayIds.Clear();
         this.relayCoordinator.Reset();
+        this.deviceCoordinator.Reset();
         this.ClearPendingLink(save: false);
         this.SaveConfiguration();
         this.serverSyncCoordinator.SuspendForAccountDisconnect();

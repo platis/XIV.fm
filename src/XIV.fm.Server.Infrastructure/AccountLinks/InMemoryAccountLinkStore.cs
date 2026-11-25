@@ -12,6 +12,7 @@ public sealed class InMemoryAccountLinkStore : IAccountLinkStore, ILinkedAccount
     private readonly Dictionary<AccountLinkSessionId, Session> sessions = [];
     private readonly Dictionary<string, Account> accounts = new(StringComparer.Ordinal);
     private readonly Dictionary<InstallationId, Account> accountsByInstallation = [];
+    private readonly Dictionary<InstallationId, DateTimeOffset> linkedAt = [];
     private readonly InMemoryInstallationCredentialStore credentials;
 
     public InMemoryAccountLinkStore(InMemoryInstallationCredentialStore credentials)
@@ -93,6 +94,7 @@ public sealed class InMemoryAccountLinkStore : IAccountLinkStore, ILinkedAccount
             var installationId = new InstallationId(Guid.NewGuid());
             this.credentials.RegisterHash(installationId, session.LinkCredentialHash);
             this.accountsByInstallation.Add(installationId, account);
+            this.linkedAt.Add(installationId, now);
             session.Account = account;
             session.Status = StoredAccountLinkStatus.Linked;
         }
@@ -156,6 +158,22 @@ public sealed class InMemoryAccountLinkStore : IAccountLinkStore, ILinkedAccount
         foreach (var installation in installations)
             await this.credentials.RevokeAsync(installation, cancellationToken).ConfigureAwait(false);
         return installations;
+    }
+
+    public ValueTask<IReadOnlyList<LinkedInstallation>> ListInstallationsAsync(
+        AccountId accountId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (this.gate)
+        {
+            IReadOnlyList<LinkedInstallation> installations = this.accountsByInstallation
+                .Where(pair => pair.Value.AccountId == accountId && this.credentials.IsActive(pair.Key))
+                .Select(pair => new LinkedInstallation(pair.Key, this.linkedAt[pair.Key], null))
+                .OrderByDescending(installation => installation.LinkedAt)
+                .ToArray();
+            return ValueTask.FromResult(installations);
+        }
     }
 
     public string? GetAccountName(AccountId accountId)
