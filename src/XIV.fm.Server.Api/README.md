@@ -87,7 +87,7 @@ Production migration execution should be a controlled deployment step, run by th
 
 - `GET /health/live`
 - `GET /health/ready` — `postgres` and `redis` must be healthy.
-- `GET /health/status` — for the private status page: `postgres`, `redis`, and `lastfm_polling`, each reported separately. Last.fm polling is `degraded` (still HTTP 200) when polls failed and none succeeded for five minutes; no polling because nobody is online counts as healthy. Responses carry only status words, never error details.
+- `GET /health/status` — for the private status page: `postgres`, `redis`, and `lastfm_polling`, each reported separately. Last.fm polling is `degraded` (still HTTP 200) once every poll has failed for five minutes, until a poll succeeds or nothing has failed for 15 minutes; no polling because nobody is online counts as healthy. Responses carry only status words, never error details.
 - `POST /v1/account-links` — start a short-lived Last.fm browser-link session.
 - `POST /v1/account-links/{linkSessionId}/status` — poll using the secret link credential.
 - `GET /v1/account-links/{linkSessionId}/callback` — one-time Last.fm browser callback.

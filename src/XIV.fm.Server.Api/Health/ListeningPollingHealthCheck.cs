@@ -16,6 +16,6 @@ public sealed class ListeningPollingHealthCheck : IHealthCheck
         HealthCheckContext context,
         CancellationToken cancellationToken = default) =>
         Task.FromResult(this.health.IsFailing()
-            ? HealthCheckResult.Degraded("Last.fm listening polls have been failing for five minutes.")
+            ? HealthCheckResult.Degraded("Last.fm listening polls have all failed for at least five minutes.")
             : HealthCheckResult.Healthy());
 }

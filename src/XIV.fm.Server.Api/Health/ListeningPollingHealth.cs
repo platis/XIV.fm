@@ -1,36 +1,54 @@
 namespace XIV.fm.Server.Api.Health;
 
 /// <summary>
-/// Remembers when Last.fm listening polls last succeeded and failed, for the status page.
+/// Tracks whether Last.fm listening polls have been failing without a single success, for the status page.
 /// </summary>
 public sealed class ListeningPollingHealth
 {
-    // Polls repeat every 15–20 seconds per active account, so five quiet minutes means a real outage.
-    public static readonly TimeSpan FailureWindow = TimeSpan.FromMinutes(5);
+    // Polls repeat every 15–20 seconds per active account, so five failing minutes means a real outage.
+    public static readonly TimeSpan FailingFor = TimeSpan.FromMinutes(5);
+
+    // Failing accounts back off for up to five minutes, so an outage stays visible this long after its last failure.
+    public static readonly TimeSpan FailureMemory = TimeSpan.FromMinutes(15);
 
     private readonly TimeProvider timeProvider;
-    private long lastSuccessTicks;
-    private long lastFailureTicks;
+    private readonly Lock gate = new();
+    private DateTimeOffset? failingSince;
+    private DateTimeOffset lastFailure;
 
     public ListeningPollingHealth(TimeProvider timeProvider)
     {
         this.timeProvider = timeProvider;
     }
 
-    public void RecordSuccess() =>
-        Interlocked.Exchange(ref this.lastSuccessTicks, this.timeProvider.GetUtcNow().UtcTicks);
+    public void RecordSuccess()
+    {
+        lock (this.gate)
+            this.failingSince = null;
+    }
 
-    public void RecordFailure() =>
-        Interlocked.Exchange(ref this.lastFailureTicks, this.timeProvider.GetUtcNow().UtcTicks);
+    public void RecordFailure()
+    {
+        var now = this.timeProvider.GetUtcNow();
+        lock (this.gate)
+        {
+            this.failingSince ??= now;
+            this.lastFailure = now;
+        }
+    }
 
     /// <summary>
-    /// True when polls failed recently and none succeeded during the whole window.
+    /// True when every poll for at least five minutes failed and the last failure is recent.
     /// No polling at all (nobody online) counts as healthy.
     /// </summary>
     public bool IsFailing()
     {
-        var windowStart = this.timeProvider.GetUtcNow().Subtract(FailureWindow).UtcTicks;
-        return Interlocked.Read(ref this.lastFailureTicks) > windowStart &&
-            Interlocked.Read(ref this.lastSuccessTicks) <= windowStart;
+        var now = this.timeProvider.GetUtcNow();
+        lock (this.gate)
+        {
+            return this.failingSince is { } since &&
+                now - since >= FailingFor &&
+                now - this.lastFailure <= FailureMemory;
+        }
     }
 }
