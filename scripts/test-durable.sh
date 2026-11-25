@@ -18,6 +18,7 @@ redis_image="$(sed -n 's/^ *image: \(redis:.*\)$/\1/p' deploy/compose.integratio
 postgres_container="xivfm-durable-postgres-$$"
 redis_container="xivfm-durable-redis-$$"
 password="$(openssl rand -hex 24)"
+app_password="$(openssl rand -hex 24)"
 
 cleanup() {
     docker rm --force "$postgres_container" "$redis_container" >/dev/null 2>&1 || true
@@ -45,7 +46,13 @@ done
     exit 1
 }
 
-XIVFM_TEST_POSTGRES="Host=127.0.0.1;Port=$(docker port "$postgres_container" 5432/tcp | sed 's/.*://');Database=xivfm;Username=xivfm;Password=$password" \
+docker exec --interactive "$postgres_container" \
+    psql --username xivfm --dbname xivfm --set ON_ERROR_STOP=1 --set app_password="$app_password" \
+    <deploy/postgres/app-role.sql
+postgres_address="Host=127.0.0.1;Port=$(docker port "$postgres_container" 5432/tcp | sed 's/.*://');Database=xivfm"
+
+XIVFM_TEST_POSTGRES="$postgres_address;Username=xivfm_app;Password=$app_password" \
+XIVFM_TEST_POSTGRES_OWNER="$postgres_address;Username=xivfm;Password=$password" \
 XIVFM_TEST_REDIS="127.0.0.1:$(docker port "$redis_container" 6379/tcp | sed 's/.*://')" \
     dotnet test tests/XIV.fm.Server.DurableTests/XIV.fm.Server.DurableTests.csproj \
     --configuration Release \

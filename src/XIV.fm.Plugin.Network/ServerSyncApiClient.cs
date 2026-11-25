@@ -113,6 +113,32 @@ public sealed class ServerSyncApiClient : IServerSyncApiClient, IAccountLinkApiC
             pluginVersion,
             cancellationToken);
 
+    public Task<InstallationListResponse> ListInstallationsAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        CancellationToken cancellationToken) =>
+        this.SendRelayAsync<InstallationListResponse>(
+            HttpMethod.Get,
+            serverBaseUri,
+            ApiRoutes.Installations,
+            installationCredential,
+            pluginVersion,
+            null,
+            cancellationToken);
+
+    public Task RevokeInstallationAsync(
+        Uri serverBaseUri,
+        string installationCredential,
+        string pluginVersion,
+        Guid installationId,
+        CancellationToken cancellationToken) =>
+        this.DeleteAsync(
+            new Uri(serverBaseUri, ApiRoutes.GetInstallation(installationId)),
+            installationCredential,
+            pluginVersion,
+            cancellationToken);
+
     public Task DeleteAccountAsync(
         Uri serverBaseUri,
         string installationCredential,

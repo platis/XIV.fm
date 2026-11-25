@@ -93,6 +93,7 @@ public sealed class XivFmDbContext : DbContext
         installation.Property(entity => entity.CreatedAt).HasColumnName("created_at");
         installation.Property(entity => entity.RotatedAt).HasColumnName("rotated_at");
         installation.Property(entity => entity.RevokedAt).HasColumnName("revoked_at");
+        installation.Property(entity => entity.LastUsedAt).HasColumnName("last_used_at");
 
         var relay = modelBuilder.Entity<RelayEntity>();
         relay.ToTable("relays");

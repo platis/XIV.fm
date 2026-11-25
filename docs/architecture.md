@@ -128,6 +128,8 @@ Relay changes and account-link completion run in serializable transactions. Post
 
 PostgreSQL stores normalized Last.fm accounts, replay-protected account-link sessions, installation IDs/account associations, Custom Relays, memberships, membership revisions, hashed invitations, removal restrictions, retained creation events, and unique SHA-256 hashes of high-entropy credentials through checked-in EF Core migrations. Soft-deleted Relay rows retain creation/idempotency history for rolling quota enforcement.
 
+The API connects as `xivfm_app`, created by `deploy/postgres/app-role.sql`, which can read and change rows but cannot change the schema, roles, or other databases. Migrations use the database owner as a separate step. Each installation records when it was last used, updated at most once every six hours.
+
 A background job runs every six hours and removes link sessions one day after expiry, installations 30 days after revocation, Relay invitations 30 days after they are accepted, revoked, or expire, and Relays 60 days after deletion (or longer when the creation-limit window is longer). It never removes accounts, active installations, active Relays, memberships, or removal restrictions of active Relays.
 
 Redis stores installation heartbeat/presence records with server-controlled TTLs, account-to-installation publication pointers, Public and revision-keyed Relay/location snapshots, normalized listening cache entries, expiring per-account poll leases, and the distributed Last.fm request budget. Durable membership remains PostgreSQL-authoritative and Redis authorization data is never trusted without revision validation. Listening history is not retained.

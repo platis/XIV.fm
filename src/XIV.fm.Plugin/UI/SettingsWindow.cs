@@ -42,6 +42,7 @@ public sealed class SettingsWindow : Window
     private readonly AlbumArtworkCache artworkCache;
     private readonly Action<HiddenPlayer> unhidePlayer;
     private readonly Func<string?> deleteAccount;
+    private readonly DeviceCoordinator deviceCoordinator;
     private readonly ListeningCardPainter previewPainter = new();
     private string? accountMessage;
     private string? relayMessage;
@@ -59,6 +60,7 @@ public sealed class SettingsWindow : Window
     private bool confirmingDisconnect;
     private bool confirmingAccountDeletion;
     private bool loadingDeletionRelays;
+    private Guid? confirmingDeviceId;
 
     public SettingsWindow(
         PluginConfiguration configuration,
@@ -81,7 +83,8 @@ public sealed class SettingsWindow : Window
         Func<string?> relinkAccount,
         AlbumArtworkCache artworkCache,
         Action<HiddenPlayer> unhidePlayer,
-        Func<string?> deleteAccount)
+        Func<string?> deleteAccount,
+        DeviceCoordinator deviceCoordinator)
         : base("XIV.fm###XIV.fm.Settings")
     {
         this.configuration = configuration;
@@ -105,6 +108,7 @@ public sealed class SettingsWindow : Window
         this.artworkCache = artworkCache;
         this.unhidePlayer = unhidePlayer;
         this.deleteAccount = deleteAccount;
+        this.deviceCoordinator = deviceCoordinator;
         this.SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(434f, 350f),
@@ -221,6 +225,7 @@ public sealed class SettingsWindow : Window
         if (linked != this.wasLinked)
         {
             this.wasLinked = linked;
+            this.confirmingDeviceId = null;
             this.confirmingDisconnect = false;
             this.confirmingAccountDeletion = false;
             this.loadingDeletionRelays = false;
@@ -289,6 +294,7 @@ public sealed class SettingsWindow : Window
 
             if (!this.confirmingDisconnect)
             {
+                this.DrawDevices(duty);
                 this.DrawAccountDeletion(duty);
                 return;
             }
@@ -382,6 +388,82 @@ public sealed class SettingsWindow : Window
             DrawStatusPanel("Status", this.accountMessage, Neutral);
         }
     }
+
+    private void DrawDevices(DutyParticipationPolicy duty)
+    {
+        ImGui.Separator();
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Linked devices");
+        var state = this.deviceCoordinator.State;
+        var allowed = duty.AllowsServerRequests && state.Status != DeviceRuntimeStatus.Loading;
+        if (state.Status == DeviceRuntimeStatus.Idle && allowed)
+            this.deviceCoordinator.Refresh();
+
+        if (!string.IsNullOrWhiteSpace(state.Error))
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, Danger);
+            ImGui.TextWrapped(state.Error);
+            ImGui.PopStyleColor();
+            if (!allowed)
+                ImGui.BeginDisabled();
+            if (DrawSecondaryButton("Try again"))
+                this.deviceCoordinator.Refresh();
+            if (!allowed)
+                ImGui.EndDisabled();
+        }
+        else if (state.Devices.IsEmpty)
+        {
+            ImGui.TextDisabled(duty.AllowsServerRequests ? "Loading your devices…" : "Available after you leave the duty.");
+        }
+
+        foreach (var device in state.Devices.OrderByDescending(device => device.IsCurrent))
+        {
+            ImGui.PushID($"Device.{device.InstallationId:D}");
+            ImGui.TextUnformatted(device.IsCurrent ? "This device" : "Another device");
+            ImGui.SameLine();
+            ImGui.TextDisabled(device.IsCurrent
+                ? $"Linked {FormatDate(device.LinkedAt)}"
+                : $"Linked {FormatDate(device.LinkedAt)} · {DescribeLastUsed(device.LastUsedAt)}");
+            if (!device.IsCurrent)
+                this.DrawDeviceActions(device.InstallationId, allowed);
+            ImGui.PopID();
+        }
+
+        ImGui.Spacing();
+    }
+
+    private void DrawDeviceActions(Guid installationId, bool allowed)
+    {
+        if (!allowed)
+            ImGui.BeginDisabled();
+        if (this.confirmingDeviceId != installationId)
+        {
+            if (DrawOutlinedDangerButton("Disconnect"))
+                this.confirmingDeviceId = installationId;
+        }
+        else
+        {
+            ImGui.TextDisabled("That device must connect Last.fm again to use XIV.fm.");
+            if (DrawDangerButton("Disconnect device"))
+            {
+                this.confirmingDeviceId = null;
+                this.deviceCoordinator.Disconnect(installationId);
+            }
+
+            ImGui.SameLine();
+            if (DrawSecondaryButton("Cancel"))
+                this.confirmingDeviceId = null;
+        }
+
+        if (!allowed)
+            ImGui.EndDisabled();
+    }
+
+    private static string FormatDate(DateTimeOffset timestamp) =>
+        timestamp.ToLocalTime().ToString("d", CultureInfo.CurrentCulture);
+
+    private static string DescribeLastUsed(DateTimeOffset? lastUsedAt) =>
+        lastUsedAt is DateTimeOffset lastUsed ? $"last used {FormatDate(lastUsed)}" : "not used recently";
 
     private void DrawAccountDeletion(DutyParticipationPolicy duty)
     {

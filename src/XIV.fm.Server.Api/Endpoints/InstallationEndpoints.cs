@@ -2,9 +2,8 @@ using XIV.fm.Contracts.V1;
 using XIV.fm.Server.Api.Authentication;
 using XIV.fm.Server.Api.Http;
 using XIV.fm.Server.Application.Abstractions;
-using XIV.fm.Server.Application.Presence;
+using XIV.fm.Server.Application.Installations;
 using XIV.fm.Server.Domain.Installations;
-using DomainVisibilityMode = XIV.fm.Server.Domain.Presence.VisibilityMode;
 
 namespace XIV.fm.Server.Api.Endpoints;
 
@@ -20,6 +19,14 @@ public static class InstallationEndpoints
             .RequireAuthorization()
             .RequireRateLimiting("installation-lifecycle")
             .WithName("RevokeCurrentInstallation");
+        endpoints.MapGet(ApiRoutes.Installations, ListAsync)
+            .RequireAuthorization()
+            .RequireRateLimiting("relay-read")
+            .WithName("ListInstallations");
+        endpoints.MapDelete(ApiRoutes.Installation, RevokeLinkedAsync)
+            .RequireAuthorization()
+            .RequireRateLimiting("installation-lifecycle")
+            .WithName("RevokeInstallation");
     }
 
     private static async Task RotateAsync(
@@ -56,12 +63,72 @@ public static class InstallationEndpoints
         }
     }
 
+    private static async Task ListAsync(
+        HttpContext context,
+        InstallationApplicationService service,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetInstallationId(context, out var current))
+        {
+            await WriteMissingCredentialAsync(context, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        var installations = await service.ListAsync(current, cancellationToken).ConfigureAwait(false);
+        if (installations is null)
+        {
+            await ApiErrorWriter.WriteAsync(
+                context,
+                StatusCodes.Status403Forbidden,
+                "linked_account_required",
+                "A linked account is required.",
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        context.Response.Headers.CacheControl = "no-store";
+        await context.Response.WriteAsJsonAsync(
+            new InstallationListResponse(installations
+                .Select(installation => new InstallationResponse(
+                    installation.InstallationId.Value,
+                    installation.LinkedAt,
+                    installation.LastUsedAt,
+                    installation.InstallationId == current))
+                .ToArray()),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task RevokeLinkedAsync(
+        Guid installationId,
+        HttpContext context,
+        InstallationApplicationService service,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetInstallationId(context, out var current))
+        {
+            await WriteMissingCredentialAsync(context, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (!await service.RevokeLinkedAsync(current, new InstallationId(installationId), cancellationToken)
+            .ConfigureAwait(false))
+        {
+            await ApiErrorWriter.WriteAsync(
+                context,
+                StatusCodes.Status404NotFound,
+                "installation_not_found",
+                "The installation was not found.",
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        context.Response.StatusCode = StatusCodes.Status204NoContent;
+        context.Response.Headers.CacheControl = "no-store";
+    }
+
     private static async Task RevokeAsync(
         HttpContext context,
-        IInstallationCredentialStore credentialStore,
-        IPresenceStore presenceStore,
-        PublicPresenceSnapshotService publicSnapshotService,
-        RelayPresenceSnapshotService relaySnapshotService,
+        InstallationApplicationService service,
         CancellationToken cancellationToken)
     {
         if (!TryGetInstallationId(context, out var installationId))
@@ -70,26 +137,7 @@ public static class InstallationEndpoints
             return;
         }
 
-        await credentialStore.RevokeAsync(installationId, cancellationToken).ConfigureAwait(false);
-        var removedPresence = await presenceStore
-            .RemoveInstallationAsync(installationId, cancellationToken)
-            .ConfigureAwait(false);
-        if (removedPresence?.Visibility.Mode == DomainVisibilityMode.Public)
-        {
-            await publicSnapshotService
-                .InvalidateAsync(removedPresence.Location, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        else if (removedPresence?.Visibility.Mode == DomainVisibilityMode.Custom)
-        {
-            await relaySnapshotService
-                .InvalidateAsync(
-                    removedPresence.Visibility.RelayIds,
-                    removedPresence.Location,
-                    cancellationToken)
-                .ConfigureAwait(false);
-        }
-
+        await service.RevokeAsync(installationId, cancellationToken).ConfigureAwait(false);
         context.Response.StatusCode = StatusCodes.Status204NoContent;
         context.Response.Headers.CacheControl = "no-store";
     }

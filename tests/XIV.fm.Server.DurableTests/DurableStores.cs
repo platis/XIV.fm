@@ -12,6 +12,7 @@ namespace XIV.fm.Server.DurableTests;
 public sealed class DurableStores : IAsyncLifetime
 {
     public const string PostgresVariable = "XIVFM_TEST_POSTGRES";
+    public const string PostgresOwnerVariable = "XIVFM_TEST_POSTGRES_OWNER";
     public const string RedisVariable = "XIVFM_TEST_REDIS";
 
     private DbContextOptions<XivFmDbContext>? options;
@@ -28,8 +29,15 @@ public sealed class DurableStores : IAsyncLifetime
         this.options = new DbContextOptionsBuilder<XivFmDbContext>()
             .UseNpgsql(GetRequired(PostgresVariable))
             .Options;
-        await using var context = await this.Contexts.CreateDbContextAsync();
-        await context.Database.MigrateAsync();
+
+        // The owner migrates; every store under test uses the limited application role.
+        await using (var owner = new XivFmDbContext(new DbContextOptionsBuilder<XivFmDbContext>()
+            .UseNpgsql(GetRequired(PostgresOwnerVariable))
+            .Options))
+        {
+            await owner.Database.MigrateAsync();
+        }
+
         this.redis = await ConnectionMultiplexer.ConnectAsync(GetRequired(RedisVariable));
     }
 

@@ -47,6 +47,12 @@ public sealed class InMemoryInstallationCredentialStore : IInstallationCredentia
         return credential;
     }
 
+    internal bool IsActive(InstallationId installationId)
+    {
+        lock (this.gate)
+            return this.hashesByInstallation.ContainsKey(installationId);
+    }
+
     internal void RegisterHash(InstallationId installationId, string credentialHash)
     {
         if (credentialHash.Length != 64 || credentialHash.Any(character => !char.IsAsciiHexDigit(character)))

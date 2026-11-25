@@ -168,6 +168,24 @@ public sealed class PostgresAccountLinkStore : IAccountLinkStore, ILinkedAccount
             : null;
     }
 
+    public async ValueTask<IReadOnlyList<LinkedInstallation>> ListInstallationsAsync(
+        AccountId accountId,
+        CancellationToken cancellationToken)
+    {
+        await using var context = await this.contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        return await context.InstallationCredentials
+            .AsNoTracking()
+            .Where(entity => entity.AccountId == accountId.Value && entity.RevokedAt == null)
+            .OrderByDescending(entity => entity.CreatedAt)
+            .ThenBy(entity => entity.InstallationId)
+            .Select(entity => new LinkedInstallation(
+                new InstallationId(entity.InstallationId),
+                entity.CreatedAt,
+                entity.LastUsedAt))
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async ValueTask<StoredAccountLink?> GetAsync(
         AccountLinkSessionId sessionId,
         string linkCredential,
