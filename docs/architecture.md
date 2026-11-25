@@ -87,6 +87,8 @@ The implemented initial policy, still requiring live-provider and load-test vali
 - Errors: bounded exponential backoff with full jitter and circuit breaking after repeated failures.
 - Global planning budget: 3.5 requests/second until the actual allowance is confirmed.
 
+Cache, lease, and provider failures back off per account without ending the polling loop, and the hosted service restarts the loop if an unexpected error escapes it.
+
 Every provider request acquires the shared budget. Label-free counters track cache hits/misses, poll successes/failures, and lease contention without account or track dimensions. Durable mode uses a Redis token bucket and per-account expiring poll lease, so API replicas share the budget and only one may poll an account at a time. Memory mode uses equivalent process-local adapters for tests. Server HTTP requests only refresh activity, enqueue scheduler notifications, and read cached state; they never call Last.fm inline for listening data. Redis caches normalized observations for 15 minutes. Sync marks playing observations stale after 60 seconds and not-playing observations stale after 180 seconds while retaining the last usable cache during upstream failure.
 
 ## Location snapshots
@@ -106,7 +108,7 @@ relay:{relayId}:{locationScope}
 
 Public sync returns an opaque content version and suppresses the body when the client already has that version. Redis caches one bounded snapshot per exact location; memory mode provides the equivalent test adapter. Publication identity/location/visibility changes invalidate affected snapshots, while unchanged heartbeats reuse them. Label-free metrics count cache hits/misses, builds, entry counts, and fixed Relay lifecycle/audit events without account, Relay, character, or track dimensions. A future conditional HTTP endpoint may expose the same version as an ETag. Relay snapshots require current membership authorization on every read. Each Relay has a durable membership revision included in its cache identity; reads revalidate the revision before responding, while join, leave, kick, and deletion invalidate affected cached material. A kick also strips the Relay from the removed account's live publication.
 
-The plugin retains unchanged snapshots until their server expiry, maps entries into immutable remote cards, matches strict name/home-world identities against loaded player characters, excludes its own local identity, and applies the default 8-yalm distance limit locally. Login, location changes, duty entry, and snapshot expiry clear stale remote cards. Coordinates are not uploaded.
+The plugin retains unchanged snapshots until their server expiry plus an eight-second replacement grace, because a shared snapshot can expire at any point between two five-second syncs. It maps entries into immutable remote cards, matches strict name/home-world identities against loaded player characters, excludes its own local identity, and applies the default 8-yalm distance limit locally. Login, location changes, duty entry, and the end of that grace clear stale remote cards. The local player’s listening state becomes unavailable two minutes after the last successful sync. Coordinates are not uploaded.
 
 ## Account linking
 
@@ -122,6 +124,8 @@ The plugin is a public client and contains no Last.fm secret.
 
 ## Persistence
 
+Relay changes and account-link completion run in serializable transactions. PostgreSQL may reject one of several concurrent transactions, so each is retried with bounded jittered backoff; an exhausted retry budget returns a state conflict.
+
 PostgreSQL stores normalized Last.fm accounts, replay-protected account-link sessions, installation IDs/account associations, Custom Relays, memberships, membership revisions, hashed invitations, removal restrictions, retained creation events, and unique SHA-256 hashes of high-entropy credentials through checked-in EF Core migrations. Soft-deleted Relay rows retain creation/idempotency history for rolling quota enforcement.
 
 Redis stores installation heartbeat/presence records with server-controlled TTLs, account-to-installation publication pointers, Public and revision-keyed Relay/location snapshots, normalized listening cache entries, expiring per-account poll leases, and the distributed Last.fm request budget. Durable membership remains PostgreSQL-authoritative and Redis authorization data is never trusted without revision validation. Listening history is not retained.
@@ -135,7 +139,7 @@ Provider artwork is disabled by default because the currently reviewed Last.fm t
 - Never trust client-supplied track metadata.
 - Validate bounded request schemas and return stable machine-readable errors.
 - Hash installation and invitation credentials at rest.
-- Enforce per-account, per-IP, route, and global quotas.
+- Enforce per-account, per-IP, route, and global quotas. Forwarded client addresses are accepted only from networks listed in `XIVFM_TRUSTED_PROXY_NETWORKS`; without it the connection address is used.
 - Return no global player directory.
 - Keep metrics free of account, character, Relay, and track labels.
 - Keep detailed metrics and administration private.

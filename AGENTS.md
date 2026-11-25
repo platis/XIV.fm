@@ -37,4 +37,6 @@ export DALAMUD_HOME=/srv/cache/dalamud/api15
 ./scripts/check.sh
 ```
 
+Server storage changes also require `./scripts/test-durable.sh` (PostgreSQL and Redis adapters against disposable containers) and `./scripts/test-containers.sh` (the containerized API). CI runs both.
+
 The check script verifies formatting, lockfiles, unit tests, and a Release plugin build. During UI iteration, run only the relevant targeted build or check plus visual verification. Run the full check before declaring the work release-ready, merging, tagging, or releasing.

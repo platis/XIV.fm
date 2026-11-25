@@ -190,7 +190,7 @@ Expected status classes:
 - `429` route/account/IP quota exceeded, with `Retry-After` where meaningful.
 - `503` required server dependency unavailable; cached listening data should be preferred over this response when possible.
 
-Clients branch on `code`, not human-readable `title` or `detail`.
+Clients branch on `code`, not human-readable `title` or `detail`. After `relay_membership_required`, the plugin reloads its Relay memberships, removes lost Relays from the selected audience, falls back to Private when none remain, and syncs again.
 
 ## Compatibility
 
