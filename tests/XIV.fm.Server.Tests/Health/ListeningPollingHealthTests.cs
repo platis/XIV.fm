@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using XIV.fm.Server.Api.Health;
 
 namespace XIV.fm.Server.Tests.Health;
@@ -17,48 +18,55 @@ public sealed class ListeningPollingHealthTests
     }
 
     [Fact]
-    public void FailureAfterRecentSuccessIsHealthy()
+    public void ShortFailureStreakIsHealthy()
     {
         var health = new ListeningPollingHealth(this.clock);
-        health.RecordSuccess();
-        this.clock.Advance(TimeSpan.FromMinutes(1));
 
+        this.FailEvery(TimeSpan.FromSeconds(20), ListeningPollingHealth.FailingFor - TimeSpan.FromSeconds(30), health);
+
+        Assert.False(health.IsFailing());
+    }
+
+    [Fact]
+    public void FailingForFiveMinutesIsFailing()
+    {
+        var health = new ListeningPollingHealth(this.clock);
+
+        this.FailEvery(TimeSpan.FromSeconds(20), ListeningPollingHealth.FailingFor, health);
+
+        Assert.True(health.IsFailing());
+    }
+
+    [Fact]
+    public void OneSuccessResetsTheStreak()
+    {
+        var health = new ListeningPollingHealth(this.clock);
+        this.FailEvery(TimeSpan.FromSeconds(20), ListeningPollingHealth.FailingFor, health);
+
+        health.RecordSuccess();
         health.RecordFailure();
 
         Assert.False(health.IsFailing());
     }
 
     [Fact]
-    public void FailuresWithoutSuccessForTheWholeWindowAreFailing()
+    public void OutageStaysVisibleBetweenBackedOffRetries()
     {
         var health = new ListeningPollingHealth(this.clock);
-        health.RecordSuccess();
-        this.clock.Advance(ListeningPollingHealth.FailureWindow + TimeSpan.FromSeconds(1));
+        this.FailEvery(TimeSpan.FromSeconds(20), ListeningPollingHealth.FailingFor, health);
 
-        health.RecordFailure();
+        this.clock.Advance(TimeSpan.FromMinutes(5));
 
         Assert.True(health.IsFailing());
     }
 
     [Fact]
-    public void FailingClearsAfterSuccess()
+    public void OutageClearsWhenNothingHasFailedForAWhile()
     {
         var health = new ListeningPollingHealth(this.clock);
-        health.RecordFailure();
-        Assert.True(health.IsFailing());
+        this.FailEvery(TimeSpan.FromSeconds(20), ListeningPollingHealth.FailingFor, health);
 
-        health.RecordSuccess();
-
-        Assert.False(health.IsFailing());
-    }
-
-    [Fact]
-    public void OldFailuresAreForgotten()
-    {
-        var health = new ListeningPollingHealth(this.clock);
-        health.RecordFailure();
-
-        this.clock.Advance(ListeningPollingHealth.FailureWindow + TimeSpan.FromSeconds(1));
+        this.clock.Advance(ListeningPollingHealth.FailureMemory + TimeSpan.FromSeconds(1));
 
         Assert.False(health.IsFailing());
     }
@@ -67,11 +75,21 @@ public sealed class ListeningPollingHealthTests
     public async Task HealthCheckReportsDegradedNotUnhealthy()
     {
         var health = new ListeningPollingHealth(this.clock);
-        health.RecordFailure();
+        this.FailEvery(TimeSpan.FromSeconds(20), ListeningPollingHealth.FailingFor, health);
 
         var result = await new ListeningPollingHealthCheck(health).CheckHealthAsync(new());
 
-        Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded, result.Status);
+        Assert.Equal(HealthStatus.Degraded, result.Status);
+    }
+
+    private void FailEvery(TimeSpan interval, TimeSpan duration, ListeningPollingHealth health)
+    {
+        health.RecordFailure();
+        for (var elapsed = TimeSpan.Zero; elapsed < duration; elapsed += interval)
+        {
+            this.clock.Advance(interval);
+            health.RecordFailure();
+        }
     }
 
     private sealed class Clock : TimeProvider

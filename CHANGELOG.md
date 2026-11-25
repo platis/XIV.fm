@@ -6,7 +6,7 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ### Added
 
-- Server: `GET /health/status` reports PostgreSQL, Redis, and Last.fm polling separately for the private status page; Last.fm polling shows as degraded after five minutes of failures with no success.
+- Server: `GET /health/status` reports PostgreSQL, Redis, and Last.fm polling separately for the private status page; Last.fm polling shows as degraded once every poll has failed for five minutes, and stays so while retries keep failing.
 
 ## [0.1.40] - 2026-11-25
 
