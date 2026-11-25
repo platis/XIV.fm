@@ -127,6 +127,7 @@ public sealed class Plugin : IDalamudPlugin
             () => this.configuration.ShowOwnListeningCard,
             () => this.configuration.NormalizedRemoteCardDistanceYalms,
             () => CardAppearance.ToOpacity(this.configuration.NormalizedCardOpacityPercent),
+            () => this.configuration.OutlineCardText,
             () => CardAppearance.ToScale(this.configuration.NormalizedOwnCardSizePercent),
             () => CardAppearance.ToScale(this.configuration.NormalizedOtherCardSizePercent),
             () => keyState[VirtualKey.MENU],
@@ -195,7 +196,10 @@ public sealed class Plugin : IDalamudPlugin
             () => this.serverSyncCoordinator.State,
             () => this.stateStore.Current,
             () => this.cardRenderer.Diagnostics,
-            this.relayCoordinator);
+            this.relayCoordinator,
+            () => this.serverSyncCoordinator.OwnListening,
+            this.RelinkAccount,
+            this.artworkCache);
         this.onboardingWindow = new OnboardingWindow(
             this.TryStartAccountLink,
             this.OpenSettings,
@@ -373,6 +377,15 @@ public sealed class Plugin : IDalamudPlugin
         return null;
     }
 
+    /// <summary>
+    /// Replaces a link the server no longer accepts. The rejected credential cannot be revoked remotely.
+    /// </summary>
+    private string? RelinkAccount()
+    {
+        this.CompleteAccountDisconnect();
+        return this.TryStartAccountLink();
+    }
+
     private string? TryStartAccountLink()
     {
         if (this.HasInstallationCredential)
@@ -481,7 +494,13 @@ public sealed class Plugin : IDalamudPlugin
         this.configuration.SelectedRelayIds = relayIds;
         this.SaveConfiguration();
         this.serverSyncCoordinator.RequestImmediateSync();
-        if (afterRejection)
+        var becamePrivate = previousVisibility == VisibilityMode.Custom &&
+            this.configuration.Visibility == VisibilityMode.Private;
+        if (!afterRejection && becamePrivate)
+        {
+            this.chatGui.Print("No Relay is selected, so your visibility changed to Private.", "XIV.fm");
+        }
+        else if (afterRejection)
         {
             this.chatGui.Print(
                 this.configuration.Visibility == VisibilityMode.Private

@@ -56,4 +56,13 @@ public sealed class CardAppearanceTests
         Assert.Equal(0.975f, CardAppearance.ScaleForRemoteDistance(1.5f, 8f, 8), precision: 3);
         Assert.Equal(1f, CardAppearance.ScaleForRemoteDistance(1f, float.NaN, 8));
     }
+
+    [Fact]
+    public void TextOutlineIsStrongestWithoutACardSurface()
+    {
+        Assert.Equal(0.8f, CardAppearance.TextOutlineOpacity(0f), 3);
+        Assert.Equal(0.5f, CardAppearance.TextOutlineOpacity(0.6f), 3);
+        Assert.Equal(0.3f, CardAppearance.TextOutlineOpacity(1f), 3);
+        Assert.Equal(0.3f, CardAppearance.TextOutlineOpacity(5f), 3);
+    }
 }

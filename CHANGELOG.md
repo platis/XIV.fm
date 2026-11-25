@@ -4,6 +4,25 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+### Added
+
+- Show the real connection in the settings header and Account tab, including retries, duty pauses, lost Relays, missing Last.fm data, and links that need to be connected again.
+- Add a live card preview to Overlay settings.
+- Add an optional outline that keeps card text readable over bright scenes. Card colors and opacity are unchanged.
+- Show a styled result page after Last.fm authorization.
+
+### Changed
+
+- Use gold for primary settings controls so that red marks only destructive actions, and raise settings text contrast.
+- Explain in Privacy who sees your card and whose cards you see.
+- Selecting Relays no longer changes your visibility. Custom Relays keeps at least one Relay selected.
+- Report when leaving or deleting your last selected Relay changes your visibility to Private.
+- Save Overlay sliders when released instead of on every change.
+
+### Fixed
+
+- Keep Account and Relay messages on their own tabs.
+
 ## [0.1.35] - 2026-11-25
 
 ### Fixed

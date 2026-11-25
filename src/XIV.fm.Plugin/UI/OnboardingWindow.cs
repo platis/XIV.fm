@@ -3,15 +3,12 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using XIV.fm.Plugin.Core.Policy;
+using static XIV.fm.Plugin.UI.SettingsTheme;
 
 namespace XIV.fm.Plugin.UI;
 
 public sealed class OnboardingWindow : Window
 {
-    private static readonly Vector4 Accent = new(0.88f, 0.23f, 0.36f, 1f);
-    private static readonly Vector4 PanelSurface = new(0.169f, 0.169f, 0.169f, 0.9f);
-    private static readonly Vector4 PanelBorder = new(0.42f, 0.42f, 0.44f, 0.5f);
-
     private readonly Func<string?> startAccountLink;
     private readonly Action openSettings;
     private readonly Action openGitHub;
@@ -167,27 +164,5 @@ public sealed class OnboardingWindow : Window
         ImGui.SameLine();
         if (ImGui.Button("Maybe later", new Vector2(secondaryWidth, 0f)))
             this.Complete();
-    }
-
-    private static bool DrawPrimaryButton(string label, Vector2 size)
-    {
-        var hovered = new Vector4(
-            MathF.Min(1f, Accent.X + 0.08f),
-            MathF.Min(1f, Accent.Y + 0.08f),
-            MathF.Min(1f, Accent.Z + 0.08f),
-            Accent.W);
-        var active = new Vector4(Accent.X * 0.86f, Accent.Y * 0.86f, Accent.Z * 0.86f, Accent.W);
-
-        ImGui.PushStyleColor(ImGuiCol.Button, Accent);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, hovered);
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, active);
-        try
-        {
-            return ImGui.Button(label, size);
-        }
-        finally
-        {
-            ImGui.PopStyleColor(3);
-        }
     }
 }

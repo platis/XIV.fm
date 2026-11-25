@@ -55,6 +55,8 @@ public sealed class PluginConfiguration : IPluginConfiguration
 
     public int CardOpacityPercent { get; set; } = CardAppearance.DefaultOpacityPercent;
 
+    public bool OutlineCardText { get; set; } = true;
+
     public int OwnCardSizePercent { get; set; } = CardAppearance.DefaultSizePercent;
 
     public int OtherCardSizePercent { get; set; } = CardAppearance.DefaultSizePercent;

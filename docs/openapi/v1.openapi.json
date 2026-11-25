@@ -137,7 +137,7 @@
           "200": {
             "description": "Last.fm ownership proof completed.",
             "content": {
-              "text/plain": {
+              "text/html": {
                 "schema": {
                   "type": "string"
                 }
@@ -147,7 +147,7 @@
           "400": {
             "description": "The callback is invalid, expired, rejected, or already consumed.",
             "content": {
-              "text/plain": {
+              "text/html": {
                 "schema": {
                   "type": "string"
                 }

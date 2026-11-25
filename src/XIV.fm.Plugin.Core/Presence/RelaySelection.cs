@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using XIV.fm.Contracts.V1;
 
 namespace XIV.fm.Plugin.Core.Presence;
 
@@ -33,6 +34,15 @@ public static class RelaySelection
 
         var selected = Normalize(relayIds);
         return selected.Contains(relayId) || selected.Length < MaximumSelectedRelays;
+    }
+
+    /// <summary>
+    /// Custom visibility needs an audience, so its last Relay stays until another visibility is chosen.
+    /// </summary>
+    public static bool CanDeselect(IEnumerable<Guid>? relayIds, Guid relayId, VisibilityMode visibility)
+    {
+        var selected = Normalize(relayIds);
+        return selected.Contains(relayId) && (visibility != VisibilityMode.Custom || selected.Length > 1);
     }
 
     public static ImmutableArray<Guid> Select(IEnumerable<Guid>? relayIds, Guid relayId)

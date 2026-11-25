@@ -32,6 +32,7 @@ public sealed class AccountLinkEndpointTests : IClassFixture<ServerApiFactory>
         using var callbackResponse = await client.GetAsync(
             $"{callback.PathAndQuery}&token={Uri.EscapeDataString(providerToken)}");
         Assert.Equal(HttpStatusCode.OK, callbackResponse.StatusCode);
+        await AssertBrowserPageAsync(callbackResponse, "Last.fm is linked");
 
         using var statusResponse = await client.PostAsJsonAsync(
             ApiRoutes.GetAccountLinkStatus(started.LinkSessionId),
@@ -217,4 +218,30 @@ public sealed class AccountLinkEndpointTests : IClassFixture<ServerApiFactory>
         new LocationScope(63, 129, 130, 2),
         new VisibilitySelection(VisibilityMode.Private, []),
         null);
+
+    [Fact]
+    public async Task InvalidCallbackShowsAFailurePageWithoutReflectingInput()
+    {
+        await using var factory = new ServerApiFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(
+            $"/v1/account-links/{Guid.NewGuid():D}/callback?state=%3Cscript%3E{new string('a', 40)}&token={new string('b', 40)}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await AssertBrowserPageAsync(response, "This link didn’t work");
+    }
+
+    private static async Task AssertBrowserPageAsync(HttpResponseMessage response, string title)
+    {
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+        Assert.StartsWith(
+            "default-src 'none'",
+            Assert.Single(response.Headers.GetValues("Content-Security-Policy")),
+            StringComparison.Ordinal);
+        Assert.True(response.Headers.CacheControl?.NoStore);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains($"<h1>{title}</h1>", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("<script", body, StringComparison.OrdinalIgnoreCase);
+    }
 }

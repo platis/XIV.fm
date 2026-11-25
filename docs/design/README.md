@@ -14,6 +14,7 @@ Measurements at 1× Dalamud UI scale:
 - Artist vertical offset from title origin: 23 px
 - Background: FFXIV-style charcoal gray (`#2B2B2B`) with configurable 0–100% opacity, defaulting to 60%
 - Display scale: independently configurable from 50–150% for the local card and other players’ cards, defaulting to 100% for both; remote cards retain full configured size through 2 yalms, then smoothly scale toward 65% at the selected distance limit without dropping below 50% absolute size
+- Text outline: optional 1.1 px black outline, on by default, from 80% opacity without a card surface to 30% on an opaque one; text and surface colors are unchanged
 - Surface separation: compact two-layer shadow, adaptive 1 px border, and a restrained top-edge highlight
 
 The card contracts to the wider of the rendered title and artist lines, including the cover and its gap only when a completed artwork texture is available. Without a cover, text starts at the left padding and no blank artwork area remains. The title and artist are clipped within the 297 px maximum width. An overlong title pauses at its leading edge for 1.25 seconds, then moves left at 18 px/s and repeats with a 24 px gap; a duplicate copy makes each loop continuous without a backward snap. An overlong artist remains still and is shortened with three dots. Text that fits remains completely still.
@@ -25,5 +26,7 @@ The default 60%-opaque FFXIV-style charcoal surface separates the card from both
 The card exists only for a synchronized `playing` observation with track metadata. Nothing is rendered for not-playing, unavailable, or unlinked state; there is no status placeholder. The card contains no `XIV.fm` heading, separator, or `Last.fm` suffix. Cards ignore mouse input during normal gameplay; while Alt is held, cards carrying a validated Last.fm HTTPS track URL accept hover/click input, provide an immediate accent-border and pointer response, and open the track in the operating-system browser. The card bottom is projected from a point 0.4 yalms above the game's pose-aware nameplate anchor. Dalamud's global UI scale is applied uniformly, then the appropriate local/other-player size setting scales the complete card without changing its proportions.
 
 Last.fm artwork testing is explicitly enabled only on the controlled development backend for private or invited external testing at the product owner's direction; broader public artwork rollout remains blocked under the current compliance review.
+
+Settings windows use a separate palette: gold (`#DEBA73`) for primary controls, red only for destructive actions, and orange for warnings. Overlay settings draw their preview with the same painter as the in-game cards.
 
 `enable-icon.svg` records the product-owner-supplied concept for the server-info-bar shortcut. Dalamud's native DTR entry accepts game text and bitmap-font icons rather than custom SVG textures, so the runtime uses the compact game-font label `.FM`. It inherits the server-info bar’s default yellow while cards are visible and renders red while hidden.
