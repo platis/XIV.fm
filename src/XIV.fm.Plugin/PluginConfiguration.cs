@@ -16,7 +16,9 @@ public sealed class PluginConfiguration : IPluginConfiguration
 
     public const string DefaultDeveloperServerBaseUrl = "http://127.0.0.1:5080";
 
-    public int Version { get; set; } = 10;
+    public const int CurrentVersion = 11;
+
+    public int Version { get; set; } = CurrentVersion;
 
     public bool HasSeenAccountOnboarding { get; set; }
 
@@ -53,7 +55,12 @@ public sealed class PluginConfiguration : IPluginConfiguration
 
     public int RemoteCardDistanceYalms { get; set; } = OverlayVisibility.DefaultRemoteDistanceYalms;
 
+    // Serialized name retained for configuration compatibility; this controls the local player's card.
     public int CardOpacityPercent { get; set; } = CardAppearance.DefaultOpacityPercent;
+
+    public int OtherCardOpacityPercent { get; set; } = CardAppearance.DefaultOpacityPercent;
+
+    public List<HiddenPlayer> HiddenPlayers { get; set; } = [];
 
     public bool OutlineCardText { get; set; }
 
@@ -64,14 +71,30 @@ public sealed class PluginConfiguration : IPluginConfiguration
     public int NormalizedRemoteCardDistanceYalms =>
         OverlayVisibility.NormalizeRemoteDistance(this.RemoteCardDistanceYalms);
 
-    public int NormalizedCardOpacityPercent =>
+    public int NormalizedOwnCardOpacityPercent =>
         CardAppearance.NormalizeOpacityPercent(this.CardOpacityPercent);
+
+    public int NormalizedOtherCardOpacityPercent =>
+        CardAppearance.NormalizeOpacityPercent(this.OtherCardOpacityPercent);
 
     public int NormalizedOwnCardSizePercent =>
         CardAppearance.NormalizeSizePercent(this.OwnCardSizePercent);
 
     public int NormalizedOtherCardSizePercent =>
         CardAppearance.NormalizeSizePercent(this.OtherCardSizePercent);
+
+    /// <returns>Whether the configuration changed.</returns>
+    public bool Migrate()
+    {
+        if (this.Version == CurrentVersion)
+            return false;
+
+        // Version 11 split one opacity into two; keep the look both cards already had.
+        if (this.Version < 11)
+            this.OtherCardOpacityPercent = this.CardOpacityPercent;
+        this.Version = CurrentVersion;
+        return true;
+    }
 
     public static bool IsHostedPublicServer(string? baseUrl)
     {

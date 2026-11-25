@@ -4,6 +4,14 @@ All notable XIV.fm changes are documented here. Development builds remain prerel
 
 ## Unreleased
 
+## [0.1.37] - 2026-11-25
+
+### Added
+
+- Set background opacity separately for your card and other players’ cards. Both start at the opacity you already use.
+- Hide a player’s cards by holding Alt and right-clicking one, and show them again from Privacy settings. Hiding is stored only on your device.
+- Server: remove expired link sessions, revoked installations, ended invitations, and long-deleted Relays automatically.
+
 ## [0.1.36] - 2026-11-25
 
 ### Added

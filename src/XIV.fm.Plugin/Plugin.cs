@@ -57,8 +57,7 @@ public sealed class Plugin : IDalamudPlugin
         this.chatGui = chatGui;
         this.condition = condition;
         this.configuration = pluginInterface.GetPluginConfig() as PluginConfiguration ?? new PluginConfiguration();
-        var serverConfigurationChanged = this.configuration.Version != 10;
-        this.configuration.Version = 10;
+        var serverConfigurationChanged = this.configuration.Migrate();
         if (string.IsNullOrWhiteSpace(this.configuration.ServerBaseUrl) ||
             string.Equals(
                 this.configuration.ServerBaseUrl,
@@ -100,7 +99,9 @@ public sealed class Plugin : IDalamudPlugin
         if (this.configuration.Visibility == VisibilityMode.Custom && this.configuration.SelectedRelayIds.Count == 0)
             this.configuration.Visibility = VisibilityMode.Private;
         this.configuration.RemoteCardDistanceYalms = this.configuration.NormalizedRemoteCardDistanceYalms;
-        this.configuration.CardOpacityPercent = this.configuration.NormalizedCardOpacityPercent;
+        this.configuration.CardOpacityPercent = this.configuration.NormalizedOwnCardOpacityPercent;
+        this.configuration.OtherCardOpacityPercent = this.configuration.NormalizedOtherCardOpacityPercent;
+        this.configuration.HiddenPlayers = HiddenPlayers.Normalize(this.configuration.HiddenPlayers);
         this.configuration.OwnCardSizePercent = this.configuration.NormalizedOwnCardSizePercent;
         this.configuration.OtherCardSizePercent = this.configuration.NormalizedOtherCardSizePercent;
         if (serverConfigurationChanged)
@@ -126,12 +127,14 @@ public sealed class Plugin : IDalamudPlugin
             () => this.configuration.ShowPlaceholderCards && this.CurrentDutyPolicy.AllowsOverlay,
             () => this.configuration.ShowOwnListeningCard,
             () => this.configuration.NormalizedRemoteCardDistanceYalms,
-            () => CardAppearance.ToOpacity(this.configuration.NormalizedCardOpacityPercent),
+            () => CardAppearance.ToOpacity(this.configuration.NormalizedOwnCardOpacityPercent),
+            () => CardAppearance.ToOpacity(this.configuration.NormalizedOtherCardOpacityPercent),
             () => this.configuration.OutlineCardText,
             () => CardAppearance.ToScale(this.configuration.NormalizedOwnCardSizePercent),
             () => CardAppearance.ToScale(this.configuration.NormalizedOtherCardSizePercent),
             () => keyState[VirtualKey.MENU],
-            this.OpenTrackLink);
+            this.OpenTrackLink,
+            this.HidePlayer);
         DevelopmentOverlayCoordinator? overlayCoordinator = null;
         this.serverSyncCoordinator = new ServerSyncCoordinator(
             framework,
@@ -152,7 +155,8 @@ public sealed class Plugin : IDalamudPlugin
             (character, now) => this.HasInstallationCredential
                 ? OverlayCard.LocalListening(character, this.serverSyncCoordinator.OwnListening, now)
                 : null,
-            now => this.serverSyncCoordinator.GetRemoteCards(now),
+            now => this.serverSyncCoordinator.GetRemoteCards(now)
+                .Where(card => !HiddenPlayers.IsHidden(this.configuration.HiddenPlayers, card.Character)),
             () => this.configuration.DeveloperMockRemoteCards,
             () => this.CurrentDutyPolicy.IsInDuty);
         overlayCoordinator = this.developmentCoordinator;
@@ -199,7 +203,8 @@ public sealed class Plugin : IDalamudPlugin
             this.relayCoordinator,
             () => this.serverSyncCoordinator.OwnListening,
             this.RelinkAccount,
-            this.artworkCache);
+            this.artworkCache,
+            this.UnhidePlayer);
         this.onboardingWindow = new OnboardingWindow(
             this.TryStartAccountLink,
             this.OpenSettings,
@@ -401,6 +406,30 @@ public sealed class Plugin : IDalamudPlugin
     {
         this.pluginInterface.SavePluginConfig(this.configuration);
         this.overlayDtrBarController.Refresh();
+    }
+
+    private void HidePlayer(Core.Overlay.CharacterIdentity character, string homeWorldName)
+    {
+        if (!HiddenPlayers.TryAdd(this.configuration.HiddenPlayers, character, homeWorldName))
+        {
+            this.chatGui.PrintError($"You can hide up to {HiddenPlayers.Maximum} players.", "XIV.fm");
+            return;
+        }
+
+        this.SaveConfiguration();
+        this.developmentCoordinator.RequestCapture();
+        this.chatGui.Print(
+            $"Hid {this.configuration.HiddenPlayers[^1]}’s card. Show it again in Privacy settings.",
+            "XIV.fm");
+    }
+
+    private void UnhidePlayer(HiddenPlayer player)
+    {
+        if (!this.configuration.HiddenPlayers.Remove(player))
+            return;
+
+        this.SaveConfiguration();
+        this.developmentCoordinator.RequestCapture();
     }
 
     private void OpenCurrentLastFmPage()
@@ -616,7 +645,7 @@ public sealed class Plugin : IDalamudPlugin
             ? $"{height:F2} yalms"
             : "unavailable";
         this.chatGui.Print(
-            $"Cards: {cards}; own card: {ownCard}; Last.fm: {linkDetail}; visibility: {this.configuration.Visibility.ToString().ToLowerInvariant()}; opacity: {this.configuration.NormalizedCardOpacityPercent}%; card size own/others: {this.configuration.NormalizedOwnCardSizePercent}%/{this.configuration.NormalizedOtherCardSizePercent}%; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; sync: {syncDetail}; snapshot: {snapshot.Cards.Length}; anchor height: {anchorHeight}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
+            $"Cards: {cards}; own card: {ownCard}; Last.fm: {linkDetail}; visibility: {this.configuration.Visibility.ToString().ToLowerInvariant()}; opacity own/others: {this.configuration.NormalizedOwnCardOpacityPercent}%/{this.configuration.NormalizedOtherCardOpacityPercent}%; card size own/others: {this.configuration.NormalizedOwnCardSizePercent}%/{this.configuration.NormalizedOtherCardSizePercent}%; remote mocks: {mocks}; range: {this.configuration.NormalizedRemoteCardDistanceYalms} yalms; duty: {duty}; participation: {participation}; sync: {syncDetail}; snapshot: {snapshot.Cards.Length}; anchor height: {anchorHeight}; render requested/matched/in-range/projected/drawn: {diagnostics.RequestedCards}/{diagnostics.MatchedPlayers}/{diagnostics.InRangePlayers}/{diagnostics.ProjectedAnchors}/{diagnostics.RenderedCards}; {location}.",
             "XIV.fm");
     }
 }

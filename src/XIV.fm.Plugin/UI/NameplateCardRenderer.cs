@@ -32,12 +32,14 @@ public sealed class NameplateCardRenderer
     private readonly Func<bool> isEnabled;
     private readonly Func<bool> showOwnCard;
     private readonly Func<int> remoteDistanceYalms;
-    private readonly Func<float> cardOpacity;
+    private readonly Func<float> ownCardOpacity;
+    private readonly Func<float> otherCardOpacity;
     private readonly Func<bool> outlineText;
     private readonly Func<float> ownCardScale;
     private readonly Func<float> otherCardScale;
     private readonly Func<bool> isInteractionModifierHeld;
     private readonly Action<Uri> openTrackLink;
+    private readonly Action<CharacterIdentity, string> hidePlayer;
     private OverlayRenderDiagnostics diagnostics = OverlayRenderDiagnostics.Empty;
     private DateTimeOffset nextDiagnosticsPublishAt = DateTimeOffset.MinValue;
 
@@ -49,12 +51,14 @@ public sealed class NameplateCardRenderer
         Func<bool> isEnabled,
         Func<bool> showOwnCard,
         Func<int> remoteDistanceYalms,
-        Func<float> cardOpacity,
+        Func<float> ownCardOpacity,
+        Func<float> otherCardOpacity,
         Func<bool> outlineText,
         Func<float> ownCardScale,
         Func<float> otherCardScale,
         Func<bool> isInteractionModifierHeld,
-        Action<Uri> openTrackLink)
+        Action<Uri> openTrackLink,
+        Action<CharacterIdentity, string> hidePlayer)
     {
         this.objectTable = objectTable;
         this.gameGui = gameGui;
@@ -63,12 +67,14 @@ public sealed class NameplateCardRenderer
         this.isEnabled = isEnabled;
         this.showOwnCard = showOwnCard;
         this.remoteDistanceYalms = remoteDistanceYalms;
-        this.cardOpacity = cardOpacity;
+        this.ownCardOpacity = ownCardOpacity;
+        this.otherCardOpacity = otherCardOpacity;
         this.outlineText = outlineText;
         this.ownCardScale = ownCardScale;
         this.otherCardScale = otherCardScale;
         this.isInteractionModifierHeld = isInteractionModifierHeld;
         this.openTrackLink = openTrackLink;
+        this.hidePlayer = hidePlayer;
     }
 
     public OverlayRenderDiagnostics Diagnostics => Volatile.Read(ref this.diagnostics);
@@ -142,6 +148,7 @@ public sealed class NameplateCardRenderer
                 projectedAnchors++;
                 var cardWindow = this.DrawCard(
                     card,
+                    target,
                     screenAnchor,
                     distanceYalms,
                     maximumRemoteDistanceYalms,
@@ -194,6 +201,7 @@ public sealed class NameplateCardRenderer
 
     private ImGuiWindowPtr DrawCard(
         OverlayCard card,
+        IPlayerCharacter target,
         Vector2 screenAnchor,
         float distanceYalms,
         int maximumRemoteDistanceYalms,
@@ -206,7 +214,7 @@ public sealed class NameplateCardRenderer
                 distanceYalms,
                 maximumRemoteDistanceYalms);
         var scale = ImGuiHelpers.GlobalScale * Math.Clamp(configuredScale, 0.5f, 1.5f);
-        var opacity = Math.Clamp(this.cardOpacity(), 0f, 1f);
+        var opacity = Math.Clamp(card.IsLocal ? this.ownCardOpacity() : this.otherCardOpacity(), 0f, 1f);
         var hasArtwork = this.artworkCache.TryGet(card.ArtworkUrl, out var artwork) && artwork is not null;
         var cardSize = ListeningCardPainter.Measure(card, hasArtwork, scale);
 
@@ -218,7 +226,9 @@ public sealed class NameplateCardRenderer
         ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
 
         var windowId = $"XIV.fm card###XIV.fm.Card.{card.Character.Name}.{card.Character.HomeWorldId}";
-        var isInteractive = interactionModifierHeld && card.TrackUrl is not null;
+        // Mock cards sit on real players and must not change the hidden list.
+        var canHide = !card.IsLocal && card.IsLastFm;
+        var isInteractive = interactionModifierHeld && (card.TrackUrl is not null || canHide);
         var windowFlags = isInteractive
             ? CardWindowFlags
             : CardWindowFlags | ImGuiWindowFlags.NoMouseInputs;
@@ -237,13 +247,20 @@ public sealed class NameplateCardRenderer
                 if (isInteractive)
                 {
                     ImGui.SetCursorScreenPos(cardMinimum);
-                    if (ImGui.InvisibleButton("Open track on Last.fm", cardSize))
-                        this.openTrackLink(card.TrackUrl!);
+                    if (ImGui.InvisibleButton("XIV.fm card action", cardSize) && card.TrackUrl is not null)
+                        this.openTrackLink(card.TrackUrl);
                     isHovered = ImGui.IsItemHovered();
+                    if (canHide && ImGui.IsItemClicked(ImGuiMouseButton.Right))
+                    {
+                        this.hidePlayer(
+                            DalamudCharacterIdentity.From(target),
+                            target.HomeWorld.ValueNullable?.Name.ExtractText() ?? string.Empty);
+                    }
+
                     if (isHovered)
                     {
                         ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-                        ImGui.SetTooltip("Open track on Last.fm");
+                        ImGui.SetTooltip(GetInteractionHint(card.TrackUrl is not null, canHide));
                     }
                 }
 
@@ -271,6 +288,13 @@ public sealed class NameplateCardRenderer
 
         return cardWindow;
     }
+
+    private static string GetInteractionHint(bool canOpen, bool canHide) => (canOpen, canHide) switch
+    {
+        (true, true) => "Click: open track on Last.fm\nRight-click: hide this player’s card",
+        (false, true) => "Right-click: hide this player’s card",
+        _ => "Open track on Last.fm",
+    };
 
     private void PublishDiagnostics(
         int requestedCards,
