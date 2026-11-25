@@ -33,6 +33,20 @@ public sealed class SyncEndpointTests : IClassFixture<ServerApiFactory>
     }
 
     [Fact]
+    public async Task StatusEndpointListsComponentsWithoutDetails()
+    {
+        using var client = this.factory.CreateClient();
+
+        using var status = await client.GetAsync("/health/status");
+        var body = await status.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, status.StatusCode);
+        Assert.Equal(
+            "{\"status\":\"healthy\",\"checks\":{\"in_memory_stores\":\"healthy\",\"lastfm_polling\":\"healthy\"}}",
+            body);
+    }
+
+    [Fact]
     public async Task TypedPluginClientCompletesAuthenticatedSync()
     {
         using var transport = this.factory.CreateClient();
